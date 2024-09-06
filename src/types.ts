@@ -1,3 +1,5 @@
+import {Edge} from "@xyflow/react";
+
 export const LinkType = {
     Crosslink: 'crosslink',
     Regular: 'regular',
@@ -6,8 +8,8 @@ export type LinkType = (typeof LinkType)[keyof typeof LinkType];
 
 interface Family {
     type: LinkType;
-    links: Graphene[];
-    owners: Graphene[];
+    links: Graphite[];
+    owners: Graphite[];
 }
 
 export const OpType = {
@@ -53,9 +55,31 @@ type FactoryMeta = {
 
 export type Meta = DegenerateMeta | UnitMeta | SampleMeta | FactoryMeta;
 
-export interface Graphene {
+export interface Graphite {
     id: string;
     family: Family;
     meta: Meta;
-    next: Graphene[];
+    next: Graphite[];
+}
+
+export interface MyEdge extends Edge {
+    fromId: string;
+    toId: string;
+    fromFormatted: string;
+    toFormatted: string;
+    from: Meta;
+    to: Meta;
+    __graphite_from: Graphite;
+    __graphite_to: Graphite;
+    isForDeletion: boolean
+}
+
+export interface MetaInfo {
+    __graphite: Graphite;
+
+    linkedTo: Set<string>;
+    meta: Meta;
+    type: LinkType;
+
+    [key: string]: unknown;
 }

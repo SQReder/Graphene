@@ -16,251 +16,69 @@ import {
 
 import { useCallback, useEffect, useState } from 'react';
 // import {createEvent, createStore, units} from './effectorio.ts';
-import { createEffect, createEvent, createStore, sample, Unit } from 'effector';
-import { modelFactory } from 'effector-factorio';
-import { Declaration } from 'effector/inspect';
-import { readonly } from 'patronum';
+import { createEffect, createEvent, createStore, is, sample } from 'effector';
 import styled from '@emotion/styled';
-import { Graphene, LinkType, Meta, OpType, UnitMeta } from './types.ts';
+import { LinkType, MetaInfo, MyEdge, OpType } from './types.ts';
 import '@xyflow/react/dist/style.css';
 import './App.css';
-import { formatMeta } from './lib.ts';
-
-export function absurd(value: never): never {
-    throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
-}
-
-// const nodesMap: Map<string, Declaration> = new Map();
-
-// inspectGraph({
-//     fn: (declaration) => {
-//         nodesMap.set(declaration.id, declaration);
-//
-//         console.log(
-//             {
-//                 id: declaration.id,
-//                 sid: declaration.sid,
-//                 name: declaration.name,
-//                 method: declaration.type === 'factory' ? declaration.method : undefined,
-//             },
-//             declaration
-//         );
-//     },
-// });
-
-export const someModelFactory = modelFactory(() => {
-    const someEvent = createEvent<number>();
-    const $someStore = createStore<number>(0);
-
-    sample({
-        clock: someEvent,
-        source: $someStore,
-        fn: (acc, value) => acc + value,
-        target: $someStore,
-    });
-
-    const warningFx = createEffect(() => {
-        console.warn('some warning');
-    });
-
-    sample({
-        source: $someStore.updates,
-        filter: (value) => value > 5,
-        target: warningFx,
-    });
-
-    return {
-        someEvent: someEvent,
-        $someStore: readonly($someStore),
-    };
-});
-
-console.groupCollapsed('model1');
-
-export const model = someModelFactory.createModel();
-// const unitsToTraverse = [model.someEvent, model.$someStore];
-const $myStore = createStore(0);
-const unitsToTraverse = [$myStore];
-
-// const model = notificationsModelFactory.createModel({ softDismissTimeoutMs: 100 });
-// const unitsToTraverse = [model.publish, model.unpublish];
-
-// console.log(nodesMap);
-
-console.groupEnd();
-
-//type guard for graphite field
-
-function hasGraphite(unit: Unit<any>): unit is Unit<any> & { graphite: Graphene } {
-    return 'graphite' in unit;
-}
-
-// type guard for family field
-
-const graphenes = new Map<string, Graphene>();
-
-function isUnitMeta(meta: Meta): meta is UnitMeta {
-    return meta.op === OpType.Store || meta.op === OpType.Event || meta.op === OpType.Effect;
-}
-
-function traverse(graphite: Graphene) {
-    if (graphenes.has(graphite.id)) {
-        return;
-    } else {
-        graphenes.set(graphite.id, graphite);
-    }
-
-    if (graphite.family) {
-        graphite.family.owners.forEach(traverse);
-        graphite.family.links.forEach(traverse);
-    }
-}
-
-console.groupCollapsed('traversing');
-
-unitsToTraverse.forEach((unit) => {
-    if (!hasGraphite(unit)) {
-        console.log('no graphite', unit);
-        return;
-    }
-
-    const graphite = unit.graphite;
-
-    traverse(graphite);
-});
-
-console.groupEnd();
-
-// family type group
-
-console.group('family type group');
-
-interface MetaInfo {
-    __graphene: Graphene;
-
-    linkedTo: Set<string>;
-    meta: Meta;
-    type: LinkType;
-
-    [key: string]: unknown;
-}
+import { absurd, makeEdgesFromMetaMap, formatMeta, isUnitMeta, makeGraphene } from './lib.ts';
+import dagre from 'dagre';
+import { someModelFactory } from './simpleTestFactory.ts';
 
 const metasMap: Map<string, MetaInfo> = new Map();
 
-const grapheneList = Array.from(graphenes.values());
+const $loneStore = createStore(0);
 
-grapheneList.forEach((graphene) => {
-    console.log(graphene.id, graphene.family?.type, graphene);
+const numberChanged = createEvent<number>();
+const $numberStore = createStore<number>(0).on(numberChanged, (_, value) => value);
+
+const $value = createStore(0);
+const finalEvent = createEvent<number>();
+
+sample({
+    clock: $value,
+    target: finalEvent,
+});
+
+const $value2 = createStore(0);
+const finalEvent2 = createEvent<number>();
+
+sample({
+    clock: $value2.updates,
+    target: finalEvent2,
+});
+
+const graphiteMap = makeGraphene([...Object.values(someModelFactory.createModel())].filter(is.unit));
+
+const graphites = Array.from(graphiteMap.values());
+
+graphites.forEach((graphite) => {
+    console.log(graphite.id, graphite.family?.type, graphite);
 
     const meta: MetaInfo = {
-        linkedTo: new Set(graphene.family.links.map((link) => link.id)),
-        meta: graphene.meta,
-        type: graphene.family.type,
-        __graphene: graphene,
+        linkedTo: new Set(graphite.family.links.map((link) => link.id)),
+        meta: graphite.meta,
+        type: graphite.family.type,
+        __graphite: graphite,
     };
 
-    metasMap.set(graphene.id, meta);
+    metasMap.set(graphite.id, meta);
 });
 
-console.groupEnd();
-
-// console.log('metas', [...metas.values()].filter((v) => !([OpType.On, OpType.Watch] as OpType[]).includes(v.meta.op)))
 console.log('metas', metasMap);
 
-interface MyEdge {
-    fromId: string;
-    toId: string;
-    fromFormatted: string;
-    toFormatted: string;
-    from: Meta;
-    to: Meta;
-    __graphene_from: Graphene;
-    __graphene_to: Graphene;
-}
+const { reactiveEdges, owningEdges } = makeEdgesFromMetaMap(metasMap);
 
-const edges: MyEdge[] = [];
-const owningEdges: MyEdge[] = [];
-
-const passed = new Set<string>();
-
-function traverseForGood(graphene: Graphene) {
-    if (passed.has(graphene.id)) {
-        return;
-    } else {
-        passed.add(graphene.id);
-    }
-
-    graphene.next.forEach((next) => {
-        try {
-            edges.push({
-                fromId: graphene.id,
-                toId: next.id,
-                from: graphene.meta,
-                to: next.meta,
-                fromFormatted: formatMeta(graphene.id, graphene.meta),
-                toFormatted: formatMeta(next.id, next.meta),
-                __graphene_from: graphene,
-                __graphene_to: next,
-            });
-        } catch (e) {
-            console.log(e, graphene, next);
-        }
-
-        traverseForGood(next);
-    });
-
-    graphene.family.owners.forEach((owner) => {
-        try {
-            owningEdges.push({
-                fromId: graphene.id,
-                toId: owner.id,
-                from: graphene.meta,
-                to: owner.meta,
-                fromFormatted: formatMeta(graphene.id, graphene.meta),
-                toFormatted: formatMeta(owner.id, owner.meta),
-                __graphene_from: graphene,
-                __graphene_to: owner,
-            });
-        } catch (e) {
-            console.log(e, graphene, owner);
-        }
-    });
-}
-
-metasMap.forEach(({ __graphene }) => {
-    traverseForGood(__graphene);
-});
-
-console.log(edges);
-
-// @ts-ignore
-// const bySid = lookup((declaration: Declaration) => (declaration.method ? (declaration.method + '::') : '') + declaration.name ?? declaration.id, /*prop('meta')*/);
-// const foo = bySid(nodes)
-
-// console.log(foo)
+console.log('edges', reactiveEdges);
+console.log('owningEdges', owningEdges);
 
 function rnd(max: number = 1000): number {
     return Math.floor(Math.random() * max);
 }
 
 const initialNodes: Node[] = [];
-const initialEdgesNext: Edge[] = [];
+const initialEdgesReactive: MyEdge[] = [];
 const initialEdgesOwning: Edge[] = [];
-
-// nodesMap.forEach((declaration) => {
-//     const isUpdates = declaration.meta.op === OpType.Event && declaration.meta.name === 'updates';
-//
-//     const x = rnd();
-//     const y = declaration.meta.op === OpType.Event && declaration.meta.name === 'reinit' ? -100 : rnd();
-//
-//     console.log(declaration.meta.op, declaration.meta.name, y);
-//
-//     initialNodes.push({
-//         id: declaration.id,
-//         position: { x, y },
-//         data: { label: formatDeclaration(declaration) },
-//     });
-// });
 
 function getBackground(linkType: LinkType) {
     switch (linkType) {
@@ -280,14 +98,14 @@ metasMap.forEach((meta) => {
     const x = isUpdates ? 0 : rnd();
     const y = isUpdates ? 10 : rnd();
 
-    const found = initialNodes.find((n) => n.id === meta.__graphene.id);
+    const found = initialNodes.find((n) => n.id === meta.__graphite.id);
     if (!found) {
-        const linkType = meta.__graphene.family.type;
-        const isDerived = isUnitMeta(meta.__graphene.meta) && meta.__graphene.meta.derived;
+        const linkType = meta.__graphite.family.type;
+        const isDerived = isUnitMeta(meta.__graphite.meta) && meta.__graphite.meta.derived;
         initialNodes.push({
-            id: meta.__graphene.id,
+            id: meta.__graphite.id,
             position: { x, y },
-            data: { label: formatMeta(meta.__graphene.id, meta.__graphene.meta) },
+            data: { label: formatMeta(meta.__graphite.id, meta.__graphite.meta) },
             style: {
                 background: getBackground(linkType),
                 border: isDerived ? '1px dashed red' : '1px solid black',
@@ -296,14 +114,41 @@ metasMap.forEach((meta) => {
         });
     } else {
         if (isUpdates) {
-            console.log(meta.__graphene.id, meta.__graphene.family.owners, meta.__graphene.family.owners[0]?.id);
-            found.parentId = meta.__graphene.family.owners.find((owner) => owner.meta.op === 'store')?.id;
+            console.log(meta.__graphite.id, meta.__graphite.family.owners, meta.__graphite.family.owners[0]?.id);
+            found.parentId = meta.__graphite.family.owners.find((owner) => owner.meta.op === 'store')?.id;
             found.extent = 'parent';
             found.position = { x: 0, y: 10 };
             found.style = { width: 50, height: 25 };
         }
     }
 });
+
+interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
+    nodes: NodeType[];
+    edges: EdgeType[];
+}
+
+const reactiveGraph: Graph<Node, MyEdge> = {
+    nodes: initialNodes,
+    edges: initialEdgesReactive,
+};
+
+const removeHangUpdatesRecipe = (graph: Graph<Node, MyEdge>): Graph => {
+    const edgesForDeletion = graph.edges.filter((edge) => edge.isForDeletion);
+
+    const cleanedGraph: Graph<Node, MyEdge> = {
+        nodes: [...graph.nodes],
+        edges: [...graph.edges],
+    };
+
+    for (const edge of edgesForDeletion) {
+        cleanedGraph.nodes = cleanedGraph.nodes.filter(({ id }) => id !== edge.toId);
+    }
+
+    cleanedGraph.edges = cleanedGraph.edges.filter((edge) => !edge.isForDeletion);
+
+    return cleanedGraph;
+};
 
 initialNodes
     .sort((a, b) => {
@@ -331,25 +176,30 @@ initialNodes
 
 console.log(initialNodes);
 
-edges.forEach((edge) => {
+reactiveEdges.forEach((edge) => {
     const id = edge.fromId + '::' + edge.toId;
 
-    if (initialEdgesOwning.find((e) => e.id === id)) {
+    if (initialEdgesReactive.find((e) => e.id === id)) {
         return;
     }
 
-    initialEdgesNext.push({
+    initialEdgesReactive.push({
+        ...edge,
         id: id,
         source: edge.fromId,
         target: edge.toId,
         markerEnd: {
             type: MarkerType.Arrow,
         },
-        label: edge.__graphene_from.id + ' -> ' + edge.__graphene_to.id,
+        label: edge.__graphite_from.id + ' → ' + edge.__graphite_to.id,
         animated: true,
-        // style: { stroke: 'black' },
+        style: { stroke: edge.isForDeletion ? 'red' : '#303030' },
+        targetHandle: edge.__graphite_from.meta.op === OpType.On ? '.on' : undefined,
     });
 });
+
+const cleanedGraph = removeHangUpdatesRecipe(reactiveGraph);
+
 
 owningEdges.forEach((edge) => {
     const id = edge.fromId + '::' + edge.toId;
@@ -365,34 +215,65 @@ owningEdges.forEach((edge) => {
         markerEnd: {
             type: MarkerType.Arrow,
         },
-        label: edge.__graphene_from.id + ' -> ' + edge.__graphene_to.id,
+        label: `${edge.__graphite_to.id} 🔽 ${edge.__graphite_from.id}`,
         // style: { stroke: '#ddd' },
     });
 });
 
-function formatDeclaration(declaration: Declaration) {
-    const name = declaration.name ?? declaration.id;
-    const id = `[${declaration.id}]`;
-    switch (declaration.type) {
-        case 'unit':
-            switch (declaration.kind) {
-                case 'event':
-                    return `🔔 ${id} ${name}`;
-                case 'store':
-                    return `📦 ${id} ${name}`;
-                case 'effect':
-                    return `⚡️ ${id} ${name}`;
-                default:
-                    absurd(declaration);
-            }
-        case 'factory':
-            return `✨ ${id} ${declaration.method}::${name}`;
-        case 'region':
-            return `👀 ${id} ${declaration.method}::${name}`;
-        default:
-            absurd(declaration);
-    }
-}
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+const nodeWidth = 110;
+const nodeHeight = 70;
+
+const getLayoutedElements = <NodeType extends Node>(nodes: NodeType[], edges: Edge[], direction = 'TB') => {
+    const isHorizontal = direction === 'LR';
+    dagreGraph.setGraph({ rankdir: direction });
+
+    nodes.forEach((node) => {
+        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+
+    edges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const newNodes = nodes.map((node): NodeType => {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        const newNode: NodeType = {
+            ...node,
+            targetPosition: isHorizontal ? 'left' : 'top',
+            sourcePosition: isHorizontal ? 'right' : 'bottom',
+            // We are shifting the dagre node position (anchor=center center) to the top left
+            // so it matches the React Flow node anchor point (top left).
+            position: {
+                x: nodeWithPosition.x - nodeWidth / 2,
+                y: nodeWithPosition.y - nodeHeight / 2,
+            },
+        };
+
+        return newNode;
+    });
+
+    return { nodes: newNodes, edges };
+};
+
+const { nodes: layoutedNodesReactive, edges: layoutedEdgesReactive } = getLayoutedElements(
+    reactiveGraph.nodes,
+    reactiveGraph.edges
+);
+
+const { nodes: layoutedNodesCleaned, edges: layoutedEdgesCleaned } = getLayoutedElements(
+    cleanedGraph.nodes,
+    cleanedGraph.edges
+);
+
+const { nodes: layoutedNodesOwning, edges: layoutedEdgesOwning } = getLayoutedElements(
+    initialNodes,
+    initialEdgesOwning
+);
 
 const StoreNodeContainer = styled.div`
     background: burlywood;
@@ -400,16 +281,25 @@ const StoreNodeContainer = styled.div`
     height: 50px;
 
     font-size: 1rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
 `;
 
 const StoreNode = (props: NodeProps) => {
     return (
         <StoreNodeContainer>
             <Handle type='target' position={Position.Top} id='reinit' />
-            <Handle type='target' position={Position.Top} id='.on' />
+            <Handle type='target' position={Position.Top} id='.on' style={{ left: 10 }}>
+                .on
+            </Handle>
             <Handle type='target' position={Position.Top} />
             <Handle type='source' position={Position.Bottom} />
-            <div>{props.data.label}</div>
+            <div>
+                {/*@ts-expect-error ts(2322)*/}
+                {props.data.label}
+            </div>
         </StoreNodeContainer>
     );
 };
@@ -419,8 +309,8 @@ const nodeTypes: NodeTypes = {
 };
 
 export default function App() {
-    const [nodes, setNodes] = useState(initialNodes);
-    const [edges, setEdges] = useState(initialEdgesNext);
+    const [nodes, setNodes] = useState(layoutedNodesReactive);
+    const [edges, setEdges] = useState(layoutedEdgesReactive);
 
     const onNodesChange = useCallback<OnNodesChange>((changes) => {
         if (changes.length === 1) {
@@ -461,9 +351,11 @@ export default function App() {
 
     useEffect(() => {
         if (viewMode === 'owning') {
-            setEdges(initialEdgesOwning);
+            setNodes(layoutedNodesCleaned);
+            setEdges(layoutedEdgesCleaned);
         } else {
-            setEdges(initialEdgesNext);
+            setNodes(layoutedNodesReactive);
+            setEdges(layoutedEdgesReactive);
         }
     }, [viewMode]);
 
@@ -472,15 +364,14 @@ export default function App() {
 
         const meta = metasMap.get(id);
 
-        console.log('node', { id, node, meta });
+        console.log('node', { id, meta });
     }, []);
 
     return (
         <>
-            <button style={{ position: 'absolute', top: 0, right: 0 }} onClick={handlerToggle}>
+            <button style={{ position: 'absolute', top: 10, right: 10, zIndex: 100 }} onClick={handlerToggle}>
                 Toggle
             </button>
-            //{' '}
             <div style={{ width: '100vw', height: '100vh' }}>
                 <ReactFlow
                     snapGrid={[15, 15]}
@@ -493,7 +384,6 @@ export default function App() {
                     fitView
                     nodeTypes={nodeTypes}
                 />
-                //{' '}
             </div>
         </>
     );
