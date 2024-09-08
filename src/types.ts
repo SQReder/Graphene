@@ -1,13 +1,15 @@
-import {Edge} from "@xyflow/react";
+import { Edge, Node } from '@xyflow/react';
+import {Declaration} from "effector/inspect";
 
-export const LinkType = {
+export const NodeFamily = {
     Crosslink: 'crosslink',
     Regular: 'regular',
+    Declaration: 'declaration',
 } as const;
-export type LinkType = (typeof LinkType)[keyof typeof LinkType];
+export type NodeFamily = (typeof NodeFamily)[keyof typeof NodeFamily];
 
 interface Family {
-    type: LinkType;
+    type: NodeFamily;
     links: Graphite[];
     owners: Graphite[];
 }
@@ -41,9 +43,15 @@ type SampleMeta = {
 };
 
 export type UnitMeta = {
-    op: typeof OpType.Store | typeof OpType.Event | typeof OpType.Effect;
+    op: typeof OpType.Store | typeof OpType.Event;
     name: string;
     derived: boolean;
+};
+
+export type EffectMeta = {
+    op: typeof OpType.Effect;
+    name: string;
+    attached: number;
 };
 
 type FactoryMeta = {
@@ -53,13 +61,16 @@ type FactoryMeta = {
     method: string;
 };
 
-export type Meta = DegenerateMeta | UnitMeta | SampleMeta | FactoryMeta;
+export type Meta = DegenerateMeta | UnitMeta | EffectMeta | SampleMeta | FactoryMeta;
 
 export interface Graphite {
     id: string;
     family: Family;
     meta: Meta;
     next: Graphite[];
+    scope: {
+        fn: (...args: unknown[]) => unknown;
+    };
 }
 
 export interface MyEdge extends Edge {
@@ -71,7 +82,8 @@ export interface MyEdge extends Edge {
     to: Meta;
     __graphite_from: Graphite;
     __graphite_to: Graphite;
-    isForDeletion: boolean
+    isForDeletion?: boolean;
+    collapsed?: EffectorNode[];
 }
 
 export interface MetaInfo {
@@ -79,7 +91,33 @@ export interface MetaInfo {
 
     linkedTo: Set<string>;
     meta: Meta;
-    type: LinkType;
+    type: NodeFamily;
 
     [key: string]: unknown;
 }
+
+export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
+    nodes: NodeType[];
+    edges: EdgeType[];
+}
+
+export type RegularEffectorNode = Node & {
+    id: string;
+
+    nodeType: typeof NodeFamily.Crosslink | typeof NodeFamily.Regular;
+    meta: Meta;
+
+    graphite: Graphite;
+}
+
+export type DeclarationEffectorNode = Node & {
+    id: string;
+
+    nodeType: typeof NodeFamily.Declaration;
+    meta: Meta;
+
+    declaration: Declaration;
+}
+
+export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode;
+export type EffectorGraph = Graph<EffectorNode, MyEdge>;

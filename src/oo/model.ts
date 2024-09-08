@@ -1,4 +1,4 @@
-import {attach, createApi, createEvent, createStore, Effect, EventCallable, sample, scopeBind, Store} from 'effector';
+import { attach, createApi, createEvent, createStore, Effect, EventCallable, sample, scopeBind, Store } from 'effector';
 import { modelFactory } from 'effector-factorio';
 import { createGate } from 'effector-react';
 import type { TransitionStatus } from 'react-transition-state';
@@ -15,7 +15,7 @@ export function ensureDefined<T>(value: T, message?: string): NonNullable<T> {
 export interface UiModel {
     '@@ui': Partial<UnitShapeProtocol>;
     [key: string]: unknown;
-};
+}
 
 export type Dictionary<T> = Record<string, T>;
 
@@ -27,8 +27,7 @@ export interface UnitShapeProtocol {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     '@@unitShape': () => Dictionary<EventCallable<any> | Effect<any, any, any> | Store<any>>;
     [key: string]: unknown;
-};
-
+}
 
 import type { NotificationId, NotificationPropsRaw, StatefulNotification } from './types';
 import { NotificationProps } from './types';
@@ -66,6 +65,7 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
     });
 
     const $transitionApi = Gate.state;
+
     const setItemFx = attach({
         source: $transitionApi,
         effect(api, notification: NotificationProps) {
@@ -98,10 +98,6 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
     });
 
     const notificationResolved = createEvent<{ id: NotificationId; status: TransitionStatus }>();
-
-    const strings = ['entered', 'exited', 'unmounted'] satisfies TransitionStatus[];
-
-    const deleteNotification = createEvent<NotificationId>();
 
     sample({
         clock: notificationResolved,
@@ -149,8 +145,8 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
         target: hideNotificationFx,
     });
 
-    const $sortedNotifications = $notificationList.map(
-        items => Array.from(items.map.values()).sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime())
+    const $sortedNotifications = $notificationList.map((items) =>
+        Array.from(items.map.values()).sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime())
     );
     return {
         publish: notificationsApi.add,

@@ -27,15 +27,6 @@ export const NotificationProps = z.object({
 
 export interface NotificationProps extends z.infer<typeof NotificationProps> {}
 
-interface WithButtons {
-    buttons: readonly ButtonProps[];
-}
-
-interface NotificationsApi {
-    publish: (notification: NotificationProps) => void;
-    unpublish: (id: NotificationId) => void;
-}
-
 export type NotificationPropsRaw = z.input<typeof NotificationProps>;
 
 export type ExpandRecursively<T> = T extends (...args: infer A) => infer R
