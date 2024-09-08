@@ -76,7 +76,7 @@ sample({
 });
 */
 
-// const myCoolEffectFx = createEffect(() => {});
+const myCoolEffectFx = createEffect(() => {});
 
 // @ts-expect-error strange typings
 const units: Unit<unknown>[] = [
@@ -106,6 +106,7 @@ graphites.forEach((graphite) => {
 
 declarations
     .filter((d) => !effectorNodesMap.has(d.id))
+    .filter(d => d.meta.op == null && ['factory','region'].includes(d.meta.type))
     .forEach((declaration) => {
         effectorNodesMap.set(declaration.id, {
             id: declaration.id,
