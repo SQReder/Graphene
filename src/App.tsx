@@ -13,8 +13,8 @@ import {
 } from '@xyflow/react';
 
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
-import { createEffect, is, Unit } from 'effector';
-import { EffectorGraph, EffectorNode, MyEdge } from './types.ts';
+import { combine, createEffect, is, restore, Unit } from 'effector';
+import { EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge, NodeFamily } from './types.ts';
 import '@xyflow/react/dist/style.css';
 import './App.css';
 import {
@@ -30,8 +30,6 @@ import { cleanup } from './cleaners.ts';
 import { nodeTypes } from './nodeTypes.ts';
 import styled from '@emotion/styled';
 import { Declaration, inspectGraph } from 'effector/inspect';
-import {notificationsModelFactory} from "./oo/model.ts";
-import {someModelFactory} from "./simpleTestFactory.ts";
 
 //region Preconfiguration
 const declarations: Declaration[] = [];
@@ -76,10 +74,27 @@ sample({
 });
 */
 
+// @ts-expect-error unused
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const myCoolEffectFx = createEffect(() => {});
+
+const $inflights = myCoolEffectFx.inFlight.map(Boolean);
+const $failHappened = restore(myCoolEffectFx.fail, null);
+const $doneHappened = restore(myCoolEffectFx.done, null);
+const $finallyHappened = restore(myCoolEffectFx.finally, null);
+
+const $doneData = restore(myCoolEffectFx.doneData, null);
+const $failData = restore(myCoolEffectFx.failData, null);
+
+const $pending = restore(myCoolEffectFx.pending.updates, null);
+const $inFlight1 = restore(myCoolEffectFx.inFlight.updates, null);
+
+const $combined = combine($pending, $inFlight1, (a, b) => [a, b]);
 
 // @ts-expect-error strange typings
 const units: Unit<unknown>[] = [
+    myCoolEffectFx,
+
     // ...Object.values(notificationsModelFactory.createModel({ softDismissTimeoutMs: 100 })),
     // myCoolEffectFx,
     // finalEvent2,
@@ -88,7 +103,7 @@ const units: Unit<unknown>[] = [
     // $loneStore,
     // looped,
 
-    ...Object.values(someModelFactory.createModel()).filter(is.unit),
+    // ...Object.values(someModelFactory.createModel()).filter(is.unit),
 ].filter(is.unit);
 //endregion
 
@@ -98,18 +113,19 @@ const graphites = Array.from(graphiteMap.values());
 
 const effectorNodesMap: Map<string, EffectorNode> = new Map();
 
-graphites.forEach((graphite) => {
-    console.log(graphite.id, graphite.family?.type, graphite);
-
-    effectorNodesMap.set(graphite.id, makeEffectorNode(graphite));
+graphites.forEach((node) => {
+    effectorNodesMap.set(node.id, makeEffectorNode(node));
 });
 
+// add region and factories into nodes
 declarations
     .filter((d) => !effectorNodesMap.has(d.id))
-    .filter(d => d.meta.op == null && ['factory','region'].includes(d.meta.type))
+    .filter((d) => d.type !== 'unit')
     .forEach((declaration) => {
         effectorNodesMap.set(declaration.id, {
             id: declaration.id,
+            nodeType: 'declaration',
+            declaration: new EffectorDeclarationDetails(declaration),
             // @ts-expect-error so sad
             meta: declaration.meta,
             linkType: declaration.meta,
@@ -118,6 +134,7 @@ declarations
 
 console.log('effectorNodesMap', effectorNodesMap);
 
+// generate edges from node graph
 const { reactiveEdges, owningEdges, linkingEdges } = makeEdgesFromMetaMap(effectorNodesMap);
 
 console.log('edges', reactiveEdges);
@@ -155,26 +172,31 @@ const reactiveGraph: EffectorGraph = {
     edges: reactiveEdges,
 };
 
-const cleanedGraph = cleanup(reactiveGraph);
+const cleanedGraph = cleanup(reactiveGraph, effectorNodesMap);
 sortNodes(cleanedGraph.nodes); // sort items again before layouting
 
 const linkGraph: EffectorGraph = {
     nodes: initialNodes,
     edges: linkingEdges,
 };
-const cleanedLinksGraph = cleanup(linkGraph);
+const cleanedLinksGraph = cleanup(linkGraph, effectorNodesMap);
 
-//region Layout graphs
-const reactiveGraphLayouted = layoutGraph(reactiveGraph);
-
-const cleanedGraphLayouted = layoutGraph(cleanedGraph);
-
-const owningGraphLayouted = layoutGraph({ nodes: initialNodes, edges: owningEdges });
-
-const linkGraphLayouted = layoutGraph(linkGraph);
-
-const cleanedLinksGraphLayouter = layoutGraph(cleanedLinksGraph);
-//endregion
+const layoutedGraphs = {
+    reactive: layoutGraph(reactiveGraph),
+    cleaned: layoutGraph(cleanedGraph),
+    owning: layoutGraph({ nodes: initialNodes, edges: owningEdges }),
+    link: layoutGraph(linkGraph),
+    cleanedLinks: layoutGraph(cleanedLinksGraph),
+    rxOwn: layoutGraph(
+        cleanup(
+            {
+                nodes: initialNodes,
+                edges: [...owningEdges, ...reactiveEdges],
+            },
+            effectorNodesMap
+        )
+    ),
+};
 
 export default function App() {
     const [nodes, setNodes] = useState<EffectorNode[]>([]);
@@ -183,18 +205,18 @@ export default function App() {
     const onNodesChange = useCallback<OnNodesChange<EffectorNode>>((changes) => {
         if (changes.length === 1) {
             const change = changes[0];
-            if (change.type === 'select') {
+            if (change.type === 'select' && change.selected) {
                 const id = change.id;
 
-                const meta = effectorNodesMap.get(id);
-                if (meta) {
-                    console.log('node', { meta });
-                    const owning = owningEdges.filter((edge) => edge.toId === id);
+                const effectorNode = effectorNodesMap.get(id);
+                if (effectorNode && effectorNode.nodeType !== NodeFamily.Declaration) {
+                    console.log('node', { meta: effectorNode });
+                    const owning = owningEdges.filter((edge) => edge.source === id);
 
-                    if (meta.meta.op === 'effect') {
+                    if (effectorNode.effector.meta.op === 'effect') {
                         owning.forEach((edge) => {
                             changes.push({
-                                id: edge.fromId,
+                                id: edge.target,
                                 type: 'select',
                                 selected: true,
                             });
@@ -211,7 +233,9 @@ export default function App() {
         []
     );
 
-    const [viewMode, setViewMode] = useState<'next' | 'owning' | 'link' | 'clean' | 'clean link'>('next');
+    const [viewMode, setViewMode] = useState<
+        'next' | 'owning' | 'link' | 'clean' | 'clean link' | 'reactive owning (clean)'
+    >('reactive owning (clean)');
 
     const setGraph = useCallback((graph: EffectorGraph) => {
         setNodes(graph.nodes);
@@ -221,31 +245,32 @@ export default function App() {
     useEffect(() => {
         switch (viewMode) {
             case 'clean':
-                setGraph(cleanedGraphLayouted);
+                setGraph(layoutedGraphs.cleaned);
                 break;
             case 'next':
-                setGraph(reactiveGraphLayouted);
+                setGraph(layoutedGraphs.reactive);
                 break;
             case 'owning':
-                setGraph(owningGraphLayouted);
+                setGraph(layoutedGraphs.owning);
                 break;
             case 'link':
-                setGraph(linkGraphLayouted);
+                setGraph(layoutedGraphs.link);
                 break;
             case 'clean link':
-                setGraph(cleanedLinksGraphLayouter);
+                setGraph(layoutedGraphs.cleanedLinks);
+                break;
+            case 'reactive owning (clean)':
+                setGraph(layoutedGraphs.rxOwn);
                 break;
             default:
                 absurd(viewMode);
         }
     }, [setGraph, viewMode]);
 
-    const handleNodeClick = useCallback<NodeMouseHandler>((_, node_: Node) => {
-        const id = node_.id;
+    const handleNodeClick = useCallback<NodeMouseHandler>((_, { id }: Node) => {
+        const node = effectorNodesMap.get(id);
 
-        const meta = effectorNodesMap.get(id);
-
-        console.log('node', { id, meta });
+        console.log('node', { id, node });
     }, []);
 
     const handleEdgeClick = useCallback((_: ReactMouseEvent, edge: Edge) => {
@@ -253,9 +278,9 @@ export default function App() {
 
         const myEdge = edge as MyEdge;
 
-        if (myEdge.collapsed) {
-            myEdge.collapsed.forEach((c) => {
-                console.log('collapsed', isRegularNode(c) ? c.graphite.scope.fn : 'wtf', c);
+        if (myEdge.relatedNodes.collapsed) {
+            myEdge.relatedNodes.collapsed.forEach((c) => {
+                console.log('collapsed', isRegularNode(c) ? c.effector.graphite.scope.fn : 'wtf', c);
             });
         }
     }, []);
@@ -273,6 +298,7 @@ export default function App() {
                 <button onClick={() => setViewMode('owning')}>Owning</button>
                 <button onClick={() => setViewMode('link')}>Links</button>
                 <button onClick={() => setViewMode('clean link')}>Links Cleaned</button>
+                <button onClick={() => setViewMode('reactive owning (clean)')}>Rx + Own (🧼🧹)</button>
             </Buttons>
             <div style={{ width: '100vw', height: '100vh' }}>
                 <ReactFlow
@@ -287,8 +313,8 @@ export default function App() {
                     fitView
                     nodeTypes={nodeTypes}
                 >
-                    <Background />
-                    <MiniMap pannable zoomable />
+                    <Background bgColor={'#303030'} />
+                    <MiniMap pannable zoomable bgColor={'#303030'} />
                     <Controls />
                 </ReactFlow>
             </div>

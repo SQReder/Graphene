@@ -2,6 +2,7 @@ import {
     DeclarationEffectorNode,
     EffectorGraph,
     EffectorNode,
+    EffectorNodeDetails,
     Graphite,
     Meta,
     MetaType,
@@ -13,6 +14,8 @@ import {
 } from './types.ts';
 import { Unit } from 'effector';
 import { getLayouter } from './GetLayouter.tsx';
+import { ensureDefined } from './oo/model.ts';
+import { MarkerType } from '@xyflow/system';
 
 export function absurd(value: never): never {
     throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
@@ -29,6 +32,8 @@ export function formatMeta(id: string, meta: Meta) {
             return `${id_} .map`;
         case OpType.FilterMap:
             return `${id_} .filterMap`;
+        case OpType.Combine:
+            return `${id_} combine`;
         case OpType.Store:
             return `📦 ${id_} ${meta.name}${meta.derived ? ' (derived)' : ''}`;
         case OpType.Event:
@@ -62,7 +67,7 @@ export function isUnitMeta(meta: Meta): meta is UnitMeta {
     return meta.op === OpType.Store || meta.op === OpType.Event || meta.op === OpType.Effect;
 }
 
-export function makeGraphene(units: Unit<unknown>[]) {
+export function makeGraphene(units: Unit<unknown>[]): Map<string, Graphite> {
     const grapheneMap = new Map<string, Graphite>();
 
     function traverse(graphite: Graphite) {
@@ -96,7 +101,11 @@ export function makeGraphene(units: Unit<unknown>[]) {
     return grapheneMap;
 }
 
-export function makeEdgesFromMetaMap(metasMap: Map<string, EffectorNode>) {
+export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
+    linkingEdges: Array<MyEdge>;
+    owningEdges: Array<MyEdge>;
+    reactiveEdges: Array<MyEdge>;
+} {
     const reactiveEdges: MyEdge[] = [];
     const owningEdges: MyEdge[] = [];
     const linkingEdges: MyEdge[] = [];
@@ -121,38 +130,32 @@ export function makeEdgesFromMetaMap(metasMap: Map<string, EffectorNode>) {
 
         new Set(links).forEach((link) => {
             linkingEdges.push({
-                id: current.id + '::' + link.id,
-                fromId: current.id,
-                toId: link.id,
+                id: current.id + ' linked to ' + link.id,
                 source: current.id,
                 target: link.id,
-                from: current.meta,
-                to: link.meta,
-                fromFormatted: formatMeta(current.id, current.meta),
-                toFormatted: formatMeta(link.id, link.meta),
-                __graphite_from: current,
-                __graphite_to: link,
-                isForDeletion: false,
+                relatedNodes: {
+                    source: ensureDefined(nodesMap.get(current.id)),
+                    target: ensureDefined(nodesMap.get(link.id)),
+                },
             });
         });
 
         new Set(current.next).forEach((next) => {
             try {
-                const id = current.id + '::' + next.id;
+                const id = `${current.id} --> ${next.id}`;
 
                 reactiveEdges.push({
                     id,
                     source: current.id,
                     target: next.id,
-                    fromId: current.id,
-                    toId: next.id,
-                    from: current.meta,
-                    to: next.meta,
-                    fromFormatted: formatMeta(current.id, current.meta),
-                    toFormatted: formatMeta(next.id, next.meta),
-                    __graphite_from: current,
-                    __graphite_to: next,
                     animated: true,
+                    relatedNodes: {
+                        source: ensureDefined(nodesMap.get(current.id)),
+                        target: ensureDefined(nodesMap.get(next.id)),
+                    },
+                    style: {
+                        zIndex: 10,
+                    },
                 });
             } catch (e) {
                 console.error(e, current, next);
@@ -163,22 +166,23 @@ export function makeEdgesFromMetaMap(metasMap: Map<string, EffectorNode>) {
 
         new Set(current.family.owners).forEach((owner) => {
             try {
-                const id = current.id + '::' + owner.id;
+                const id = `${owner.id} owns ${current.id}`;
 
                 owningEdges.push({
                     id,
-                    source: current.id,
-                    target: owner.id,
-                    fromId: current.id,
-                    toId: owner.id,
-                    from: current.meta,
-                    to: owner.meta,
-                    fromFormatted: formatMeta(current.id, current.meta),
-                    toFormatted: formatMeta(owner.id, owner.meta),
-                    __graphite_from: current,
-                    __graphite_to: owner,
-                    isForDeletion: false,
+                    source: owner.id,
+                    target: current.id,
                     label: `${owner.id} 🔽 ${current.id}`,
+                    relatedNodes: {
+                        source: ensureDefined(nodesMap.get(owner.id)),
+                        target: ensureDefined(nodesMap.get(current.id)),
+                    },
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                    },
+                    style: {
+                        stroke: '#717177',
+                    },
                 });
             } catch (e) {
                 console.error(e, current, owner);
@@ -186,10 +190,10 @@ export function makeEdgesFromMetaMap(metasMap: Map<string, EffectorNode>) {
         });
     }
 
-    Array.from(metasMap.values())
+    Array.from(nodesMap.values())
         .filter(isRegularNode)
-        .forEach(({ graphite }) => {
-            traverseForGood(graphite);
+        .forEach(({ effector }) => {
+            traverseForGood(effector.graphite);
         });
 
     return {
@@ -201,12 +205,10 @@ export function makeEdgesFromMetaMap(metasMap: Map<string, EffectorNode>) {
 
 const isDerived = (graphite: Graphite) => isUnitMeta(graphite.meta) && graphite.meta.derived;
 
-export function makeEffectorNode(graphite: Graphite): EffectorNode {
-    // @ts-expect-error какая-то глупая ошибка
+export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
+    const nodeDetails = new EffectorNodeDetails(graphite);
     return {
-        graphite,
-        meta: graphite.meta,
-        nodeType: graphite.family.type,
+        effector: nodeDetails,
         id: graphite.id,
         position: { x: 0, y: 0 },
         data: {
@@ -218,6 +220,7 @@ export function makeEffectorNode(graphite: Graphite): EffectorNode {
             border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
             background: getBackground(graphite.family.type),
         },
+        nodeType: nodeDetails.type,
     };
 }
 

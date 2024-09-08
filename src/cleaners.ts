@@ -1,8 +1,13 @@
-import { EffectorGraph, EffectorNode, Graphite, OpType } from './types.ts';
-import { formatMeta, isRegularNode } from './lib.ts';
+import { EffectorGraph, EffectorNode, Graphite, NodeFamily, OpType } from './types.ts';
+import { isRegularNode } from './lib.ts';
 import { MarkerType } from '@xyflow/system';
+import { ensureDefined } from './oo/model.ts';
 
-export const removeUnusedUpdatesEvent = (graph: EffectorGraph): EffectorGraph => {
+interface Cleaner {
+    (graph: EffectorGraph, nodeMap: Map<string, EffectorNode>): EffectorGraph;
+}
+
+export const removeUnusedUpdatesEvent: Cleaner = (graph: EffectorGraph): EffectorGraph => {
     function isForDeletion(current: Graphite, next: Graphite) {
         if (
             current.meta.op === OpType.Store &&
@@ -16,23 +21,34 @@ export const removeUnusedUpdatesEvent = (graph: EffectorGraph): EffectorGraph =>
         return false;
     }
 
-    const edgesForDeletion = graph.edges.filter((edge) => isForDeletion(edge.__graphite_from, edge.__graphite_to));
+    const edgesForDeletion = graph.edges.filter(({ relatedNodes }) => {
+        if (
+            relatedNodes.source.nodeType !== NodeFamily.Declaration &&
+            relatedNodes.target.nodeType !== NodeFamily.Declaration
+        )
+            return isForDeletion(relatedNodes.source.effector.graphite, relatedNodes.target.effector.graphite);
+    });
 
     const cleanedGraph = shallowCopyGraph(graph);
 
     for (const edge of edgesForDeletion) {
-        cleanedGraph.nodes = cleanedGraph.nodes.filter(({ id }) => id !== edge.toId);
+        cleanedGraph.nodes = cleanedGraph.nodes.filter(({ id }) => id !== edge.target);
     }
 
-    cleanedGraph.edges = cleanedGraph.edges.filter((edge) => !edge.isForDeletion);
+    cleanedGraph.edges = cleanedGraph.edges.filter((edge) => !edge.markedForDeletion);
 
     return cleanedGraph;
 };
 
-function foo(cleanedGraph: EffectorGraph, node: EffectorNode, nodesIdsForDeletion: Set<string>) {
+function foo(
+    cleanedGraph: EffectorGraph,
+    node: EffectorNode,
+    nodesIdsForDeletion: Set<string>,
+    nodeMap: Map<string, EffectorNode>
+) {
     if (!isRegularNode(node)) return;
 
-    const next = node.graphite.next;
+    const next = node.effector.graphite.next;
     if (next.length !== 1) {
         if (next.length > 1) {
             console.warn('.on node with several next nodes', next);
@@ -42,7 +58,7 @@ function foo(cleanedGraph: EffectorGraph, node: EffectorNode, nodesIdsForDeletio
     }
 
     const nextId = next[0].id;
-    const ownerIds = node.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
+    const ownerIds = node.effector.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
     if (ownerIds.length !== 1) {
         if (ownerIds.length > 1) {
             console.warn('.on node with several owner nodes', ownerIds);
@@ -72,21 +88,16 @@ function foo(cleanedGraph: EffectorGraph, node: EffectorNode, nodesIdsForDeletio
             id: ownerId + '::' + nextId,
             source: ownerId,
             target: nextId,
-            fromId: ownerId,
-            toId: nextId,
-            from: ownerNode.graphite.meta,
-            to: nextNode.graphite.meta,
-            fromFormatted: formatMeta(ownerId, ownerNode.graphite.meta),
-            toFormatted: formatMeta(nextId, nextNode.graphite.meta),
-            isForDeletion: false,
-            __graphite_from: ownerNode.graphite,
-            __graphite_to: nextNode.graphite,
+            relatedNodes: {
+                source: ensureDefined(nodeMap.get(ownerId)),
+                target: ensureDefined(nodeMap.get(nextId)),
+                collapsed: [ensureDefined(nodeMap.get(node.id))],
+            },
             // targetHandle: '.on',
             markerEnd: {
                 type: MarkerType.Arrow,
             },
             animated: true,
-            collapsed: [node],
             label: '.on',
         });
 
@@ -103,14 +114,14 @@ function shallowCopyGraph(graph: EffectorGraph) {
     };
 }
 
-export const collapseDotOn = (graph: EffectorGraph): EffectorGraph => {
+export const collapseDotOn: Cleaner = (graph, nodeMap): EffectorGraph => {
     const cleanedGraph = shallowCopyGraph(graph);
 
     const nodesIdsForDeletion = new Set<string>();
 
     cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
-        if (node.graphite.meta.op === OpType.On) {
-            foo(cleanedGraph, node, nodesIdsForDeletion);
+        if (node.effector.graphite.meta.op === OpType.On) {
+            foo(cleanedGraph, node, nodesIdsForDeletion, nodeMap);
         }
     });
 
@@ -125,18 +136,18 @@ function removeUnusedReinitNodes(graph: EffectorGraph): EffectorGraph {
     const nodeIdsToRemove = new Set<string>();
 
     cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
-        if (node.graphite.meta.op === OpType.Event && node.graphite.meta.name === 'reinit') {
-            if (node.graphite.family.owners.length === 0) {
+        if (node.effector.graphite.meta.op === OpType.Event && node.effector.graphite.meta.name === 'reinit') {
+            if (node.effector.graphite.family.owners.length === 0) {
                 nodeIdsToRemove.add(node.id);
             } else {
-                console.log('Node has owners, not removing:', node.graphite);
+                console.log('Node has owners, not removing:', node.effector.graphite);
             }
         }
     });
 
     cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodeIdsToRemove.has(node.id));
     cleanedGraph.edges = cleanedGraph.edges.filter(
-        (edge) => !nodeIdsToRemove.has(edge.fromId) && !nodeIdsToRemove.has(edge.toId)
+        (edge) => !nodeIdsToRemove.has(edge.source) && !nodeIdsToRemove.has(edge.target)
     );
 
     return cleanedGraph;
@@ -153,10 +164,15 @@ function resetPositions(graph: EffectorGraph) {
     return graph;
 }
 
-function replaceMapNodeWithEdge(cleanedGraph: EffectorGraph, node: EffectorNode, nodesIdsForDeletion: Set<string>) {
+function replaceMapNodeWithEdge(
+    cleanedGraph: EffectorGraph,
+    node: EffectorNode,
+    nodesIdsForDeletion: Set<string>,
+    nodeMap: Map<string, EffectorNode>
+) {
     if (!isRegularNode(node)) return;
 
-    const next = node.graphite.next;
+    const next = node.effector.graphite.next;
     if (next.length !== 1) {
         if (next.length > 1) {
             console.warn('.map node with several next nodes', next);
@@ -166,7 +182,7 @@ function replaceMapNodeWithEdge(cleanedGraph: EffectorGraph, node: EffectorNode,
     }
 
     const nextId = next[0].id;
-    const ownerIds = node.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
+    const ownerIds = node.effector.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
     if (ownerIds.length !== 1) {
         if (ownerIds.length > 1) {
             console.warn('.map node with several owner nodes', ownerIds);
@@ -196,21 +212,16 @@ function replaceMapNodeWithEdge(cleanedGraph: EffectorGraph, node: EffectorNode,
             id: ownerId + '::' + nextId,
             source: ownerId,
             target: nextId,
-            fromId: ownerId,
-            toId: nextId,
-            from: ownerNode.graphite.meta,
-            to: nextNode.graphite.meta,
-            fromFormatted: formatMeta(ownerId, ownerNode.graphite.meta),
-            toFormatted: formatMeta(nextId, nextNode.graphite.meta),
-            isForDeletion: false,
-            __graphite_from: ownerNode.graphite,
-            __graphite_to: nextNode.graphite,
             // sourceHandle: '.map',
             markerEnd: {
                 type: MarkerType.Arrow,
             },
+            relatedNodes: {
+                source: ensureDefined(nodeMap.get(ownerId)),
+                target: ensureDefined(nodeMap.get(nextId)),
+                collapsed: [node],
+            },
             animated: true,
-            collapsed: [node],
             label: '.map',
         });
 
@@ -220,14 +231,14 @@ function replaceMapNodeWithEdge(cleanedGraph: EffectorGraph, node: EffectorNode,
     }
 }
 
-function collapseMappingNodes(graph: EffectorGraph): EffectorGraph {
+const collapseMappingNodes: Cleaner = (graph, nodeMap) => {
     const cleanedGraph = shallowCopyGraph(graph);
 
     const nodesIdsForDeletion = new Set<string>();
 
     cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
-        if (node.graphite.meta.op === OpType.Map) {
-            const owners = node.graphite.family.owners
+        if (node.effector.graphite.meta.op === OpType.Map) {
+            const owners = node.effector.graphite.family.owners
                 .filter((owner) => {
                     console.log('try op', owner.meta);
                     if (owner.meta.op == null) {
@@ -239,10 +250,10 @@ function collapseMappingNodes(graph: EffectorGraph): EffectorGraph {
 
                     return true;
                 })
-                .filter((owner) => !node.graphite.next.includes(owner));
+                .filter((owner) => !node.effector.graphite.next.includes(owner));
 
             if (owners.length === 1) {
-                replaceMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion);
+                replaceMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion, nodeMap);
             } else {
                 console.log('.map with too many owners', node, owners);
             }
@@ -252,16 +263,17 @@ function collapseMappingNodes(graph: EffectorGraph): EffectorGraph {
     cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
 
     return cleanedGraph;
-}
+};
 
 function replaceFilterMapNodeWithEdge(
     cleanedGraph: EffectorGraph,
     node: EffectorNode,
-    nodesIdsForDeletion: Set<string>
+    nodesIdsForDeletion: Set<string>,
+    nodeMap: Map<string, EffectorNode>
 ) {
     if (!isRegularNode(node)) return;
 
-    const next = node.graphite.next;
+    const next = node.effector.graphite.next;
     if (next.length !== 1) {
         if (next.length > 1) {
             console.warn('.map node with several next nodes', next);
@@ -271,7 +283,7 @@ function replaceFilterMapNodeWithEdge(
     }
 
     const nextId = next[0].id;
-    const ownerIds = node.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
+    const ownerIds = node.effector.graphite.family.owners.map((x) => x.id).filter((id) => id !== nextId);
     if (ownerIds.length !== 1) {
         if (ownerIds.length > 1) {
             console.warn('.map node with several owner nodes', ownerIds);
@@ -301,22 +313,17 @@ function replaceFilterMapNodeWithEdge(
             id: ownerId + '::' + nextId,
             source: ownerId,
             target: nextId,
-            fromId: ownerId,
-            toId: nextId,
-            from: ownerNode.graphite.meta,
-            to: nextNode.graphite.meta,
-            fromFormatted: formatMeta(ownerId, ownerNode.graphite.meta),
-            toFormatted: formatMeta(nextId, nextNode.graphite.meta),
-            isForDeletion: false,
-            __graphite_from: ownerNode.graphite,
-            __graphite_to: nextNode.graphite,
             // sourceHandle: '.map',
             markerEnd: {
                 type: MarkerType.Arrow,
             },
             animated: true,
-            collapsed: [node],
             label: '.map',
+            relatedNodes: {
+                source: ensureDefined(nodeMap.get(ownerId)),
+                target: ensureDefined(nodeMap.get(nextId)),
+                collapsed: [node],
+            },
         });
 
         nodesIdsForDeletion.add(node.id);
@@ -325,17 +332,19 @@ function replaceFilterMapNodeWithEdge(
     }
 }
 
-function collapseFilterMappingNodes(graph: EffectorGraph): EffectorGraph {
+const collapseFilterMappingNodes: Cleaner = (graph, nodeMap) => {
     const cleanedGraph = shallowCopyGraph(graph);
 
     const nodesIdsForDeletion = new Set<string>();
 
     cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
-        if (node.graphite.meta.op === OpType.FilterMap) {
-            const owners = node.graphite.family.owners.filter((owner) => !node.graphite.next.includes(owner));
+        if (node.effector.graphite.meta.op === OpType.FilterMap) {
+            const owners = node.effector.graphite.family.owners.filter(
+                (owner) => !node.effector.graphite.next.includes(owner)
+            );
 
             if (owners.length === 1) {
-                replaceFilterMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion);
+                replaceFilterMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion, nodeMap);
             } else {
                 console.log('.map with too many owners', node, owners);
             }
@@ -345,11 +354,11 @@ function collapseFilterMappingNodes(graph: EffectorGraph): EffectorGraph {
     cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
 
     return cleanedGraph;
-}
+};
 
 // ToDo don't delete instantly - just mark for deletion - ease to debug
 
-export const cleanup = (graph: EffectorGraph): EffectorGraph => {
+export const cleanup = (graph: EffectorGraph, nodeMap: Map<string, EffectorNode>): EffectorGraph => {
     return [
         removeUnusedUpdatesEvent,
         collapseDotOn,
@@ -357,5 +366,5 @@ export const cleanup = (graph: EffectorGraph): EffectorGraph => {
         resetPositions,
         collapseMappingNodes,
         collapseFilterMappingNodes,
-    ].reduce((graph, cleaner) => cleaner(graph), graph);
+    ].reduce((graph, cleaner) => cleaner(graph, nodeMap), graph);
 };

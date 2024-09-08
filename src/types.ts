@@ -1,5 +1,5 @@
 import { Edge, Node } from '@xyflow/react';
-import {Declaration} from "effector/inspect";
+import { Declaration } from 'effector/inspect';
 
 export const NodeFamily = {
     Crosslink: 'crosslink',
@@ -23,6 +23,7 @@ export const OpType = {
     Sample: 'sample',
     FilterMap: 'filterMap',
     Effect: 'effect',
+    Combine: 'combine',
 } as const;
 
 type OpType = (typeof OpType)[keyof typeof OpType];
@@ -34,7 +35,7 @@ export const MetaType = {
 type MetaType = (typeof MetaType)[keyof typeof MetaType];
 
 type DegenerateMeta = {
-    op: typeof OpType.Watch | typeof OpType.On | typeof OpType.Map | typeof OpType.FilterMap;
+    op: typeof OpType.Watch | typeof OpType.On | typeof OpType.Map | typeof OpType.FilterMap | typeof OpType.Combine;
 };
 
 type SampleMeta = {
@@ -74,26 +75,12 @@ export interface Graphite {
 }
 
 export interface MyEdge extends Edge {
-    fromId: string;
-    toId: string;
-    fromFormatted: string;
-    toFormatted: string;
-    from: Meta;
-    to: Meta;
-    __graphite_from: Graphite;
-    __graphite_to: Graphite;
-    isForDeletion?: boolean;
-    collapsed?: EffectorNode[];
-}
-
-export interface MetaInfo {
-    __graphite: Graphite;
-
-    linkedTo: Set<string>;
-    meta: Meta;
-    type: NodeFamily;
-
-    [key: string]: unknown;
+    relatedNodes: {
+        source: EffectorNode;
+        target: EffectorNode;
+        collapsed?: EffectorNode[];
+    };
+    markedForDeletion?: boolean;
 }
 
 export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
@@ -101,23 +88,65 @@ export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edg
     edges: EdgeType[];
 }
 
-export type RegularEffectorNode = Node & {
-    id: string;
+export class EffectorNodeDetails {
+    get graphite(): Graphite {
+        return this._graphite;
+    }
 
-    nodeType: typeof NodeFamily.Crosslink | typeof NodeFamily.Regular;
-    meta: Meta;
+    private readonly _graphite: Graphite;
 
-    graphite: Graphite;
+    constructor(graphite: Graphite) {
+        this._graphite = graphite;
+    }
+
+    get type(): typeof NodeFamily.Regular | typeof NodeFamily.Crosslink {
+        const type = this._graphite.family.type;
+
+        if (type === NodeFamily.Declaration) {
+            throw new RangeError('Unexpected declaration type');
+        }
+
+        return type;
+    }
+
+    get meta(): Meta {
+        return this._graphite.meta;
+    }
 }
 
-export type DeclarationEffectorNode = Node & {
-    id: string;
+export class EffectorDeclarationDetails {
+    get declaration(): Declaration {
+        return this._declaration;
+    }
 
+    private readonly _declaration: Declaration;
+
+    constructor(declaration: Declaration) {
+        this._declaration = declaration;
+    }
+
+    get type(): 'unit' | 'factory' | 'region' {
+        return this._declaration.type;
+    }
+
+    get meta(): Record<string, unknown> {
+        return this._declaration.meta;
+    }
+}
+
+export type RegularEffectorDetails = {
+    nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink;
+    effector: EffectorNodeDetails;
+};
+
+export type DeclarationEffectorDetails = {
     nodeType: typeof NodeFamily.Declaration;
-    meta: Meta;
+    declaration: EffectorDeclarationDetails;
+};
 
-    declaration: Declaration;
-}
+export type RegularEffectorNode = Node & RegularEffectorDetails;
+export type DeclarationEffectorNode = Node & DeclarationEffectorDetails;
 
-export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode;
+export type EffectorDetails = RegularEffectorDetails | DeclarationEffectorDetails;
+export type EffectorNode = Node & EffectorDetails;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
