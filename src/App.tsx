@@ -30,6 +30,7 @@ import { cleanup } from './cleaners.ts';
 import { nodeTypes } from './nodeTypes.ts';
 import styled from '@emotion/styled';
 import { Declaration, inspectGraph } from 'effector/inspect';
+import {useDarkMode} from "usehooks-ts";
 
 //region Preconfiguration
 const declarations: Declaration[] = [];
@@ -290,6 +291,8 @@ export default function App() {
     //     return () => clearInterval(timer)
     // }, []);
 
+    const {isDarkMode} = useDarkMode({});
+
     return (
         <>
             <Buttons>
@@ -313,8 +316,8 @@ export default function App() {
                     fitView
                     nodeTypes={nodeTypes}
                 >
-                    <Background bgColor={'#303030'} />
-                    <MiniMap pannable zoomable bgColor={'#303030'} />
+                    <Background bgColor={isDarkMode ? '#303030' : undefined} />
+                    <MiniMap pannable zoomable bgColor={isDarkMode ? '#303030' : undefined} />
                     <Controls />
                 </ReactFlow>
             </div>
