@@ -47,14 +47,13 @@ export function formatMeta(id: string, meta: Meta) {
                 case MetaType.Factory:
                     return 'factory ' + meta.method;
                 default:
-                    console.log(meta);
                     try {
                         // @ts-expect-error bad typification
                         absurd(meta);
-                    } catch (e) {
-                        console.error(e, meta);
+                    } catch {
+                        console.warn('Unexpected node - returning unknown',id, meta);
                     }
-                    return 'unknown';
+                    return `${id} unknown`;
             }
     }
 }
@@ -137,6 +136,9 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     source: ensureDefined(nodesMap.get(current.id)),
                     target: ensureDefined(nodesMap.get(link.id)),
                 },
+                data: {
+                    edgeType: 'link'
+                }
             });
         });
 
@@ -156,6 +158,9 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     style: {
                         zIndex: 10,
                     },
+                    data: {
+                        edgeType: 'reactive',
+                    }
                 });
             } catch (e) {
                 console.error(e, current, next);
@@ -183,6 +188,9 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     style: {
                         stroke: '#717177',
                     },
+                    data: {
+                        edgeType: 'owns',
+                    }
                 });
             } catch (e) {
                 console.error(e, current, owner);
@@ -192,8 +200,8 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
 
     Array.from(nodesMap.values())
         .filter(isRegularNode)
-        .forEach(({ effector }) => {
-            traverseForGood(effector.graphite);
+        .forEach(({ data }) => {
+            traverseForGood(data.effector.graphite);
         });
 
     return {
@@ -207,20 +215,21 @@ const isDerived = (graphite: Graphite) => isUnitMeta(graphite.meta) && graphite.
 
 export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
     const nodeDetails = new EffectorNodeDetails(graphite);
+
     return {
-        effector: nodeDetails,
         id: graphite.id,
         position: { x: 0, y: 0 },
         data: {
             label: formatMeta(graphite.id, graphite.meta),
+            effector: nodeDetails,
+            nodeType: nodeDetails.type,
         },
-        type: graphite.meta.op === 'store' ? 'storeNode' : graphite.meta.op === 'event' ? 'eventNode' : undefined,
+        type: graphite.meta.op === 'store' ? 'storeNode' : graphite.meta.op === 'event' ? 'eventNode' : graphite.meta.op === 'effect' ? 'effectNode' : undefined,
 
         style: {
             border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
             background: getBackground(graphite.family.type),
         },
-        nodeType: nodeDetails.type,
     };
 }
 
@@ -238,11 +247,11 @@ function getBackground(linkType: NodeFamily) {
 }
 
 export function isDeclarationNode(node: EffectorNode): node is DeclarationEffectorNode {
-    return node.nodeType === NodeFamily.Declaration;
+    return node.data.nodeType === NodeFamily.Declaration;
 }
 
 export function isRegularNode(node: EffectorNode): node is RegularEffectorNode {
-    return node.nodeType === NodeFamily.Regular || node.nodeType === NodeFamily.Crosslink;
+    return node.data.nodeType === NodeFamily.Regular || node.data.nodeType === NodeFamily.Crosslink;
 }
 
 export function layoutGraph(graph: EffectorGraph): EffectorGraph {

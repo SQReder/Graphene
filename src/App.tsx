@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react';
 
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
-import { combine, createEffect, is, restore, Unit } from 'effector';
+import {combine, createEffect, is, restore, Unit} from 'effector';
 import { EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge, NodeFamily } from './types.ts';
 import '@xyflow/react/dist/style.css';
 import './App.css';
@@ -30,7 +30,8 @@ import { cleanup } from './cleaners.ts';
 import { nodeTypes } from './nodeTypes.ts';
 import styled from '@emotion/styled';
 import { Declaration, inspectGraph } from 'effector/inspect';
-import {useDarkMode} from "usehooks-ts";
+import { useDarkMode } from 'usehooks-ts';
+import {someModelFactory} from "./simpleTestFactory.ts";
 
 //region Preconfiguration
 const declarations: Declaration[] = [];
@@ -78,6 +79,7 @@ sample({
 // @ts-expect-error unused
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const myCoolEffectFx = createEffect(() => {});
+myCoolEffectFx.map((x) => x);
 
 const $inflights = myCoolEffectFx.inFlight.map(Boolean);
 const $failHappened = restore(myCoolEffectFx.fail, null);
@@ -94,7 +96,7 @@ const $combined = combine($pending, $inFlight1, (a, b) => [a, b]);
 
 // @ts-expect-error strange typings
 const units: Unit<unknown>[] = [
-    myCoolEffectFx,
+    // myCoolEffectFx,
 
     // ...Object.values(notificationsModelFactory.createModel({ softDismissTimeoutMs: 100 })),
     // myCoolEffectFx,
@@ -104,7 +106,7 @@ const units: Unit<unknown>[] = [
     // $loneStore,
     // looped,
 
-    // ...Object.values(someModelFactory.createModel()).filter(is.unit),
+    ...Object.values(someModelFactory.createModel()).filter(is.unit),
 ].filter(is.unit);
 //endregion
 
@@ -125,11 +127,12 @@ declarations
     .forEach((declaration) => {
         effectorNodesMap.set(declaration.id, {
             id: declaration.id,
-            nodeType: 'declaration',
-            declaration: new EffectorDeclarationDetails(declaration),
-            // @ts-expect-error so sad
-            meta: declaration.meta,
-            linkType: declaration.meta,
+            data: {
+                nodeType: 'declaration',
+                declaration:  new EffectorDeclarationDetails(declaration),
+                label: declaration.meta.name as string ?? 'unknown',
+            },
+            position: { x: 0, y: 0 },
         });
     });
 
@@ -182,6 +185,20 @@ const linkGraph: EffectorGraph = {
 };
 const cleanedLinksGraph = cleanup(linkGraph, effectorNodesMap);
 
+const rxOwnGraph = {
+    nodes: initialNodes,
+    edges: [...owningEdges, ...reactiveEdges],
+};
+
+console.log('rxOwnGraph', rxOwnGraph);
+
+console.group('rx own cleanup')
+const rxOwnGraphCleaned = cleanup(
+    rxOwnGraph,
+    effectorNodesMap,
+);
+console.groupEnd()
+
 const layoutedGraphs = {
     reactive: layoutGraph(reactiveGraph),
     cleaned: layoutGraph(cleanedGraph),
@@ -189,13 +206,7 @@ const layoutedGraphs = {
     link: layoutGraph(linkGraph),
     cleanedLinks: layoutGraph(cleanedLinksGraph),
     rxOwn: layoutGraph(
-        cleanup(
-            {
-                nodes: initialNodes,
-                edges: [...owningEdges, ...reactiveEdges],
-            },
-            effectorNodesMap
-        )
+        rxOwnGraphCleaned
     ),
 };
 
@@ -210,11 +221,11 @@ export default function App() {
                 const id = change.id;
 
                 const effectorNode = effectorNodesMap.get(id);
-                if (effectorNode && effectorNode.nodeType !== NodeFamily.Declaration) {
+                if (effectorNode && effectorNode.data.nodeType !== NodeFamily.Declaration) {
                     console.log('node', { meta: effectorNode });
                     const owning = owningEdges.filter((edge) => edge.source === id);
 
-                    if (effectorNode.effector.meta.op === 'effect') {
+                    if (effectorNode.data.effector.meta.op === 'effect') {
                         owning.forEach((edge) => {
                             changes.push({
                                 id: edge.target,
@@ -281,7 +292,7 @@ export default function App() {
 
         if (myEdge.relatedNodes.collapsed) {
             myEdge.relatedNodes.collapsed.forEach((c) => {
-                console.log('collapsed', isRegularNode(c) ? c.effector.graphite.scope.fn : 'wtf', c);
+                console.log('collapsed', isRegularNode(c) ? c.data.effector.graphite.scope.fn : 'wtf', c);
             });
         }
     }, []);
@@ -291,7 +302,7 @@ export default function App() {
     //     return () => clearInterval(timer)
     // }, []);
 
-    const {isDarkMode} = useDarkMode({});
+    const { isDarkMode } = useDarkMode({});
 
     return (
         <>

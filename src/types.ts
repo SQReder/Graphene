@@ -74,13 +74,12 @@ export interface Graphite {
     };
 }
 
-export interface MyEdge extends Edge {
+export interface MyEdge extends Edge<{label?: string, edgeType: 'reactive' | 'owns' | 'link' | 'unknown'}> {
     relatedNodes: {
         source: EffectorNode;
         target: EffectorNode;
         collapsed?: EffectorNode[];
     };
-    markedForDeletion?: boolean;
 }
 
 export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
@@ -144,9 +143,8 @@ export type DeclarationEffectorDetails = {
     declaration: EffectorDeclarationDetails;
 };
 
-export type RegularEffectorNode = Node & RegularEffectorDetails;
-export type DeclarationEffectorNode = Node & DeclarationEffectorDetails;
+export type RegularEffectorNode = Node<{ label: string } & RegularEffectorDetails>;
+export type DeclarationEffectorNode = Node<{ label: string } & DeclarationEffectorDetails>;
 
-export type EffectorDetails = RegularEffectorDetails | DeclarationEffectorDetails;
-export type EffectorNode = Node & EffectorDetails;
+export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
