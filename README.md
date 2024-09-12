@@ -48,3 +48,10 @@ export default tseslint.config({
   },
 })
 ```
+
+## Roadmap
+
+- [ ] Clear reverse ownership of sample nodes
+- [ ] Separate edge processing by type
+- [ ] Show/hide edge type in the same graph
+- [ ] Colors for effect event's edges

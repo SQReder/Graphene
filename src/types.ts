@@ -1,5 +1,6 @@
 import { Edge, Node } from '@xyflow/react';
 import { Declaration } from 'effector/inspect';
+import { isUnitMeta } from './lib.ts';
 
 export const NodeFamily = {
     Crosslink: 'crosslink',
@@ -26,19 +27,19 @@ export const OpType = {
     Combine: 'combine',
 } as const;
 
-type OpType = (typeof OpType)[keyof typeof OpType];
+export type OpType = (typeof OpType)[keyof typeof OpType];
 
 export const MetaType = {
     Factory: 'factory',
-};
+} as const;
 
 type MetaType = (typeof MetaType)[keyof typeof MetaType];
 
-type DegenerateMeta = {
+export type EmptyMeta = {
     op: typeof OpType.Watch | typeof OpType.On | typeof OpType.Map | typeof OpType.FilterMap | typeof OpType.Combine;
 };
 
-type SampleMeta = {
+export type SampleMeta = {
     joint: number;
     op: typeof OpType.Sample;
 };
@@ -62,7 +63,7 @@ type FactoryMeta = {
     method: string;
 };
 
-export type Meta = DegenerateMeta | UnitMeta | EffectMeta | SampleMeta | FactoryMeta;
+export type Meta = EmptyMeta | UnitMeta | EffectMeta | SampleMeta | FactoryMeta;
 
 export interface Graphite {
     id: string;
@@ -74,13 +75,33 @@ export interface Graphite {
     };
 }
 
-export interface MyEdge extends Edge<{label?: string, edgeType: 'reactive' | 'owns' | 'link' | 'unknown'}> {
+export const EdgeType = {
+    Reactive: 'reactive',
+    Ownership: 'ownership',
+    Link: 'link',
+    Unknown: 'unknown',
+} as const;
+
+export type EdgeType = (typeof EdgeType)[keyof typeof EdgeType];
+
+type BaseEdgeData = {
     relatedNodes: {
         source: EffectorNode;
         target: EffectorNode;
         collapsed?: EffectorNode[];
     };
+};
+type MyCoolEdgeData<T extends EdgeType> = { edgeType: T } & BaseEdgeData;
+export interface BaseEdge<T extends EdgeType> extends Edge {
+    data: MyCoolEdgeData<T>;
 }
+
+export type ReactiveEdge = BaseEdge<typeof EdgeType.Reactive> & { animated: true };
+export type OwnershipEdge = BaseEdge<typeof EdgeType.Ownership>;
+export type LinkEdge = BaseEdge<typeof EdgeType.Link>;
+export type UnknownEdge = BaseEdge<typeof EdgeType.Unknown>;
+
+export type MyEdge = ReactiveEdge | OwnershipEdge | LinkEdge | UnknownEdge;
 
 export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
     nodes: NodeType[];
@@ -110,6 +131,30 @@ export class EffectorNodeDetails {
 
     get meta(): Meta {
         return this._graphite.meta;
+    }
+
+    get isFactory(): boolean {
+        return this.meta.op === undefined && this.meta.type === MetaType.Factory;
+    }
+
+    public hasOpType(opType: OpType): this is this & { meta: { op: OpType } } {
+        return this.meta.op === opType;
+    }
+
+    get name(): string | undefined {
+        if (this.meta.op === OpType.Store || this.meta.op === OpType.Event || this.meta.op === OpType.Effect) {
+            return this.meta.name;
+        } else {
+            return undefined;
+        }
+    }
+
+    get isDerived(): boolean {
+        if (this.meta.op === OpType.Store || this.meta.op === OpType.Event) {
+            return this.meta.derived
+        } else {
+            return false
+        }
     }
 }
 

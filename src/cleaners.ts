@@ -1,13 +1,23 @@
-import {EffectorGraph, EffectorNode, Graphite, MyEdge, NodeFamily, OpType, RegularEffectorNode} from './types.ts';
-import {isRegularNode, isUnitMeta} from './lib.ts';
+import {
+    EdgeType,
+    EffectorGraph,
+    EffectorNode,
+    Graphite,
+    MyEdge,
+    NodeFamily,
+    OpType,
+    ReactiveEdge,
+    RegularEffectorNode,
+} from './types.ts';
+import { getEdgesBy, GraphTypedEdges, isDeclarationNode, isRegularNode } from './lib.ts';
 import { MarkerType } from '@xyflow/system';
 import { ensureDefined } from './oo/model.ts';
 
-interface Cleaner {
+interface GraphCleaner {
     (graph: EffectorGraph, nodeMap: Map<string, EffectorNode>): EffectorGraph;
 }
 
-export const removeUnusedUpdatesEvent: Cleaner = (graph): EffectorGraph => {
+export const removeUnusedUpdatesEvent: GraphCleaner = (graph): EffectorGraph => {
     function isForDeletion(current: Graphite, next: Graphite) {
         if (
             current.meta.op === OpType.Store &&
@@ -21,26 +31,19 @@ export const removeUnusedUpdatesEvent: Cleaner = (graph): EffectorGraph => {
         return false;
     }
 
-    const edgesForDeletion = graph.edges.filter(({ relatedNodes }) => {
-        if (
-            relatedNodes.source.data.nodeType !== NodeFamily.Declaration &&
-            relatedNodes.target.data.nodeType !== NodeFamily.Declaration
-        )
-            return isForDeletion(
-                relatedNodes.source.data.effector.graphite,
-                relatedNodes.target.data.effector.graphite
-            );
+    const edgesForDeletion = graph.edges.filter((edge) => {
+        const { source, target } = edge.data!.relatedNodes;
+        if (source.data.nodeType !== NodeFamily.Declaration && target.data.nodeType !== NodeFamily.Declaration)
+            return isForDeletion(source.data.effector.graphite, target.data.effector.graphite);
     });
 
-    const cleanedGraph = shallowCopyGraph(graph);
-
     for (const edge of edgesForDeletion) {
-        cleanedGraph.nodes = cleanedGraph.nodes.filter(({ id }) => id !== edge.target);
+        graph.nodes = graph.nodes.filter(({ id }) => id !== edge.target);
     }
 
-    cleanedGraph.edges = cleanedGraph.edges.filter((edge) => !edgesForDeletion.includes(edge));
+    graph.edges = graph.edges.filter((edge) => !edgesForDeletion.includes(edge));
 
-    return cleanedGraph;
+    return graph;
 };
 
 function foo(
@@ -91,19 +94,18 @@ function foo(
             id: ownerId + '::' + nextId,
             source: ownerId,
             target: nextId,
-            relatedNodes: {
-                source: ensureDefined(nodeMap.get(ownerId)),
-                target: ensureDefined(nodeMap.get(nextId)),
-                collapsed: [ensureDefined(nodeMap.get(node.id))],
-            },
-            // targetHandle: '.on',
             markerEnd: {
                 type: MarkerType.Arrow,
             },
             animated: true,
             label: '.on',
             data: {
-                edgeType: 'unknown',
+                edgeType: EdgeType.Unknown,
+                relatedNodes: {
+                    source: ensureDefined(nodeMap.get(ownerId)),
+                    target: ensureDefined(nodeMap.get(nextId)),
+                    collapsed: [ensureDefined(nodeMap.get(node.id))],
+                },
             },
         });
 
@@ -120,7 +122,7 @@ function shallowCopyGraph(graph: EffectorGraph) {
     };
 }
 
-export const collapseDotOn: Cleaner = (graph, nodeMap): EffectorGraph => {
+export const collapseDotOn: GraphCleaner = (graph, nodeMap): EffectorGraph => {
     const cleanedGraph = shallowCopyGraph(graph);
 
     const nodesIdsForDeletion = new Set<string>();
@@ -138,43 +140,6 @@ export const collapseDotOn: Cleaner = (graph, nodeMap): EffectorGraph => {
 
     return cleanedGraph;
 };
-
-function removeUnusedReinitNodes(graph: EffectorGraph): EffectorGraph {
-    const cleanedGraph = shallowCopyGraph(graph);
-
-    const nodeIdsToRemove = new Set<string>();
-
-    cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
-        if (
-            node.data.effector.graphite.meta.op === OpType.Event &&
-            node.data.effector.graphite.meta.name === 'reinit'
-        ) {
-            if (node.data.effector.graphite.family.owners.length === 0) {
-                nodeIdsToRemove.add(node.id);
-            } else {
-                console.log('Node has owners, not removing:', node.data.effector.graphite);
-            }
-        }
-    });
-
-    cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodeIdsToRemove.has(node.id));
-    cleanedGraph.edges = cleanedGraph.edges.filter(
-        (edge) => !nodeIdsToRemove.has(edge.source) && !nodeIdsToRemove.has(edge.target)
-    );
-
-    return cleanedGraph;
-}
-
-function resetPositions(graph: EffectorGraph) {
-    graph.nodes.forEach((node) => {
-        node.position = {
-            x: 0,
-            y: 0,
-        };
-    });
-
-    return graph;
-}
 
 function replaceMapNodeWithEdge(
     cleanedGraph: EffectorGraph,
@@ -228,15 +193,15 @@ function replaceMapNodeWithEdge(
             markerEnd: {
                 type: MarkerType.Arrow,
             },
-            relatedNodes: {
-                source: ensureDefined(nodeMap.get(ownerId)),
-                target: ensureDefined(nodeMap.get(nextId)),
-                collapsed: [node],
-            },
             animated: true,
             label: '.map',
             data: {
                 edgeType: 'unknown',
+                relatedNodes: {
+                    source: ensureDefined(nodeMap.get(ownerId)),
+                    target: ensureDefined(nodeMap.get(nextId)),
+                    collapsed: [node],
+                },
             },
         });
 
@@ -246,12 +211,10 @@ function replaceMapNodeWithEdge(
     }
 }
 
-const collapseMappingNodes: Cleaner = (graph, nodeMap) => {
-    const cleanedGraph = shallowCopyGraph(graph);
-
+const collapseMappingNodes: GraphCleaner = (graph, nodeMap) => {
     const nodesIdsForDeletion = new Set<string>();
 
-    cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
+    graph.nodes.filter(isRegularNode).forEach((node) => {
         if (node.data.effector.graphite.meta.op === OpType.Map) {
             const owners = node.data.effector.graphite.family.owners
                 .filter((owner) => {
@@ -267,19 +230,19 @@ const collapseMappingNodes: Cleaner = (graph, nodeMap) => {
                 .filter((owner) => !node.data.effector.graphite.next.includes(owner));
 
             if (owners.length === 1) {
-                replaceMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion, nodeMap);
+                replaceMapNodeWithEdge(graph, node, nodesIdsForDeletion, nodeMap);
             } else {
                 console.log('.map with too many owners', node, owners);
             }
         }
     });
 
-    cleanedGraph.edges = cleanedGraph.edges.filter(
+    graph.edges = graph.edges.filter(
         (edge) => !nodesIdsForDeletion.has(edge.target) && !nodesIdsForDeletion.has(edge.source)
     );
-    cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
+    graph.nodes = graph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
 
-    return cleanedGraph;
+    return graph;
 };
 
 function replaceFilterMapNodeWithEdge(
@@ -336,13 +299,13 @@ function replaceFilterMapNodeWithEdge(
             },
             animated: true,
             label: '.map',
-            relatedNodes: {
-                source: ensureDefined(nodeMap.get(ownerId)),
-                target: ensureDefined(nodeMap.get(nextId)),
-                collapsed: [node],
-            },
             data: {
                 edgeType: 'unknown',
+                relatedNodes: {
+                    source: ensureDefined(nodeMap.get(ownerId)),
+                    target: ensureDefined(nodeMap.get(nextId)),
+                    collapsed: [node],
+                },
             },
         });
 
@@ -352,165 +315,247 @@ function replaceFilterMapNodeWithEdge(
     }
 }
 
-const collapseFilterMappingNodes: Cleaner = (graph, nodeMap) => {
-    const cleanedGraph = shallowCopyGraph(graph);
-
+const collapseFilterMappingNodes: GraphCleaner = (graph, nodeMap) => {
     const nodesIdsForDeletion = new Set<string>();
 
-    cleanedGraph.nodes.filter(isRegularNode).forEach((node) => {
+    graph.nodes.filter(isRegularNode).forEach((node) => {
         if (node.data.effector.graphite.meta.op === OpType.FilterMap) {
             const owners = node.data.effector.graphite.family.owners.filter(
                 (owner) => !node.data.effector.graphite.next.includes(owner)
             );
 
             if (owners.length === 1) {
-                replaceFilterMapNodeWithEdge(cleanedGraph, node, nodesIdsForDeletion, nodeMap);
+                replaceFilterMapNodeWithEdge(graph, node, nodesIdsForDeletion, nodeMap);
             } else {
                 console.log('.map with too many owners', node, owners);
             }
         }
     });
 
-    cleanedGraph.edges = cleanedGraph.edges.filter(
+    graph.edges = graph.edges.filter(
         (edge) => !nodesIdsForDeletion.has(edge.target) && !nodesIdsForDeletion.has(edge.source)
     );
-    cleanedGraph.nodes = cleanedGraph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
+    graph.nodes = graph.nodes.filter((node) => !nodesIdsForDeletion.has(node.id));
 
-    return cleanedGraph;
+    return graph;
 };
 
-const foldEffect: Cleaner = (graph, nodeMap) => {
-    const cleanedGraph = shallowCopyGraph(graph);
+const removeUnlinkedNodes: GraphCleaner = (graph) => {
+    const usedNodeIds = new Set(graph.edges.flatMap((edge) => [edge.source, edge.target]));
 
-    function isEffectNode(node: EffectorNode): node is RegularEffectorNode {
-        return isRegularNode(node) && node.data.effector.graphite.meta.op === OpType.Effect;
+    graph.nodes = graph.nodes.filter((node) => usedNodeIds.has(node.id));
+
+    return graph;
+};
+
+// -----------------
+
+type EdgeLookups = { edgesBySource: GraphTypedEdges; edgesByTarget: GraphTypedEdges };
+
+const FxInternalNodeNames = {
+    Pending: 'pending',
+    InFlight: 'inFlight',
+    Finally: 'finally',
+    Done: 'done',
+    DoneData: 'doneData',
+    Fail: 'fail',
+    FailData: 'failData',
+    InFlightAlias: '$.inFlight',
+} as const;
+type FxInternalNodeNames = (typeof FxInternalNodeNames)[keyof typeof FxInternalNodeNames];
+
+function getFxInternalNodeNames(fxNodeName: undefined | string) {
+    return ['pending', 'inFlight', 'finally', 'done', 'doneData', 'fail', 'failData', `${fxNodeName}.inFlight`];
+}
+
+type FxInternalNodes = Record<FxInternalNodeNames, RegularEffectorNode>;
+
+const getInternalOwnershipEdges = (
+    fxNode: RegularEffectorNode,
+    lookups: EdgeLookups,
+    nodeById: Map<string, EffectorNode>
+) => {
+    const fxNodeId = fxNode.id;
+    const fxNodeName = fxNode.data.effector.name;
+    const ownershipEdges = lookups.edgesBySource.owhership.get(fxNodeId) ?? [];
+
+    if (!ownershipEdges) {
+        throw new Error('ownership edges not found');
     }
 
-    const effectNodes = cleanedGraph.nodes.filter(isEffectNode);
+    const knownNames = getFxInternalNodeNames(fxNodeName);
+    console.log('knownNames', knownNames);
 
-    console.log('effect nodes', effectNodes);
+    return ownershipEdges.filter((edge) => {
+        const targetNode = nodeById.get(edge.target)!;
+        if (!isRegularNode(targetNode)) {
+            return false;
+        }
 
-    const nodesForDeletion = new Set<RegularEffectorNode>();
-    const effectToDeletedNode = new Map<RegularEffectorNode, RegularEffectorNode[]>();
+        const name = targetNode.data.effector.name;
 
-    effectNodes.forEach((effectNode) => {
-        nodeMap.forEach((node) => {
-            if (!isRegularNode(node)) return;
+        console.log('name', name);
 
-            if (node.data.effector.graphite.family.owners.some((owner) => owner.id === effectNode.id)) {
-                if (node.data.effector.meta.op === OpType.Sample) return;
-                nodesForDeletion.add(node);
-                const assoc = effectToDeletedNode.get(effectNode);
-                if (!assoc) effectToDeletedNode.set(effectNode, [node]);
-                else assoc.push(node);
-            }
-        });
-    });
-
-    console.log('effectToDeletedNode', effectToDeletedNode);
-
-    // look for damn `.on --> $inFlight`
-    nodesForDeletion.forEach((node) => {
-        if (node.data.effector.meta.op !== OpType.On) {
+        if (!name) {
+            console.warn('no name found in node', targetNode);
             return;
         }
 
-        nodeMap.forEach((nooooode) => {
-            if (!isRegularNode(nooooode)) return;
-
-            if (nooooode.data.effector.graphite.family.owners.some((owner) => owner.id === node.id)) {
-                nodesForDeletion.add(nooooode);
-            }
-        });
+        return knownNames.includes(name);
     });
-
-    console.log('nodes for deletion', [...nodesForDeletion]);
-
-    const nodesIdsForDeletion = new Set(Array.from(nodesForDeletion.values()).map((x) => x.id));
-
-
-    const newEdges: MyEdge[] = []
-
-    //region Reconnect edges
-    Array.from(effectToDeletedNode.entries()).forEach(([effectNode, nodesForDeletion]) =>{
-        console.group(effectNode.data.label)
-
-        const outputNodes: RegularEffectorNode[] = [];
-
-        nodesForDeletion.forEach((node) => {
-            if (node.data.effector.meta.op === OpType.Event) {
-                outputNodes.push(node);
-            } else if (node.data.effector.meta.op === OpType.Store && !node.data.effector.meta.name.endsWith('.inFlight')) {
-                outputNodes.push(node);
-            }
-        });
-
-        console.log('output nodes', outputNodes);
-
-        const outputEdges = cleanedGraph.edges.filter(edge => outputNodes.some(node => node.id === edge.source))
-
-        console.log('output edges', outputEdges);
-
-        const reactiveEdges = outputEdges.filter(edge => edge.data!.edgeType === 'reactive');
-
-        console.log('reactive edges', reactiveEdges);
-
-        reactiveEdges.forEach(edge => {
-            const sourceNode = outputNodes.find(on => on.id === edge.source)!;
-            const meta = sourceNode.data.effector.meta;
-            if (!isUnitMeta(meta)) {
-                console.error('now unit meta', sourceNode, meta)
-                throw new Error('now unit meta')
-            }
-            newEdges.push({
-                ...edge,
-                source: effectNode.id,
-                sourceHandle: meta.name
-            })
-        })
-
-        console.log('new edges', newEdges)
-
-        console.groupEnd()
-
-    })
-
-
-    // console.log('output nodes', outputNodes);
-    //
-    // const outputNodeIds = new Set(outputNodes.map((node) => node.id));
-    //
-    // const outputEdges = cleanedGraph.edges.filter(
-    //     (edge) => edge.data!.edgeType === 'reactive' && outputNodeIds.has(edge.source)
-    // );
-    //
-    // console.log('output edges', outputEdges);
-
-    //endregion
-
-    // delete edges
-    cleanedGraph.edges = cleanedGraph.edges.filter(
-        (edge) => !nodesIdsForDeletion.has(edge.source) && !nodesIdsForDeletion.has(edge.target)
-    );
-
-    cleanedGraph.edges.push(...newEdges)
-
-    // delete nodes
-    cleanedGraph.nodes = cleanedGraph.nodes.filter((node) =>
-        isRegularNode(node) ? !nodesForDeletion.has(node) : true
-    );
-
-    return cleanedGraph;
 };
 
-export const cleanup: Cleaner = (graph: EffectorGraph, nodeMap: Map<string, EffectorNode>) => {
+const foldEffect3 = (
+    graph: EffectorGraph,
+    fxNode: RegularEffectorNode,
+    lookups: EdgeLookups,
+    nodeById: Map<string, EffectorNode>
+) => {
+    const fxNodeId = fxNode.id;
+    const fxNodeName = fxNode.data.effector.name;
+    console.groupCollapsed(fxNodeId, fxNodeName);
+
+    try {
+        const internalOwnershipEdges = getInternalOwnershipEdges(fxNode, lookups, nodeById);
+
+        console.log('internalOwnershipEdges', internalOwnershipEdges);
+
+        const internalFxNodes = internalOwnershipEdges.map((edge) => nodeById.get(edge.target)!).filter(isRegularNode);
+        const internalFxNodeIds = internalFxNodes.map((node) => node.id);
+
+        const allInternalEdges = graph.edges.filter((edge) => internalFxNodeIds.includes(edge.target));
+        const allExternalEdges = graph.edges.filter((edge) => internalFxNodeIds.includes(edge.source));
+
+        console.log('allInternalEdges', allInternalEdges);
+        console.log('allExternalEdges', allExternalEdges);
+
+        console.log('internalFxNodes', internalFxNodes);
+
+        const internalNodesMap = [...internalFxNodes].reduce((map, node) => {
+            const internalNodeName = node.data.effector.name!;
+            if (internalNodeName === `${fxNodeName}.inFlight`) {
+                map['$.inFlight'] = node;
+            } else {
+                map[internalNodeName as keyof FxInternalNodes] = node;
+            }
+            return map;
+        }, {} as FxInternalNodes);
+
+        console.log('internalNodesMap', internalNodesMap);
+
+        const newEdges = Object.entries(internalNodesMap).flatMap(([key, node]) => {
+            console.group('Process edges for', key);
+            const outboundEgdes = lookups.edgesBySource.reactive.get(node.id) ?? [];
+
+            console.log('outboundEgdes', outboundEgdes);
+
+            const externalEdges = outboundEgdes.filter((edge) => {
+                return !internalFxNodeIds.includes(edge.target);
+            });
+
+            console.log('externalEdges', externalEdges);
+
+            const newEdgesForInternalNode = externalEdges.map((externalEdge): ReactiveEdge => {
+                const edgeType = externalEdge.data.edgeType;
+                if (edgeType !== EdgeType.Reactive) {
+                    throw new Error();
+                }
+
+                return {
+                    id: `${fxNodeId}.${key} => ${externalEdge.target}`,
+                    source: fxNodeId,
+                    target: externalEdge.target,
+                    label: `.${key}`,
+                    data: {
+                        edgeType: edgeType,
+                        relatedNodes: {
+                            source: fxNode,
+                            target: externalEdge.data.relatedNodes.target,
+                            collapsed: [
+                                externalEdge.data.relatedNodes.source,
+                                ...(externalEdge.data.relatedNodes.collapsed ?? []),
+                            ],
+                        },
+                    },
+                    style: {
+                        stroke: key.startsWith('done') ? 'green' : key.startsWith('fail') ? 'red' : undefined,
+                    },
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                    },
+                    animated: true,
+                };
+            });
+
+            console.groupEnd();
+
+            return newEdgesForInternalNode;
+        });
+
+        console.log('newEdges', newEdges);
+
+        return {
+            edgesToRemove: [...internalOwnershipEdges, ...allInternalEdges, ...allExternalEdges],
+            edgesToAdd: newEdges,
+        };
+    } catch (e) {
+        console.error(e);
+        return {
+            edgesToRemove: [],
+            edgesToAdd: [],
+        };
+    } finally {
+        console.groupEnd();
+    }
+};
+
+const foldEffect2: GraphCleaner = (graph) => {
+    const lookups: EdgeLookups = {
+        edgesBySource: getEdgesBy(graph.edges, 'source'),
+        edgesByTarget: getEdgesBy(graph.edges, 'target'),
+    };
+
+    const nodeById = new Map<string, EffectorNode>(graph.nodes.map((node) => [node.id, node]));
+
+    const fxNodes = graph.nodes.filter(isRegularNode).filter((node) => node.data.effector.meta.op === OpType.Effect);
+
+    const edgesToRemove: MyEdge[] = [];
+    const edgesToAdd: MyEdge[] = [];
+
+    fxNodes.forEach((fxNode) => {
+        try {
+            const foldedEdges = foldEffect3(graph, fxNode, lookups, nodeById);
+
+            edgesToRemove.push(...foldedEdges.edgesToRemove);
+            edgesToAdd.push(...foldedEdges.edgesToAdd);
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    console.groupCollapsed('Folding results');
+    console.log('edgesToRemove', edgesToRemove);
+    console.log('edgesToAdd', edgesToAdd);
+    console.groupEnd();
+
+    return {
+        nodes: graph.nodes,
+        edges: graph.edges.filter((edge) => !edgesToRemove.includes(edge)).concat(edgesToAdd),
+    };
+};
+
+// -----------------
+
+export const cleanup: GraphCleaner = (graph: EffectorGraph, nodeMap: Map<string, EffectorNode>) => {
     return [
-        resetPositions,
-        collapseDotOn,
-        collapseMappingNodes,
-        collapseFilterMappingNodes,
-        removeUnusedUpdatesEvent,
-        removeUnusedReinitNodes,
-        foldEffect,
-    ].reduce((graph, cleaner) => cleaner(graph, nodeMap), graph);
+        // resetPositions,
+        // collapseDotOn,
+        // collapseMappingNodes,
+        // collapseFilterMappingNodes,
+        // removeUnusedUpdatesEvent,
+        // removeUnusedReinitNodes,
+        // foldEffect,
+        foldEffect2,
+        removeUnlinkedNodes,
+    ].reduce((graph, cleaner) => cleaner(graph, nodeMap), shallowCopyGraph(graph));
 };

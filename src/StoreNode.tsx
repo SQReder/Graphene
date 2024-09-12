@@ -37,7 +37,6 @@ export const StoreNode = (props: NodeProps) => {
     );
 };
 
-
 const EventNodeContainer = styled.div`
     background: lightyellow;
     width: 150px;
@@ -62,9 +61,7 @@ export const EventNode = (props: NodeProps<EffectorNode>) => {
             {/*    .filterMap*/}
             {/*</Handle>*/}
 
-            <div>
-                {props.data.label}
-            </div>
+            <div>{props.data.label}</div>
         </EventNodeContainer>
     );
 };
@@ -72,7 +69,7 @@ export const EventNode = (props: NodeProps<EffectorNode>) => {
 const EffectNodeContainer = styled.div`
     background: palegreen;
     width: 150px;
-    height: 200px;
+    height: 50px;
 
     font-size: 1rem;
 
@@ -87,34 +84,57 @@ export const EffectNode = (props: NodeProps) => {
             <Handle type='target' position={Position.Top} />
             <Handle type='source' position={Position.Bottom} />
 
-            <Handle type='source' position={Position.Bottom} style={{ left: '75%', background: 'green' }} id={'done'}>
-                .done
-            </Handle>
-            <Handle type='source' position={Position.Bottom} style={{ left: '90%', background: 'green' }} id={'doneData'}>
-                .$doneData
-            </Handle>
-            <Handle type='source' position={Position.Bottom} style={{ left: '10%', background: 'darkred' }} id={'fail'}>
-                .fail
-            </Handle>
-            <Handle type='source' position={Position.Bottom} style={{ left: '25%', background: 'darkred' }} id={'failData'}>
-                .$failData
-            </Handle>
+            {/*<Handle type='source' position={Position.Bottom} style={{ left: '75%', background: 'green' }} id={'done'}>*/}
+            {/*    🔔*/}
+            {/*</Handle>*/}
+            {/*<Handle type='source' position={Position.Bottom} style={{ left: '90%', background: 'green' }} id={'doneData'}>*/}
+            {/*    📦*/}
+            {/*</Handle>*/}
+            {/*<Handle type='source' position={Position.Bottom} style={{ left: '10%', background: 'darkred' }} id={'fail'}>*/}
+            {/*    🔔*/}
+            {/*</Handle>*/}
+            {/*<Handle type='source' position={Position.Bottom} style={{ left: '25%', background: 'darkred' }} id={'failData'}>*/}
+            {/*    📦*/}
+            {/*</Handle>*/}
 
-
-            <Handle type='source' position={Position.Right} style={{ top: '25%' }} id={'finally'}>
-                .finally
-            </Handle>
-            <Handle type='source' position={Position.Right} style={{ top: '50%' }} id={'inFlight'}>
-                .$inFlight
-            </Handle>
-            <Handle type='source' position={Position.Right} style={{ top: '75%' }} id={'pending'}>
-                .$inFlight
-            </Handle>
+            {/*<Handle type='source' position={Position.Right} style={{ top: '10%' }} id={'finally'}>*/}
+            {/*    .finally*/}
+            {/*</Handle>*/}
+            {/*<Handle type='source' position={Position.Right} style={{ top: '50%' }} id={'inFlight'}>*/}
+            {/*    .$inFlight*/}
+            {/*</Handle>*/}
+            {/*<Handle type='source' position={Position.Right} style={{ top: '90%' }} id={'pending'}>*/}
+            {/*    .penging*/}
+            {/*</Handle>*/}
 
             <div>
                 {/*@ts-expect-error ts(2322)*/}
                 {props.data.label}
             </div>
         </EffectNodeContainer>
+    );
+};
+
+const SampleNodeContainer = styled.div`
+    background: lightblue;
+
+    width: 50px;
+    height: 50px;
+
+    font-size: 1rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+`;
+
+export const SampleNode = (props: NodeProps) => {
+    return (
+        <SampleNodeContainer>
+            <Handle type='target' position={Position.Top} />
+            <Handle type='source' position={Position.Bottom} />
+
+            <div>sample</div>
+        </SampleNodeContainer>
     );
 };

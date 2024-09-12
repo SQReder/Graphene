@@ -20,6 +20,9 @@ importers:
       '@vitejs/plugin-react-swc':
         specifier: ^3.7.0
         version: 3.7.0(vite@5.4.3(@types/node@22.5.4))
+      '@withease/factories':
+        specifier: ^1.0.5
+        version: 1.0.5
       '@xyflow/react':
         specifier: ^12.2.1
         version: 12.2.1(@types/react@18.3.5)(immer@10.1.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -765,6 +768,9 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0
+
+  '@withease/factories@1.0.5':
+    resolution: {integrity: sha512-8qcAyBDxuI3F1Qf5ib39pzSfSma9TxyVH/ALOrtkaqnlTuRni76BMbwUyPgCTaEefPOO8sOQKe4SxZbs3p51dQ==}
 
   '@xyflow/react@12.2.1':
     resolution: {integrity: sha512-7eVWMCzN0Mg5JXP8fA0YHiX4NfmCR5O0FHtxVQ0oqzkyEMik0EIlOiXw/grnk4MuA3/+RBaYM8nZD6kZotCXNw==}
@@ -2245,6 +2251,8 @@ snapshots:
       vite: 5.4.3(@types/node@22.5.4)
     transitivePeerDependencies:
       - supports-color
+
+  '@withease/factories@1.0.5': {}
 
   '@xyflow/react@12.2.1(@types/react@18.3.5)(immer@10.1.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

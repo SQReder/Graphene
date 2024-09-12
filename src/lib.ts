@@ -1,5 +1,6 @@
 import {
     DeclarationEffectorNode,
+    EdgeType,
     EffectorGraph,
     EffectorNode,
     EffectorNodeDetails,
@@ -8,7 +9,7 @@ import {
     MetaType,
     MyEdge,
     NodeFamily,
-    OpType,
+    OpType, OwnershipEdge, ReactiveEdge,
     RegularEffectorNode,
     UnitMeta,
 } from './types.ts';
@@ -48,10 +49,9 @@ export function formatMeta(id: string, meta: Meta) {
                     return 'factory ' + meta.method;
                 default:
                     try {
-                        // @ts-expect-error bad typification
-                        absurd(meta);
+                        absurd(meta.type);
                     } catch {
-                        console.warn('Unexpected node - returning unknown',id, meta);
+                        console.warn('Unexpected node - returning unknown', id, meta);
                     }
                     return `${id} unknown`;
             }
@@ -132,13 +132,13 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                 id: current.id + ' linked to ' + link.id,
                 source: current.id,
                 target: link.id,
-                relatedNodes: {
-                    source: ensureDefined(nodesMap.get(current.id)),
-                    target: ensureDefined(nodesMap.get(link.id)),
-                },
                 data: {
-                    edgeType: 'link'
-                }
+                    edgeType: EdgeType.Link,
+                    relatedNodes: {
+                        source: ensureDefined(nodesMap.get(current.id)),
+                        target: ensureDefined(nodesMap.get(link.id)),
+                    },
+                },
             });
         });
 
@@ -151,16 +151,16 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     source: current.id,
                     target: next.id,
                     animated: true,
-                    relatedNodes: {
-                        source: ensureDefined(nodesMap.get(current.id)),
-                        target: ensureDefined(nodesMap.get(next.id)),
-                    },
                     style: {
                         zIndex: 10,
                     },
                     data: {
-                        edgeType: 'reactive',
-                    }
+                        edgeType: EdgeType.Reactive,
+                        relatedNodes: {
+                            source: ensureDefined(nodesMap.get(current.id)),
+                            target: ensureDefined(nodesMap.get(next.id)),
+                        },
+                    },
                 });
             } catch (e) {
                 console.error(e, current, next);
@@ -178,19 +178,19 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     source: owner.id,
                     target: current.id,
                     label: `${owner.id} 🔽 ${current.id}`,
-                    relatedNodes: {
-                        source: ensureDefined(nodesMap.get(owner.id)),
-                        target: ensureDefined(nodesMap.get(current.id)),
-                    },
                     markerEnd: {
                         type: MarkerType.ArrowClosed,
                     },
                     style: {
-                        stroke: '#717177',
+                        stroke: 'rgba(132,215,253,0.7)',
                     },
                     data: {
-                        edgeType: 'owns',
-                    }
+                        edgeType: EdgeType.Ownership,
+                        relatedNodes: {
+                            source: ensureDefined(nodesMap.get(owner.id)),
+                            target: ensureDefined(nodesMap.get(current.id)),
+                        },
+                    },
                 });
             } catch (e) {
                 console.error(e, current, owner);
@@ -224,7 +224,16 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
             effector: nodeDetails,
             nodeType: nodeDetails.type,
         },
-        type: graphite.meta.op === 'store' ? 'storeNode' : graphite.meta.op === 'event' ? 'eventNode' : graphite.meta.op === 'effect' ? 'effectNode' : undefined,
+        type:
+            graphite.meta.op === 'store'
+                ? 'storeNode'
+                : graphite.meta.op === 'event'
+                  ? 'eventNode'
+                  : graphite.meta.op === 'effect'
+                    ? 'effectNode'
+                    : graphite.meta.op === 'sample'
+                      ? 'sampleNode'
+                      : undefined,
 
         style: {
             border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
@@ -285,3 +294,96 @@ export const sortNodes = (initialNodes: EffectorNode[]) => {
             }
         });
 };
+
+export function getEdgeRelatedGraphite(edge: MyEdge, relation: 'source' | 'target'): Graphite | undefined {
+    const node = edge.data.relatedNodes[relation];
+    if (isRegularNode(node)) return node.data.effector.graphite;
+    else {
+        return undefined;
+    }
+}
+
+export function hasOpType<Op extends OpType>(
+    graphite: Graphite,
+    opType: Op | undefined
+): graphite is Graphite & { meta: { op: Op } } {
+    return graphite.meta.op === opType;
+}
+
+export function nodeHasOpType<Op extends OpType>(
+    node: EffectorNode,
+    opType: Op | undefined
+): node is RegularEffectorNode & { data: { effector: { graphite: Graphite & { meta: { op: Op } } } } } {
+    return isRegularNode(node) && hasOpType(node.data.effector.graphite, opType);
+}
+
+
+
+export type GraphTypedEdges = {
+    owhership: Map<string, OwnershipEdge[]>;
+    reactive: Map<string, ReactiveEdge[]>;
+};
+
+export function getEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): GraphTypedEdges {
+    return edges.reduce(
+        (maps, edge) => {
+            if (edge.data.edgeType === EdgeType.Reactive) {
+                const map = maps.reactive;
+                if (map.has(edge[variant])) {
+                    map.get(edge[variant])!.push(edge);
+                } else {
+                    map.set(edge[variant], [edge]);
+                }
+            } else if (edge.data.edgeType === EdgeType.Ownership) {
+                const map = maps.owhership;
+                if (map.has(edge[variant])) {
+                    map.get(edge[variant])!.push(edge);
+                } else {
+                    map.set(edge[variant], [edge]);
+                }
+            } else {
+                console.debug(edge.data.edgeType, 'not supported yet');
+            }
+
+            return maps;
+        },
+        {
+            reactive: new Map<string, MyEdge[]>(),
+            owhership: new Map<string, MyEdge[]>(),
+        }
+    );
+}
+
+export function getOwnershipEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, OwnershipEdge[]> {
+    return edges.reduce(
+        (map, edge) => {
+            if (edge.data.edgeType === EdgeType.Ownership) {
+                if (map.has(edge[variant])) {
+                    map.get(edge[variant])!.push(edge);
+                } else {
+                    map.set(edge[variant], [edge]);
+                }
+            }
+
+            return map;
+        },
+        new Map<string, OwnershipEdge[]>()
+    );
+}
+
+export function getReactiveEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, ReactiveEdge[]> {
+    return edges.reduce(
+        (map, edge) => {
+            if (edge.data.edgeType === EdgeType.Reactive) {
+                if (map.has(edge[variant])) {
+                    map.get(edge[variant])!.push(edge);
+                } else {
+                    map.set(edge[variant], [edge]);
+                }
+            }
+
+            return map;
+        },
+        new Map<string, ReactiveEdge[]>()
+    );
+}
