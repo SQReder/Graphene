@@ -1,7 +1,20 @@
-import { attach, createApi, createEvent, createStore, Effect, EventCallable, sample, scopeBind, Store } from 'effector';
+import {
+    attach,
+    createApi,
+    createEffect,
+    createEvent,
+    createStore,
+    Effect,
+    EventCallable,
+    sample,
+    scopeBind,
+    Store,
+} from 'effector';
 import { modelFactory } from 'effector-factorio';
 import { createGate } from 'effector-react';
 import type { TransitionStatus } from 'react-transition-state';
+import type { NotificationId, NotificationPropsRaw, StatefulNotification } from './types';
+import { NotificationProps } from './types';
 
 export function ensureDefined<T>(value: T, message?: string): NonNullable<T> {
     if (value === null || value === undefined) {
@@ -29,21 +42,20 @@ export interface UnitShapeProtocol {
     [key: string]: unknown;
 }
 
-import type { NotificationId, NotificationPropsRaw, StatefulNotification } from './types';
-import { NotificationProps } from './types';
-
 export const createNotification = (props: NotificationPropsRaw): NotificationProps => NotificationProps.parse(props);
 
 type Params = {
     softDismissTimeoutMs?: number;
 };
 
+type TransitionApi = {
+    setItem: (key: unknown) => void;
+    deleteItem: (key: unknown) => void;
+    toggle: (key: unknown, toEnter?: boolean) => void;
+};
+
 export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 3000 }: Params) => {
-    const Gate = createGate<{
-        setItem: (key: unknown) => void;
-        deleteItem: (key: unknown) => void;
-        toggle: (key: unknown, toEnter?: boolean) => void;
-    }>();
+    const Gate = createGate<TransitionApi>();
 
     const $notificationList = createStore<{ map: Map<NotificationId, StatefulNotification> }>({ map: new Map() });
 
@@ -66,13 +78,25 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
 
     const $transitionApi = Gate.state;
 
-    const setItemFx = attach({
-        source: $transitionApi,
-        effect(api, notification: NotificationProps) {
+    const setItemInApiFx = createEffect(
+        ({ api, notification }: { api: TransitionApi; notification: NotificationProps }) => {
             api.setItem(notification.id);
             api.toggle(notification.id, true);
-        },
+        }
+    );
+
+    const logResult = createEvent();
+    sample({
+        clock: setItemInApiFx,
+        target: logResult,
     });
+
+    const setItemFx = attach({
+        source: $transitionApi,
+        effect: setItemInApiFx,
+        mapParams: (notification: NotificationProps, api: TransitionApi) => ({ api, notification }),
+    });
+
     sample({
         clock: notificationsApi.add,
         target: setItemFx,
@@ -151,6 +175,7 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
     return {
         publish: notificationsApi.add,
         unpublish: notificationsApi.remove,
+        logResult,
         '@@ui': {
             Gate,
             '@@unitShape': () => ({

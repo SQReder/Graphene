@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react-swc';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    resolve: {
+        alias: {
+            elkjs: 'elkjs/lib/elk.bundled.js',
+        },
+    },
     plugins: [
         react({
             plugins: [
@@ -18,7 +23,7 @@ export default defineConfig({
                             'effectorio.ts',
                             './effectorio.ts',
                             '@withease/factories',
-                            'effector-factorio'
+                            'effector-factorio',
                         ],
                     },
                 ],

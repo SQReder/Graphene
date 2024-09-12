@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react';
 
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
-import {combine, createEffect, createEvent, createStore, is, restore, sample, Unit} from 'effector';
+import { combine, createEffect, createEvent, createStore, is, restore, sample, Unit } from 'effector';
 import { EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge, NodeFamily } from './types.ts';
 import '@xyflow/react/dist/style.css';
 import './App.css';
@@ -34,10 +34,8 @@ import { notificationsModelFactory } from './oo/model.ts';
 import { cleanReactiveEdges } from './reactive-edge-cleaners.ts';
 import { cleanup } from './cleaners.ts';
 import { cleanOwnershipEdges } from './ownership-edge-cleaner.ts';
-import {createTodoListApi} from "./examples/todo.ts";
-import {createAsyncStorageExample} from "./examples/async-storage.ts";
-import { someModelFactory } from './simpleTestFactory.ts';
-import {createFactory, invoke} from '@withease/factories';
+import { createFactory, invoke } from '@withease/factories';
+import { ConfigurationContext } from './ConfigurationContext.ts';
 
 //region Preconfiguration
 const declarations: Declaration[] = [];
@@ -54,9 +52,9 @@ inspectGraph({
 const loneStoreFactory = createFactory(() => {
     const $loneStore = createStore(0);
     return {
-        $loneStore
-    }
-})
+        $loneStore,
+    };
+});
 
 const $loneStore = createStore(0);
 
@@ -119,8 +117,6 @@ const units: Unit<unknown>[] = [
     // $loneStore,
     // looped,
 
-
-
     // ...Object.values(someModelFactory.createModel()).filter(is.unit),
 ].filter(is.unit);
 //endregion
@@ -172,7 +168,7 @@ function makeInitialNodes(effectorNodesMap: Map<string, EffectorNode>): Effector
     return initialNodes;
 }
 
-const initialNodes = makeInitialNodes(effectorNodesMap);
+const initialNodes = sortNodes(makeInitialNodes(effectorNodesMap));
 
 // отсюда берутся мапы и семплы
 effectorNodesMap.forEach((effectorNode) => {
@@ -182,51 +178,67 @@ effectorNodesMap.forEach((effectorNode) => {
     }
 });
 
-sortNodes(initialNodes);
-
 console.log('initialNodes', initialNodes);
 
+const direction: 'horizontal' | 'vertical' = 'vertical';
+
 //region Reactive graph
-const layoutedRxGraph = layoutGraph({
-    nodes: initialNodes,
-    edges: reactiveEdges,
-});
+const layoutedRxGraph = await layoutGraph(
+    {
+        nodes: initialNodes,
+        edges: reactiveEdges,
+    },
+    direction
+);
 
 const cleanedRxGraph: EffectorGraph = {
     nodes: layoutedRxGraph.nodes,
     edges: cleanReactiveEdges(layoutedRxGraph.edges, effectorNodesMap),
 };
 
-const cleanedRxNoNodesGraph: EffectorGraph = cleanup(cleanedRxGraph, effectorNodesMap);
+const cleanedRxNoNodesGraph: EffectorGraph = cleanup(cleanedRxGraph);
 //endregion
 
-const ownerhipGraph: EffectorGraph = layoutGraph({
-    nodes: initialNodes,
-    edges: owningEdges,
-});
+const ownerhipGraph: EffectorGraph = await layoutGraph(
+    {
+        nodes: initialNodes,
+        edges: owningEdges,
+    },
+    direction
+);
 
 const cleanedOwnershipGraph: EffectorGraph = {
     nodes: ownerhipGraph.nodes,
-    edges: cleanOwnershipEdges(ownerhipGraph, effectorNodesMap),
+    edges: cleanOwnershipEdges(ownerhipGraph),
 };
 
-const cleanedOwnershipNoNodesGraph: EffectorGraph = cleanup(cleanedOwnershipGraph, effectorNodesMap);
+const cleanedOwnershipNoNodesGraph: EffectorGraph = cleanup(cleanedOwnershipGraph);
 
-const rxOwnershipGraph: EffectorGraph = layoutGraph({
-    nodes: initialNodes,
-    edges: [...cleanedOwnershipGraph.edges, ...cleanedRxGraph.edges],
-});
+const rxOwnershipGraph: EffectorGraph = await layoutGraph(
+    {
+        nodes: initialNodes,
+        edges: [...cleanedOwnershipGraph.edges, ...cleanedRxGraph.edges],
+    },
+    direction
+);
 
+const bestGraph = cleanup(rxOwnershipGraph);
 const layoutedGraphs = {
     rx: layoutedRxGraph,
     rxCleaned: cleanedRxGraph,
     rxCleanedNoNodes: cleanedRxNoNodesGraph,
-    rxCleanedNoNodesLayouted: layoutGraph(cleanedRxNoNodesGraph),
+    rxCleanedNoNodesLayouted: await layoutGraph(cleanup(cleanedRxNoNodesGraph), direction),
     ownership: ownerhipGraph,
     ownershipCleaned: cleanedOwnershipGraph,
     ownershipCleanedNoNodes: cleanedOwnershipNoNodesGraph,
-    ownershipCleanedNoNodesLayouted: layoutGraph(cleanedOwnershipNoNodesGraph),
-    rxOwnershipGraph: layoutGraph(cleanup(rxOwnershipGraph, effectorNodesMap)),
+    ownershipCleanedNoNodesLayouted: await layoutGraph(cleanedOwnershipNoNodesGraph, direction),
+    rxOwnershipGraph: await layoutGraph(
+        {
+            nodes: sortNodes(bestGraph.nodes),
+            edges: bestGraph.edges,
+        },
+        direction
+    ),
 };
 
 export default function App() {
@@ -292,16 +304,20 @@ export default function App() {
         | 'ownership-cleaned-no-nodes-layouted'
         | 'rx-ownership-graph'
         // 'next' | 'owning' | 'link' | 'clean' | 'clean link' | 'reactive owning (clean)'
-    >('ownership-cleaned');
+    >('rx-ownership-graph');
 
     const [replaceNodes, setReplaceNodes] = useState(true);
-    
-    const setGraph = useCallback((graph: EffectorGraph) => {
-        if (replaceNodes || nodes.length === 0) {
-            setNodes(graph.nodes);
-        }
-        setEdges(graph.edges);
-    }, [nodes.length, replaceNodes]);
+    const [showNodeIds, setShowNodeIds] = useState(true);
+
+    const setGraph = useCallback(
+        (graph: EffectorGraph) => {
+            if (replaceNodes || nodes.length === 0) {
+                setNodes(graph.nodes);
+            }
+            setEdges(graph.edges);
+        },
+        [nodes.length, replaceNodes]
+    );
 
     const [visibleEdges, setVisibleEdges] = useState<'rx' | 'ownership' | 'rx+ownership'>('rx+ownership');
 
@@ -393,7 +409,7 @@ export default function App() {
     const { isDarkMode } = useDarkMode({});
 
     return (
-        <>
+        <ConfigurationContext.Provider value={{ layoutDirection: direction, showNodeIds }}>
             <Buttons>
                 <button onClick={() => setViewMode('rx')}>Reactive</button>
                 <button onClick={() => setViewMode('rx-cleaned')}>Reactive Cleaned</button>
@@ -435,20 +451,28 @@ export default function App() {
                         Reactive + Ownership
                     </label>
                 </Fieldset>
-                <hr/>
-                <label>
-                    <input
-                        type='checkbox'
-                        checked={replaceNodes}
-                        onChange={e => setReplaceNodes(e.target.checked)}
-                    />
+                <hr />
+                <label title={'Hack to save nodes positions when switching between views'}>
+                    <input type='checkbox' checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
                     Replace nodes
                 </label>
-
-                {/*<button onClick={() => setViewMode('owning')}>Owning</button>*/}
-                {/*<button onClick={() => setViewMode('link')}>Links</button>*/}
-                {/*<button onClick={() => setViewMode('clean link')}>Links Cleaned</button>*/}
-                {/*<button onClick={() => setViewMode('reactive owning (clean)')}>Rx + Own (🧼🧹)</button>*/}
+                <label title={'Show node ids in the graph'}>
+                    <input type='checkbox' checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
+                    Show node ids
+                </label>
+                <hr />
+                <Legend>
+                    <div>
+                        <strong>legend</strong>
+                    </div>
+                    <ul>
+                        <li>📦 - store</li>
+                        <li>🔔 - event</li>
+                        <li>⚡️ - effect</li>
+                        <li>⚡️~⚡️ - attached effect</li>
+                        <li>🏭 - factory</li>
+                    </ul>
+                </Legend>
             </Buttons>
             <div style={{ width: '100vw', height: '100vh' }}>
                 <ReactFlow
@@ -468,15 +492,22 @@ export default function App() {
                     <Controls />
                 </ReactFlow>
             </div>
-        </>
+        </ConfigurationContext.Provider>
     );
 }
 
-const Buttons = styled.div`
+const Box = styled.div`
     display: flex;
     flex-flow: column;
     gap: 4px;
+    // thin gray border
+    border: 1px solid #ccc;
+    padding: 4px;
 
+    background: rgba(255, 255, 255, 0.75);
+`;
+
+const Buttons = styled(Box)`
     position: absolute;
     top: 10px;
     right: 10px;
@@ -484,10 +515,15 @@ const Buttons = styled.div`
     z-index: 100;
 `;
 
-const Fieldset = styled.fieldset`
-    display: flex;
-    flex-flow: column;
-    gap: 4px;
-    
-    background: rgba(255,255,255,0.75);
+const Fieldset = styled(Box)`
+    background: rgba(255, 255, 255, 0.75);
+`.withComponent('fieldset');
+
+const Legend = styled(Box)`
+    ul {
+        list-style: none;
+        padding: 0;
+
+        margin: 0;
+    }
 `;

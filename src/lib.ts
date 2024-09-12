@@ -9,18 +9,51 @@ import {
     MetaType,
     MyEdge,
     NodeFamily,
-    OpType, OwnershipEdge, ReactiveEdge,
+    OpType,
+    OwnershipEdge,
+    ReactiveEdge,
+    RegularEffectorDetails,
     RegularEffectorNode,
     UnitMeta,
 } from './types.ts';
 import { Unit } from 'effector';
-import { getLayouter } from './GetLayouter.tsx';
+import { getElkLayouter } from './GetLayouter.tsx';
 import { ensureDefined } from './oo/model.ts';
 import { MarkerType } from '@xyflow/system';
 
 export function absurd(value: never): never {
     throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
 }
+
+export const getMetaIcon = (meta: Meta): string => {
+    switch (meta.op) {
+        case OpType.Watch:
+            return '👓';
+        case OpType.On:
+            return '🔛';
+        case OpType.Map:
+            return '➡️';
+        case OpType.FilterMap:
+            return '📝';
+        case OpType.Combine:
+            return '⊕';
+        case OpType.Store:
+            return '📦';
+        case OpType.Event:
+            return '🔔';
+        case OpType.Sample:
+            return '🔁';
+        case OpType.Effect:
+            return meta.attached ? '⚡️~⚡️' : '⚡️';
+        default:
+            switch (meta.type) {
+                case MetaType.Factory:
+                    return '🏭';
+                default:
+                    return '❓';
+            }
+    }
+};
 
 export function formatMeta(id: string, meta: Meta) {
     const id_ = `[${id}]`;
@@ -40,13 +73,13 @@ export function formatMeta(id: string, meta: Meta) {
         case OpType.Event:
             return `🔔 ${id_} ${meta.name}${meta.derived ? ' (derived)' : ''}`;
         case OpType.Sample:
-            return `${id_} sample ` + meta.joint;
+            return `${id_} 📊➕🔄 ` + meta.joint;
         case OpType.Effect:
             return `${meta.attached ? '⚡️~⚡️' : '⚡️'}  ${id_}` + meta.name;
         default:
             switch (meta.type) {
                 case MetaType.Factory:
-                    return 'factory ' + meta.method;
+                    return '🏭 factory ' + meta.method;
                 default:
                     try {
                         absurd(meta.type);
@@ -177,7 +210,7 @@ export function makeEdgesFromMetaMap(nodesMap: Map<string, EffectorNode>): {
                     id,
                     source: owner.id,
                     target: current.id,
-                    label: `${owner.id} 🔽 ${current.id}`,
+                    // label: `${owner.id} 🔽 ${current.id}`,
                     markerEnd: {
                         type: MarkerType.ArrowClosed,
                     },
@@ -247,7 +280,7 @@ function getBackground(linkType: NodeFamily) {
         case NodeFamily.Crosslink:
             return '#f3f38f';
         case NodeFamily.Regular:
-            return '#ef9bef';
+            return '#dadada';
         case NodeFamily.Declaration:
             return '#efefef';
         default:
@@ -263,14 +296,34 @@ export function isRegularNode(node: EffectorNode): node is RegularEffectorNode {
     return node.data.nodeType === NodeFamily.Regular || node.data.nodeType === NodeFamily.Crosslink;
 }
 
-export function layoutGraph(graph: EffectorGraph): EffectorGraph {
-    const layouter = getLayouter();
+export function assertIsRegularEffectorDetails(details: unknown): asserts details is RegularEffectorDetails {
+    if (details === null || details === undefined) {
+        throw new Error('assertIsRegularEffectorDetails: given value is null or undefined');
+    }
+
+    if (typeof details !== 'object') {
+        throw new Error(`assertIsRegularEffectorDetails: given value is not an object, but ${typeof details}`);
+    }
+
+    if (!('nodeType' in details)) {
+        throw new Error(`assertIsRegularEffectorDetails: given object does not have nodeType property`);
+    }
+
+    if (details.nodeType !== NodeFamily.Regular && details.nodeType !== NodeFamily.Crosslink) {
+        throw new Error(
+            `assertIsRegularEffectorDetails: given nodeType is not a regular effector node type, but ${details.nodeType}`
+        );
+    }
+}
+
+export function layoutGraph(graph: EffectorGraph, direction: 'horizontal' | 'vertical') {
+    const layouter = getElkLayouter();
 
     return layouter.getLayoutedElements(graph.nodes, graph.edges);
 }
 
-export const sortNodes = (initialNodes: EffectorNode[]) => {
-    initialNodes
+export const sortNodes = (initialNodes: EffectorNode[]): EffectorNode[] => {
+    return [...initialNodes]
         .sort((a, b) => {
             if (a.id < b.id) {
                 return -1;
@@ -317,7 +370,12 @@ export function nodeHasOpType<Op extends OpType>(
     return isRegularNode(node) && hasOpType(node.data.effector.graphite, opType);
 }
 
-
+export function isReactiveEdge(edge: MyEdge): edge is ReactiveEdge {
+    return edge.data.edgeType === EdgeType.Reactive;
+}
+export function isOwnershipEdge(edge: MyEdge): edge is OwnershipEdge {
+    return edge.data.edgeType === EdgeType.Ownership;
+}
 
 export type GraphTypedEdges = {
     owhership: Map<string, OwnershipEdge[]>;
@@ -327,14 +385,14 @@ export type GraphTypedEdges = {
 export function getEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): GraphTypedEdges {
     return edges.reduce(
         (maps, edge) => {
-            if (edge.data.edgeType === EdgeType.Reactive) {
+            if (isReactiveEdge(edge)) {
                 const map = maps.reactive;
                 if (map.has(edge[variant])) {
                     map.get(edge[variant])!.push(edge);
                 } else {
                     map.set(edge[variant], [edge]);
                 }
-            } else if (edge.data.edgeType === EdgeType.Ownership) {
+            } else if (isOwnershipEdge(edge)) {
                 const map = maps.owhership;
                 if (map.has(edge[variant])) {
                     map.get(edge[variant])!.push(edge);
@@ -348,42 +406,36 @@ export function getEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Graph
             return maps;
         },
         {
-            reactive: new Map<string, MyEdge[]>(),
-            owhership: new Map<string, MyEdge[]>(),
+            reactive: new Map<string, ReactiveEdge[]>(),
+            owhership: new Map<string, OwnershipEdge[]>(),
         }
     );
 }
 
 export function getOwnershipEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, OwnershipEdge[]> {
-    return edges.reduce(
-        (map, edge) => {
-            if (edge.data.edgeType === EdgeType.Ownership) {
-                if (map.has(edge[variant])) {
-                    map.get(edge[variant])!.push(edge);
-                } else {
-                    map.set(edge[variant], [edge]);
-                }
+    return edges.reduce((map, edge) => {
+        if (isOwnershipEdge(edge)) {
+            if (map.has(edge[variant])) {
+                map.get(edge[variant])!.push(edge);
+            } else {
+                map.set(edge[variant], [edge]);
             }
+        }
 
-            return map;
-        },
-        new Map<string, OwnershipEdge[]>()
-    );
+        return map;
+    }, new Map<string, OwnershipEdge[]>());
 }
 
 export function getReactiveEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, ReactiveEdge[]> {
-    return edges.reduce(
-        (map, edge) => {
-            if (edge.data.edgeType === EdgeType.Reactive) {
-                if (map.has(edge[variant])) {
-                    map.get(edge[variant])!.push(edge);
-                } else {
-                    map.set(edge[variant], [edge]);
-                }
+    return edges.reduce((map, edge) => {
+        if (isReactiveEdge(edge)) {
+            if (map.has(edge[variant])) {
+                map.get(edge[variant])!.push(edge);
+            } else {
+                map.set(edge[variant], [edge]);
             }
+        }
 
-            return map;
-        },
-        new Map<string, ReactiveEdge[]>()
-    );
+        return map;
+    }, new Map<string, ReactiveEdge[]>());
 }

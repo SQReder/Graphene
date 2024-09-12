@@ -1,6 +1,5 @@
 import { Edge, Node } from '@xyflow/react';
 import { Declaration } from 'effector/inspect';
-import { isUnitMeta } from './lib.ts';
 
 export const NodeFamily = {
     Crosslink: 'crosslink',
@@ -144,6 +143,9 @@ export class EffectorNodeDetails {
     get name(): string | undefined {
         if (this.meta.op === OpType.Store || this.meta.op === OpType.Event || this.meta.op === OpType.Effect) {
             return this.meta.name;
+        } else if (this.meta.op === OpType.Sample) {
+            console.trace();
+            return this.meta.joint ? 'joint sample' : 'sample';
         } else {
             return undefined;
         }
@@ -151,9 +153,9 @@ export class EffectorNodeDetails {
 
     get isDerived(): boolean {
         if (this.meta.op === OpType.Store || this.meta.op === OpType.Event) {
-            return this.meta.derived
+            return this.meta.derived;
         } else {
-            return false
+            return false;
         }
     }
 }
@@ -188,8 +190,8 @@ export type DeclarationEffectorDetails = {
     declaration: EffectorDeclarationDetails;
 };
 
-export type RegularEffectorNode = Node<{ label: string } & RegularEffectorDetails>;
-export type DeclarationEffectorNode = Node<{ label: string } & DeclarationEffectorDetails>;
+export type RegularEffectorNode = Node<RegularEffectorDetails>;
+export type DeclarationEffectorNode = Node<DeclarationEffectorDetails>;
 
 export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;

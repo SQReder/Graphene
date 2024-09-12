@@ -6,21 +6,12 @@ import {
     MyEdge,
     OpType,
     OwnershipEdge,
-    ReactiveEdge, RegularEffectorNode,
+    ReactiveEdge,
+    RegularEffectorNode,
     UnknownEdge,
 } from './types.ts';
 import { MarkerType } from '@xyflow/system';
-import { ensureDefined } from './oo/model.ts';
-import {
-    getEdgeRelatedGraphite,
-    getEdgesBy,
-    getOwnershipEdgesBy,
-    GraphTypedEdges,
-    hasOpType,
-    isDeclarationNode,
-    isRegularNode,
-    nodeHasOpType,
-} from './lib.ts';
+import { getEdgesBy, GraphTypedEdges, isRegularNode } from './lib.ts';
 
 interface EdgeCleaner {
     (graph: EffectorGraph): MyEdge[];
@@ -29,7 +20,13 @@ interface EdgeCleaner {
 type Lookups = { nodes: Map<string, EffectorNode>; edgesBySource: GraphTypedEdges; edgesByTarget: GraphTypedEdges };
 
 interface EdgeCleanerImpl<T extends MyEdge = MyEdge> {
-    (edges: T[], lookups: Lookups): T[];
+    (
+        edges: T[],
+        lookups: Lookups
+    ): {
+        edgesToRemove: T[];
+        edgesToAdd?: T[];
+    };
 }
 
 type OwnershipEdgeCleaner = EdgeCleanerImpl<OwnershipEdge>;
@@ -42,7 +39,11 @@ function isOwnershipEdge(edge: MyEdge): edge is OwnershipEdge {
 
 type NodeWithRelatedEdges = { incoming: OwnershipEdge[]; outgoing: OwnershipEdge[]; node: EffectorNode };
 
-function findNodeByOpTypeWithRelatedEdges(opType: OpType, lookups: Lookups, extraFilter: (node:RegularEffectorNode) => boolean = () => true): NodeWithRelatedEdges[] {
+function findNodeByOpTypeWithRelatedEdges(
+    opType: OpType,
+    lookups: Lookups,
+    extraFilter: (node: RegularEffectorNode) => boolean = () => true
+): NodeWithRelatedEdges[] {
     const result: NodeWithRelatedEdges[] = [];
 
     Array.from(lookups.nodes.values()).forEach((node) => {
@@ -59,9 +60,9 @@ function findNodeByOpTypeWithRelatedEdges(opType: OpType, lookups: Lookups, extr
 }
 
 const makeTransitiveNodeReplacer = (transitiveOpType: OpType): OwnershipEdgeCleaner => {
-    const replaceTransitiveNodesWithEdge: OwnershipEdgeCleaner = (edges, lookups) => {
+    return (_, lookups) => {
         const edgesToRemove: OwnershipEdge[] = [];
-        const newEdges: OwnershipEdge[] = [];
+        const edgesToAdd: OwnershipEdge[] = [];
 
         findNodeByOpTypeWithRelatedEdges(transitiveOpType, lookups).forEach(({ node, incoming, outgoing }) => {
             console.log('nodeWithRelatedEdges', { node, incoming, outgoing });
@@ -117,7 +118,7 @@ const makeTransitiveNodeReplacer = (transitiveOpType: OpType): OwnershipEdgeClea
 
             const child = regularChildren[0];
 
-            newEdges.push({
+            edgesToAdd.push({
                 id: `${owner.source} owns ${child.target}`,
                 source: owner.source,
                 target: child.target,
@@ -141,133 +142,49 @@ const makeTransitiveNodeReplacer = (transitiveOpType: OpType): OwnershipEdgeClea
             edgesToRemove.push(...factoryOwners, ...nonFactoryOwners, ...regularChildren);
         });
 
-        return edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...newEdges);
-
-        // return edges.flatMap((edge): OwnershipEdge[] => {
-        //     //region Incoming edge of .on node
-        //     const targetNode = nodeMap.get(edge.target);
-        //     if (!targetNode) return [edge];
-        //
-        //     if (!nodeHasOpType(targetNode, transitiveOpType)) return [edge];
-        //
-        //     const nextEdges = edgesBySource.get(edge.target);
-        //     const nextNodesCount = nextEdges?.length;
-        //
-        //     if (nextNodesCount !== 1) {
-        //         console.warn(`${transitiveOpType} with ${nextNodesCount} next nodes`, targetNode);
-        //         return [edge];
-        //     }
-        //
-        //     const nextGraphite = targetNode.next[0]!;
-        //
-        //     if (!hasOpType(nextGraphite, nextOpType)) {
-        //         console.warn(
-        //             `${transitiveOpType} with no ${nextOpType} in next node, found ${nextGraphite.meta.op}`,
-        //             nextGraphite
-        //         );
-        //         return [edge];
-        //     }
-        //
-        //     if (edge.source === nextGraphite.id) {
-        //         console.debug('loop - remove edge', edge);
-        //         return [];
-        //     }
-        //
-        //     const id = `${edge.source} owns ${nextGraphite.id}`;
-        //
-        //     return [
-        //         {
-        //             id: id,
-        //             source: edge.source,
-        //             target: nextGraphite.id,
-        //             label: `.${transitiveOpType ? transitiveOpType.toLowerCase() : '???'}`,
-        //             markerEnd: {
-        //                 type: MarkerType.ArrowClosed,
-        //             },
-        //             style: {
-        //                 stroke: 'rgba(132,215,253,0.7)',
-        //             },
-        //             data: {
-        //                 edgeType: EdgeType.Ownership,
-        //                 relatedNodes: {
-        //                     source: edge.data.relatedNodes.source,
-        //                     target: ensureDefined(nodeMap.get(nextGraphite.id)),
-        //                     collapsed: [],
-        //                 },
-        //             },
-        //         },
-        //     ] satisfies OwnershipEdge[];
-        //     //endregion
-        // });
-    };
-
-    const clearTransitiveNodeOutcomingEdges: OwnershipEdgeCleaner = (edges) => {
-        return edges; /*.filter((edge) => {
-            const sourceGraphite = getEdgeRelatedGraphite(edge, 'source');
-            if (!sourceGraphite) {
-                console.error('no source graphite', edge);
-                return true;
-            }
-
-            return !hasOpType(sourceGraphite, transitiveOpType);
-        });*/
-    };
-
-    return (edges, nodeMap) => {
-        return [replaceTransitiveNodesWithEdge, clearTransitiveNodeOutcomingEdges].reduce(
-            (cleaned, cleaner) => cleaner(cleaned, nodeMap),
-            edges
-        );
+        return { edgesToRemove, edgesToAdd };
     };
 };
 
-// const clearStoreDotMapEdges = makeTransitiveNodeReplacer(OpType.Map, OpType.Store);
-// const clearEventDotMapEdges = makeTransitiveNodeReplacer(OpType.Map, OpType.Event);
 const clearDotOnEdges = makeTransitiveNodeReplacer(OpType.On);
 const clearDotMapEdges = makeTransitiveNodeReplacer(OpType.Map);
 const clearDotFilterMapEdges = makeTransitiveNodeReplacer(OpType.FilterMap);
-// const clearStoreUnknownEdges = makeTransitiveNodeReplacer(undefined, OpType.Store);
 
 // -----------------
 
-function isTargetedIntoReinit(edge: OwnershipEdge, key: 'target' | 'source') {
-    const target = edge.data!.relatedNodes[key];
-    if (isDeclarationNode(target)) return false;
-
-    const nodeDetails = target.data.effector;
-    const meta = nodeDetails.meta;
-
-    // take a look. is it derived event names 'updates'?
-    const isDerivedUpdatedEvent = meta.op === 'event' && Boolean(meta.derived) && meta.name === 'updates';
-
-    return isDerivedUpdatedEvent;
-}
-
-const removeStoreUpdatesWithNoChildren: OwnershipEdgeCleaner = (edges,lookups) => {
+const removeStoreUpdatesWithNoChildren: OwnershipEdgeCleaner = (_, lookups) => {
     const edgesToRemove: OwnershipEdge[] = [];
 
-    const nodes = findNodeByOpTypeWithRelatedEdges(OpType.Event, lookups, node => node.data.effector.name === 'updates' && node.data.effector.isDerived)
+    const nodes = findNodeByOpTypeWithRelatedEdges(
+        OpType.Event,
+        lookups,
+        (node) => node.data.effector.name === 'updates' && node.data.effector.isDerived
+    );
 
-    for (const {incoming, outgoing} of nodes) {
+    for (const { incoming, outgoing } of nodes) {
         if (outgoing.length === 0) {
-            edgesToRemove.push(...incoming)
+            edgesToRemove.push(...incoming);
         }
     }
 
-    return edges.filter((edge) => !edgesToRemove.includes(edge));
+    return { edgesToRemove };
 };
 
 // -----------------
 
-const removeReinit: OwnershipEdgeCleaner = (edges, lookups) => {
-    const nodes = findNodeByOpTypeWithRelatedEdges(OpType.Event, lookups, node => node.data.effector.name === 'reinit')
+const removeReinit: OwnershipEdgeCleaner = (_, lookups) => {
+    const nodes = findNodeByOpTypeWithRelatedEdges(
+        OpType.Event,
+        lookups,
+        (node) => node.data.effector.name === 'reinit'
+    );
 
     const edgesToRemove: OwnershipEdge[] = [];
     const edgesToAdd: OwnershipEdge[] = [];
 
-    console.log('reinit', nodes)
+    console.log('reinit', nodes);
 
-    for (const {node, incoming, outgoing} of nodes) {
+    for (const { node, incoming, outgoing } of nodes) {
         if (outgoing.length === 0) {
             console.warn('no outgoing edges for reinit event', node, outgoing);
             continue;
@@ -291,7 +208,7 @@ const removeReinit: OwnershipEdgeCleaner = (edges, lookups) => {
                 style: {
                     stroke: 'rgba(132,215,253,0.7)',
                 },
-                label: `${incomingEdge.source} 🔽 ${singleOutgoingEdge.target}`,
+                // label: `${incomingEdge.source} 🔽 ${singleOutgoingEdge.target}`,
                 data: {
                     edgeType: 'ownership',
                     relatedNodes: {
@@ -300,35 +217,23 @@ const removeReinit: OwnershipEdgeCleaner = (edges, lookups) => {
                         collapsed: [node],
                     },
                 },
-            })
+            });
         }
 
         edgesToRemove.push(...incoming, ...outgoing);
     }
 
-    console.log('edgesToRemove', edgesToRemove)
-    console.log('edgesToAdd', edgesToAdd)
+    console.log('edgesToRemove', edgesToRemove);
+    console.log('edgesToAdd', edgesToAdd);
 
-    return edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd);
-    // return edges.filter((edge) => {
-    //     const sourceGraphite = getEdgeRelatedGraphite(edge, 'source');
-    //     if (!sourceGraphite) {
-    //         console.error('no source graphite', edge);
-    //         return true;
-    //     }
-    //
-    //     if (!hasOpType(sourceGraphite, OpType.Event)) return true;
-    //     if (!(sourceGraphite.meta.name === 'reinit')) return true;
-    //
-    //     return sourceGraphite.family.owners.length > 0;
-    // });
+    return { edgesToRemove, edgesToAdd };
 };
 
 // -----------------
 
 const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
-    return (edges, lookups) => {
-        const edgesToRemove: Set<OwnershipEdge> = new Set();
+    return (_, lookups) => {
+        const edgesToRemove: OwnershipEdge[] = [];
 
         findNodeByOpTypeWithRelatedEdges(opType, lookups).forEach(({ node, incoming, outgoing }) => {
             console.log('nodeWithRelatedEdges', { node, incoming, outgoing });
@@ -337,13 +242,15 @@ const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
                 // look for edges that sourced from outgoingEdge.target and targered into outgoingEdge.source
 
                 const edgesFromTarget = lookups.edgesBySource.owhership.get(outgoingEdge.target);
-                const looped = edgesFromTarget?.filter((edgeFromTarget) => edgeFromTarget.target === outgoingEdge.source);
+                const looped = edgesFromTarget?.filter(
+                    (edgeFromTarget) => edgeFromTarget.target === outgoingEdge.source
+                );
 
                 if (looped?.length) {
                     console.log(outgoingEdge, 'looped', looped);
                     if (looped.length > 1) console.error('more than one looped edges', looped);
                     else {
-                        edgesToRemove.add(looped[0]);
+                        edgesToRemove.push(looped[0]);
                     }
                 }
             }
@@ -351,10 +258,9 @@ const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
 
         console.log('edgesToRemove', edgesToRemove);
 
-        return edges.filter((edge) => !edgesToRemove.has(edge));
+        return { edgesToRemove };
     };
-
-}
+};
 
 // -----------------
 
@@ -375,20 +281,19 @@ export const cleanOwnershipEdges: EdgeCleaner = (graph) => {
         makeReverseOwnershipCleaner(OpType.Map),
         makeReverseOwnershipCleaner(OpType.FilterMap),
         makeReverseOwnershipCleaner(OpType.Sample),
-        // clearEventDotMapEdges,
         clearDotOnEdges,
         clearDotMapEdges,
         clearDotFilterMapEdges,
         removeReinit,
-        // clearStoreUnknownEdges,
         removeStoreUpdatesWithNoChildren,
     ];
-    const cleanedOwnershipEdges = cleaners.reduce((cleaned, cleaner) => {
-        return cleaner(cleaned, {
-            edgesBySource: getEdgesBy(cleaned, 'source'),
-            edgesByTarget: getEdgesBy(cleaned, 'target'),
+    const cleanedOwnershipEdges = cleaners.reduce((edges, cleaner) => {
+        const { edgesToRemove, edgesToAdd } = cleaner(edges, {
+            edgesBySource: getEdgesBy(edges, 'source'),
+            edgesByTarget: getEdgesBy(edges, 'target'),
             nodes: new Map(graph.nodes.map((node) => [node.id, node])),
         });
+        return edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...(edgesToAdd ?? []));
     }, ownership);
     return [...cleanedOwnershipEdges, ...other];
 };

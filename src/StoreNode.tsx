@@ -1,116 +1,145 @@
 import { Handle, NodeProps, Position } from '@xyflow/react';
 import styled from '@emotion/styled';
 import { EffectorNode } from './types.ts';
+import { useLayouterContext } from './ConfigurationContext.ts';
+import { css } from '@emotion/react';
+import { assertIsRegularEffectorDetails, getMetaIcon } from './lib.ts';
+
+const nodeWidth = css`
+    //width: 150px;
+`;
+
+const nodeHeight = css`
+    //height: 30px;
+`;
 
 const StoreNodeContainer = styled.div`
     background: burlywood;
-    width: 150px;
-    height: 50px;
+    ${nodeWidth};
+    ${nodeHeight};
 
     font-size: 1rem;
 
     display: flex;
     align-items: center;
     justify-content: center;
+
+    padding: 8px 4px;
 `;
 
-export const StoreNode = (props: NodeProps) => {
+const Content = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+`;
+
+const Icon = styled.div``;
+
+const NodeId = styled.div`
+    position: absolute;
+    top: 4px;
+    left: 4px;
+
+    color: rgba(0, 0, 0, 0.5);
+`;
+
+export const StoreNode = (props: NodeProps<EffectorNode>) => {
+    const { layoutDirection, showNodeIds } = useLayouterContext();
+
+    assertIsRegularEffectorDetails(props.data);
+
+    const name = props.data.effector.name;
+    const icon = getMetaIcon(props.data.effector.meta);
+
     return (
         <StoreNodeContainer>
             {/*<Handle type='target' position={Position.Top} style={{ left: 10 }} />*/}
-            <Handle type='target' position={Position.Top} />
-            <Handle type='source' position={Position.Bottom} />
+            <Handle type='target' position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+            <Handle type='source' position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-            {/*<Handle type='target' position={Position.Top} id='reinit' style={{ right: 10 }} />*/}
-            {/*<Handle type='target' position={Position.Top} id='.on'>*/}
-            {/*    .on*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Bottom} id={'.map'}>*/}
-            {/*    .map*/}
-            {/*</Handle>*/}
-
-            <div>
-                {/*@ts-expect-error ts(2322)*/}
-                {props.data.label}
-            </div>
+            {showNodeIds && <NodeId>{props.id}</NodeId>}
+            <Content>
+                <Icon>{icon}</Icon>
+                <div>
+                    <div>{name}</div>
+                </div>
+            </Content>
         </StoreNodeContainer>
     );
 };
 
 const EventNodeContainer = styled.div`
     background: lightyellow;
-    width: 150px;
-    height: 50px;
+    ${nodeWidth};
+    ${nodeHeight};
 
     font-size: 1rem;
 
     display: flex;
     align-items: center;
     justify-content: center;
+
+    padding: 8px 4px;
 `;
 
 export const EventNode = (props: NodeProps<EffectorNode>) => {
+    const { layoutDirection, showNodeIds } = useLayouterContext();
+
+    assertIsRegularEffectorDetails(props.data);
+
+    const name = props.data.effector.name;
+    const icon = getMetaIcon(props.data.effector.meta);
+
     return (
         <EventNodeContainer>
-            <Handle type='target' position={Position.Top} />
-            <Handle type='source' position={Position.Bottom} />
-            {/*<Handle type='source' position={Position.Bottom} id={'.map'} style={{ left: '20%'}}>*/}
-            {/*    .map*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Bottom} id={'.filterMap'} style={{ left: '80%'}}>*/}
-            {/*    .filterMap*/}
-            {/*</Handle>*/}
+            <Handle type='target' position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+            <Handle type='source' position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-            <div>{props.data.label}</div>
+            {showNodeIds && <NodeId>{props.id}</NodeId>}
+            <Content>
+                <Icon>{icon}</Icon>
+                <div>
+                    <div>{name}</div>
+                </div>
+            </Content>
         </EventNodeContainer>
     );
 };
 
 const EffectNodeContainer = styled.div`
     background: palegreen;
-    width: 150px;
-    height: 50px;
+    ${nodeWidth};
+    ${nodeHeight};
 
     font-size: 1rem;
 
     display: flex;
     align-items: center;
     justify-content: center;
+
+    padding: 8px 4px;
 `;
 
 export const EffectNode = (props: NodeProps) => {
+    const { layoutDirection, showNodeIds } = useLayouterContext();
+
+    assertIsRegularEffectorDetails(props.data);
+
+    const name = props.data.effector.name;
+    const icon = getMetaIcon(props.data.effector.meta);
+
     return (
         <EffectNodeContainer>
-            <Handle type='target' position={Position.Top} />
-            <Handle type='source' position={Position.Bottom} />
+            <Handle type='target' position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+            <Handle type='source' position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-            {/*<Handle type='source' position={Position.Bottom} style={{ left: '75%', background: 'green' }} id={'done'}>*/}
-            {/*    🔔*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Bottom} style={{ left: '90%', background: 'green' }} id={'doneData'}>*/}
-            {/*    📦*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Bottom} style={{ left: '10%', background: 'darkred' }} id={'fail'}>*/}
-            {/*    🔔*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Bottom} style={{ left: '25%', background: 'darkred' }} id={'failData'}>*/}
-            {/*    📦*/}
-            {/*</Handle>*/}
-
-            {/*<Handle type='source' position={Position.Right} style={{ top: '10%' }} id={'finally'}>*/}
-            {/*    .finally*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Right} style={{ top: '50%' }} id={'inFlight'}>*/}
-            {/*    .$inFlight*/}
-            {/*</Handle>*/}
-            {/*<Handle type='source' position={Position.Right} style={{ top: '90%' }} id={'pending'}>*/}
-            {/*    .penging*/}
-            {/*</Handle>*/}
-
-            <div>
-                {/*@ts-expect-error ts(2322)*/}
-                {props.data.label}
-            </div>
+            {showNodeIds && <NodeId>{props.id}</NodeId>}
+            <Content>
+                <Icon>{icon}</Icon>
+                <div>
+                    <div>{name}</div>
+                </div>
+            </Content>
         </EffectNodeContainer>
     );
 };
@@ -118,23 +147,37 @@ export const EffectNode = (props: NodeProps) => {
 const SampleNodeContainer = styled.div`
     background: lightblue;
 
-    width: 50px;
-    height: 50px;
+    //width: 50px;
+    height: 30px;
 
     font-size: 1rem;
 
     display: flex;
     align-items: center;
     justify-content: center;
+
+    padding: 8px 4px;
 `;
 
 export const SampleNode = (props: NodeProps) => {
+    const { layoutDirection, showNodeIds } = useLayouterContext();
+
+    assertIsRegularEffectorDetails(props.data);
+
+    const meta = props.data.effector.meta;
+
     return (
         <SampleNodeContainer>
-            <Handle type='target' position={Position.Top} />
-            <Handle type='source' position={Position.Bottom} />
+            <Handle type='target' position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+            <Handle type='source' position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-            <div>sample</div>
+            {showNodeIds && <NodeId>{props.id}</NodeId>}
+            <Content>
+                <Icon>{meta.op === 'sample' ? (meta.joint ? '📊➕🔄' : '📊🔄') : '???'}</Icon>
+                <div>
+                    <div>sample</div>
+                </div>
+            </Content>
         </SampleNodeContainer>
     );
 };
