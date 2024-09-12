@@ -14,7 +14,7 @@ import {
 
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
 import { combine, createEffect, createEvent, createStore, is, restore, sample, Unit } from 'effector';
-import { EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge, NodeFamily } from './types.ts';
+import { EdgeType, EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge, NodeFamily } from './types.ts';
 import '@xyflow/react/dist/style.css';
 import './App.css';
 import {
@@ -36,6 +36,8 @@ import { cleanup } from './cleaners.ts';
 import { cleanOwnershipEdges } from './ownership-edge-cleaner.ts';
 import { createFactory, invoke } from '@withease/factories';
 import { ConfigurationContext } from './ConfigurationContext.ts';
+import { enrichGraph } from './enrichers.ts';
+import { someModelFactory } from './simpleTestFactory.ts';
 
 //region Preconfiguration
 const declarations: Declaration[] = [];
@@ -117,7 +119,7 @@ const units: Unit<unknown>[] = [
     // $loneStore,
     // looped,
 
-    // ...Object.values(someModelFactory.createModel()).filter(is.unit),
+    ...Object.values(someModelFactory.createModel()).filter(is.unit),
 ].filter(is.unit);
 //endregion
 
@@ -141,7 +143,7 @@ declarations
             data: {
                 nodeType: 'declaration',
                 declaration: new EffectorDeclarationDetails(declaration),
-                label: (declaration.meta.name as string) ?? 'unknown',
+                // label: (declaration.meta.name as string) ?? 'unknown',
             },
             position: { x: 0, y: 0 },
         });
@@ -183,13 +185,19 @@ console.log('initialNodes', initialNodes);
 const direction: 'horizontal' | 'vertical' = 'vertical';
 
 //region Reactive graph
+console.group('Reactive graph');
 const layoutedRxGraph = await layoutGraph(
-    {
-        nodes: initialNodes,
-        edges: reactiveEdges,
-    },
+    enrichGraph(
+        {
+            nodes: initialNodes,
+            edges: reactiveEdges,
+        },
+        EdgeType.Reactive
+    ),
     direction
 );
+
+console.groupEnd();
 
 const cleanedRxGraph: EffectorGraph = {
     nodes: layoutedRxGraph.nodes,
@@ -199,13 +207,20 @@ const cleanedRxGraph: EffectorGraph = {
 const cleanedRxNoNodesGraph: EffectorGraph = cleanup(cleanedRxGraph);
 //endregion
 
+console.group('Ownerhip graph');
+
 const ownerhipGraph: EffectorGraph = await layoutGraph(
-    {
-        nodes: initialNodes,
-        edges: owningEdges,
-    },
+    enrichGraph(
+        {
+            nodes: initialNodes,
+            edges: owningEdges,
+        },
+        EdgeType.Ownership
+    ),
     direction
 );
+
+console.groupEnd();
 
 const cleanedOwnershipGraph: EffectorGraph = {
     nodes: ownerhipGraph.nodes,

@@ -439,3 +439,44 @@ export function getReactiveEdgesBy(edges: MyEdge[], variant: 'source' | 'target'
         return map;
     }, new Map<string, ReactiveEdge[]>());
 }
+
+export function shallowCopyGraph(graph: EffectorGraph) {
+    return {
+        nodes: [...graph.nodes],
+        edges: [...graph.edges],
+    };
+}
+export type Lookups = {
+    nodes: Map<string, EffectorNode>;
+    edgesBySource: GraphTypedEdges;
+    edgesByTarget: GraphTypedEdges;
+};
+type NodeWithRelatedEdges = { incoming: OwnershipEdge[]; outgoing: OwnershipEdge[]; node: EffectorNode };
+
+export function findNodesByOpTypeWithRelatedEdges(
+    opType: OpType,
+    lookups: Lookups,
+    extraFilter: (node: RegularEffectorNode) => boolean = () => true
+): NodeWithRelatedEdges[] {
+    const result: NodeWithRelatedEdges[] = [];
+
+    Array.from(lookups.nodes.values()).forEach((node) => {
+        if (isRegularNode(node) && node.data.effector.meta.op === opType && extraFilter(node)) {
+            result.push({
+                node,
+                incoming: lookups.edgesByTarget.owhership.get(node.id) || [],
+                outgoing: lookups.edgesBySource.owhership.get(node.id) || [],
+            });
+        }
+    });
+
+    return result;
+}
+
+export function findNodesByOpType(
+    opType: OpType,
+    nodes: EffectorNode[],
+    extraFilter: (node: RegularEffectorNode) => boolean = () => true
+): RegularEffectorNode[] {
+    return nodes.filter(isRegularNode).filter((node) => node.data.effector.meta.op === opType && extraFilter(node));
+}

@@ -1,16 +1,9 @@
 import { EdgeType, EffectorGraph, EffectorNode, MyEdge, OpType, ReactiveEdge, RegularEffectorNode } from './types.ts';
-import { getEdgesBy, GraphTypedEdges, isRegularNode } from './lib.ts';
+import { getEdgesBy, GraphTypedEdges, isRegularNode, shallowCopyGraph } from './lib.ts';
 import { MarkerType } from '@xyflow/system';
 
 interface GraphCleaner {
     (graph: EffectorGraph): EffectorGraph;
-}
-
-function shallowCopyGraph(graph: EffectorGraph) {
-    return {
-        nodes: [...graph.nodes],
-        edges: [...graph.edges],
-    };
 }
 
 const removeUnlinkedNodes: GraphCleaner = (graph) => {

@@ -10,7 +10,7 @@ const nodeWidth = css`
 `;
 
 const nodeHeight = css`
-    //height: 30px;
+    height: 40px;
 `;
 
 const StoreNodeContainer = styled.div`
@@ -148,7 +148,7 @@ const SampleNodeContainer = styled.div`
     background: lightblue;
 
     //width: 50px;
-    height: 30px;
+    ${nodeHeight};
 
     font-size: 1rem;
 

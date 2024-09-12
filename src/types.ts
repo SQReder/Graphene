@@ -1,5 +1,6 @@
 import { Edge, Node } from '@xyflow/react';
 import { Declaration } from 'effector/inspect';
+import { Effect } from 'effector';
 
 export const NodeFamily = {
     Crosslink: 'crosslink',
@@ -70,6 +71,7 @@ export interface Graphite {
     meta: Meta;
     next: Graphite[];
     scope: {
+        handler: (...args: unknown[]) => unknown | Effect<unknown, unknown, unknown>;
         fn: (...args: unknown[]) => unknown;
     };
 }
@@ -84,6 +86,7 @@ export const EdgeType = {
 export type EdgeType = (typeof EdgeType)[keyof typeof EdgeType];
 
 type BaseEdgeData = {
+    synthetic?: boolean;
     relatedNodes: {
         source: EffectorNode;
         target: EffectorNode;

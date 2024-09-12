@@ -85,7 +85,7 @@ export const getElkLayouter = () => {
 
                 // Hardcode a width and height for elk to use when layouting.
                 width: 150,
-                height: 50,
+                height: 42,
             })),
             edges: edges,
         };

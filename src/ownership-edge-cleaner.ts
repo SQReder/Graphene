@@ -1,23 +1,19 @@
 import {
     EdgeType,
     EffectorGraph,
-    EffectorNode,
     LinkEdge,
     MyEdge,
     OpType,
     OwnershipEdge,
     ReactiveEdge,
-    RegularEffectorNode,
     UnknownEdge,
 } from './types.ts';
 import { MarkerType } from '@xyflow/system';
-import { getEdgesBy, GraphTypedEdges, isRegularNode } from './lib.ts';
+import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isRegularNode, Lookups } from './lib.ts';
 
 interface EdgeCleaner {
     (graph: EffectorGraph): MyEdge[];
 }
-
-type Lookups = { nodes: Map<string, EffectorNode>; edgesBySource: GraphTypedEdges; edgesByTarget: GraphTypedEdges };
 
 interface EdgeCleanerImpl<T extends MyEdge = MyEdge> {
     (
@@ -37,36 +33,12 @@ function isOwnershipEdge(edge: MyEdge): edge is OwnershipEdge {
 
 // -----------------
 
-type NodeWithRelatedEdges = { incoming: OwnershipEdge[]; outgoing: OwnershipEdge[]; node: EffectorNode };
-
-function findNodeByOpTypeWithRelatedEdges(
-    opType: OpType,
-    lookups: Lookups,
-    extraFilter: (node: RegularEffectorNode) => boolean = () => true
-): NodeWithRelatedEdges[] {
-    const result: NodeWithRelatedEdges[] = [];
-
-    Array.from(lookups.nodes.values()).forEach((node) => {
-        if (isRegularNode(node) && node.data.effector.meta.op === opType && extraFilter(node)) {
-            result.push({
-                node,
-                incoming: lookups.edgesByTarget.owhership.get(node.id) || [],
-                outgoing: lookups.edgesBySource.owhership.get(node.id) || [],
-            });
-        }
-    });
-
-    return result;
-}
-
 const makeTransitiveNodeReplacer = (transitiveOpType: OpType): OwnershipEdgeCleaner => {
     return (_, lookups) => {
         const edgesToRemove: OwnershipEdge[] = [];
         const edgesToAdd: OwnershipEdge[] = [];
 
-        findNodeByOpTypeWithRelatedEdges(transitiveOpType, lookups).forEach(({ node, incoming, outgoing }) => {
-            console.log('nodeWithRelatedEdges', { node, incoming, outgoing });
-
+        findNodesByOpTypeWithRelatedEdges(transitiveOpType, lookups).forEach(({ node, incoming, outgoing }) => {
             const { factoryOwners, nonFactoryOwners } = incoming.reduce<{
                 factoryOwners: OwnershipEdge[];
                 nonFactoryOwners: OwnershipEdge[];
@@ -89,10 +61,6 @@ const makeTransitiveNodeReplacer = (transitiveOpType: OpType): OwnershipEdgeClea
                 const child = lookups.nodes.get(edge.target)!;
                 return isRegularNode(child) && !child.data.effector.isFactory;
             });
-
-            console.log('factoryOwners', factoryOwners);
-            console.log('nonFactoryOwners', nonFactoryOwners);
-            console.log('regularChildren', regularChildren);
 
             if (nonFactoryOwners.length === 0) {
                 console.warn('transitive node has no non-factory owners', node);
@@ -155,7 +123,7 @@ const clearDotFilterMapEdges = makeTransitiveNodeReplacer(OpType.FilterMap);
 const removeStoreUpdatesWithNoChildren: OwnershipEdgeCleaner = (_, lookups) => {
     const edgesToRemove: OwnershipEdge[] = [];
 
-    const nodes = findNodeByOpTypeWithRelatedEdges(
+    const nodes = findNodesByOpTypeWithRelatedEdges(
         OpType.Event,
         lookups,
         (node) => node.data.effector.name === 'updates' && node.data.effector.isDerived
@@ -173,7 +141,7 @@ const removeStoreUpdatesWithNoChildren: OwnershipEdgeCleaner = (_, lookups) => {
 // -----------------
 
 const removeReinit: OwnershipEdgeCleaner = (_, lookups) => {
-    const nodes = findNodeByOpTypeWithRelatedEdges(
+    const nodes = findNodesByOpTypeWithRelatedEdges(
         OpType.Event,
         lookups,
         (node) => node.data.effector.name === 'reinit'
@@ -181,8 +149,6 @@ const removeReinit: OwnershipEdgeCleaner = (_, lookups) => {
 
     const edgesToRemove: OwnershipEdge[] = [];
     const edgesToAdd: OwnershipEdge[] = [];
-
-    console.log('reinit', nodes);
 
     for (const { node, incoming, outgoing } of nodes) {
         if (outgoing.length === 0) {
@@ -223,9 +189,6 @@ const removeReinit: OwnershipEdgeCleaner = (_, lookups) => {
         edgesToRemove.push(...incoming, ...outgoing);
     }
 
-    console.log('edgesToRemove', edgesToRemove);
-    console.log('edgesToAdd', edgesToAdd);
-
     return { edgesToRemove, edgesToAdd };
 };
 
@@ -235,9 +198,7 @@ const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
     return (_, lookups) => {
         const edgesToRemove: OwnershipEdge[] = [];
 
-        findNodeByOpTypeWithRelatedEdges(opType, lookups).forEach(({ node, incoming, outgoing }) => {
-            console.log('nodeWithRelatedEdges', { node, incoming, outgoing });
-
+        findNodesByOpTypeWithRelatedEdges(opType, lookups).forEach(({ node, incoming, outgoing }) => {
             for (const outgoingEdge of outgoing) {
                 // look for edges that sourced from outgoingEdge.target and targered into outgoingEdge.source
 
@@ -247,7 +208,6 @@ const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
                 );
 
                 if (looped?.length) {
-                    console.log(outgoingEdge, 'looped', looped);
                     if (looped.length > 1) console.error('more than one looped edges', looped);
                     else {
                         edgesToRemove.push(looped[0]);
@@ -255,8 +215,6 @@ const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
                 }
             }
         });
-
-        console.log('edgesToRemove', edgesToRemove);
 
         return { edgesToRemove };
     };

@@ -85,16 +85,17 @@ export const notificationsModelFactory = modelFactory(({ softDismissTimeoutMs = 
         }
     );
 
-    const logResult = createEvent();
-    sample({
-        clock: setItemInApiFx,
-        target: logResult,
-    });
-
     const setItemFx = attach({
         source: $transitionApi,
         effect: setItemInApiFx,
         mapParams: (notification: NotificationProps, api: TransitionApi) => ({ api, notification }),
+    });
+
+    const logResult = createEvent();
+
+    sample({
+        clock: setItemInApiFx,
+        target: logResult,
     });
 
     sample({
