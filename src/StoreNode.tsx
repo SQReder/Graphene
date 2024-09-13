@@ -37,10 +37,12 @@ const Icon = styled.div``;
 
 const NodeId = styled.div`
 	position: absolute;
-	top: 4px;
-	left: 4px;
+	top: 2px;
+	left: 2px;
 
 	color: rgba(0, 0, 0, 0.5);
+
+	font-size: 0.75rem;
 `;
 
 export const StoreNode = (props: NodeProps<EffectorNode>) => {

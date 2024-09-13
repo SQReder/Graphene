@@ -17,7 +17,7 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 			continue;
 		}
 
-		// @ts-ignore
+		// @ts-expect-error ToDo can be shorter
 		const handler = fxNode.data.effector.graphite.scope.runner.scope.handler;
 
 		if (!handler) {

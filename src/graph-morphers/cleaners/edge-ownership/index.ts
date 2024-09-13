@@ -1,5 +1,6 @@
 import { isOwnershipEdge } from '../../../lib';
 import { LinkEdge, OpType, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
+import { enrichGraph } from '../../enrichers';
 import {
 	cleanEdges,
 	createReinitCleaner,
@@ -9,7 +10,8 @@ import {
 import { GraphCleaner } from '../types';
 import { createTransitiveOwnershipEdge } from './create-transitive-ownership-edge';
 import { createTransitiveReinitEdge } from './create-transitive-reinit-edge';
-import { dropFactories, makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
+import { dimFactories } from './drop-factories';
+import { makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
 import { OwnershipEdgeCleaner } from './types';
 
 const makeTransitiveNodeReplacerForOpType = (opType: OpType) =>
@@ -42,11 +44,12 @@ export const cleanOwnershipEdges: GraphCleaner = (graph) => {
 	}
 
 	const cleaners: OwnershipEdgeCleaner[] = [
-		dropFactories,
 		...reverseOwnershipCleaners,
 		...transitiveNodesCleaners,
 		createReinitCleaner('ownership', createTransitiveReinitEdge),
 		createStoreUpdatesWithNoChildrenCleaner('ownership'),
+		// dropFactories,
+		dimFactories,
 	];
 
 	const cleanedOwnershipEdges = cleanEdges(cleaners, graph, ownership);

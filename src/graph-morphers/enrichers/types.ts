@@ -1,11 +1,5 @@
-import { GraphTypedEdges } from '../../lib';
-import { EdgeType, EffectorGraph, EffectorNode, MyEdge } from '../../types';
-
-export type Lookups = {
-	nodes: Map<string, EffectorNode>;
-	edgesBySource: GraphTypedEdges;
-	edgesByTarget: GraphTypedEdges;
-};
+import { Lookups } from '../../lib';
+import { EdgeType, EffectorGraph, MyEdge } from '../../types';
 
 export interface EnricherImpl {
 	(

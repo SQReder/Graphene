@@ -20,6 +20,9 @@ import { nodeTypes } from './nodeTypes';
 import { EffectorNode, MyEdge } from './types';
 
 const Wrapper = styled.div`
+	width: 100%;
+	height: 100%;
+
 	& * {
 		box-sizing: border-box;
 	}

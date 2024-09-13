@@ -1,7 +1,8 @@
 import { Meta, StoryObj } from '@storybook/react';
 import { invoke } from '@withease/factories';
-import { createDomain, createEvent, createStore, fork, Unit } from 'effector';
+import { createDomain, createEvent, createStore, fork, restore, Unit } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
+import { debounce } from 'patronum';
 import { useEffect } from 'react';
 import { createTodoListApi } from './examples/todo';
 import { Graphene } from './Graphene';
@@ -78,5 +79,15 @@ export const Test: Story = {
 export const GrapheneItself: Story = {
 	args: {
 		units: Object.values(appModel['@@unitShape']()),
+	},
+};
+
+const tooFastEvent = createEvent();
+const slowedEvent = debounce(tooFastEvent, 100);
+const $slowData = restore(slowedEvent, null);
+
+export const Debounce: Story = {
+	args: {
+		units: [slowedEvent],
 	},
 };

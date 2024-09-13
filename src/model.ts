@@ -6,6 +6,7 @@ import { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
 import { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
 import { cleanGraph } from './graph-morphers/cleaners/graph';
 import { GraphCleaner } from './graph-morphers/cleaners/types';
+import { enrichGraph } from './graph-morphers/enrichers';
 import { Layouter } from './layouters/types';
 import {
 	absurd,
@@ -93,10 +94,15 @@ export const grapheneModelFactory = createFactory(({ layouterFactory }: { layout
 		return makeGraphVariants(graph, edgesCleaner, cleanGraph, layouterFactory);
 	};
 
-	const makeReactiveGraphVariants = graphVariantsMakerFactory(cleanReactiveEdges);
-	const makeOwnershipGraphVariants = graphVariantsMakerFactory(cleanOwnershipEdges);
+	const ownershipEnricher = enrichGraph('ownership');
+	const reactiveEnricher = enrichGraph('reactive');
+
+	const makeReactiveGraphVariants = graphVariantsMakerFactory((graph) => reactiveEnricher(cleanReactiveEdges(graph)));
+	const makeOwnershipGraphVariants = graphVariantsMakerFactory((graph) =>
+		ownershipEnricher(cleanOwnershipEdges(graph)),
+	);
 	const makeReactiveOwnershipGraphVariants = graphVariantsMakerFactory((graph) =>
-		cleanOwnershipEdges(cleanReactiveEdges(graph)),
+		reactiveEnricher(ownershipEnricher(cleanOwnershipEdges(cleanReactiveEdges(graph)))),
 	);
 
 	const createReactiveGraphVariantsFx = attach({ effect: makeReactiveGraphVariants, source: $reactiveGraph });
