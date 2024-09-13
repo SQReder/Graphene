@@ -1,0 +1,285 @@
+import { createFactory } from '@withease/factories';
+import { attach, combine, createEvent, createStore, restore, sample, Store, Unit } from 'effector';
+import { Declaration, inspectGraph } from 'effector/inspect';
+import { readonly, reshape } from 'patronum';
+import { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
+import { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
+import { cleanGraph } from './graph-morphers/cleaners/graph';
+import { GraphCleaner } from './graph-morphers/cleaners/types';
+import { Layouter } from './layouters/types';
+import {
+	absurd,
+	createEffectorNodesLookup,
+	GraphVariant,
+	logEffectFail,
+	makeEdgesFromNodes,
+	makeGraphVariants,
+} from './lib';
+import { DeclarationEffectorNode, EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge } from './types';
+
+export function createDeclarationsStore(): Store<readonly Declaration[]> {
+	const addDeclaration = createEvent<Declaration>();
+	const $declarations = createStore<readonly Declaration[]>([]).on(addDeclaration, (state, declaration) => [
+		...state,
+		declaration,
+	]);
+
+	inspectGraph({
+		fn: (declaration) => {
+			addDeclaration(declaration);
+		},
+	});
+
+	return $declarations;
+}
+
+export const grapheneModelFactory = createFactory(({ layouterFactory }: { layouterFactory: () => Layouter }) => {
+	const appendUnits = createEvent<readonly Unit<unknown>[]>();
+	const $units = readonly(createStore<Unit<unknown>[]>([]).on(appendUnits, (state, units) => [...state, ...units]));
+
+	const $regularNodesById = $units.map(createEffectorNodesLookup);
+
+	const $declarations = createDeclarationsStore();
+
+	const $effectorNodesLookup = combine($regularNodesById, $declarations, (effectorNodesById, declarations) => {
+		const nonUnitNodes = declarations
+			.filter((d) => !effectorNodesById.has(d.id))
+			.filter((d) => d.type !== 'unit')
+			.map((declaration): [string, DeclarationEffectorNode] => [
+				declaration.id,
+				{
+					id: declaration.id,
+					data: {
+						nodeType: 'declaration',
+						declaration: new EffectorDeclarationDetails(declaration),
+					},
+					position: { x: 0, y: 0 },
+				},
+			]);
+
+		return new Map<string, EffectorNode>([...effectorNodesById.entries(), ...nonUnitNodes]);
+	});
+
+	const edges = reshape({
+		source: $effectorNodesLookup.map((map) => {
+			try {
+				return makeEdgesFromNodes(map);
+			} catch (e) {
+				console.error(e);
+				return { linkingEdges: [], ownerhipEdges: [], reactiveEdges: [] } satisfies ReturnType<
+					typeof makeEdgesFromNodes
+				>;
+			}
+		}),
+		shape: {
+			$reactive: (edges) => edges.reactiveEdges,
+			$ownership: (edges) => edges.ownerhipEdges,
+			$linking: (edges) => edges.linkingEdges,
+		},
+	});
+
+	const $nodeList = $effectorNodesLookup.map((nodes) => Array.from(nodes.values()));
+
+	const $reactiveGraph = combine<EffectorGraph>({ nodes: $nodeList, edges: edges.$reactive });
+	const $ownershipGraph = combine<EffectorGraph>({ nodes: $nodeList, edges: edges.$ownership });
+	const $reactiveOwnershipGraph = combine<EffectorGraph>({
+		nodes: $nodeList,
+		edges: combine(edges.$reactive, edges.$ownership, (reactive, ownership) => [...reactive, ...ownership]),
+	});
+
+	const graphVariantsMakerFactory = (edgesCleaner: GraphCleaner) => (graph: EffectorGraph) => {
+		return makeGraphVariants(graph, edgesCleaner, cleanGraph, layouterFactory);
+	};
+
+	const makeReactiveGraphVariants = graphVariantsMakerFactory(cleanReactiveEdges);
+	const makeOwnershipGraphVariants = graphVariantsMakerFactory(cleanOwnershipEdges);
+	const makeReactiveOwnershipGraphVariants = graphVariantsMakerFactory((graph) =>
+		cleanOwnershipEdges(cleanReactiveEdges(graph)),
+	);
+
+	const createReactiveGraphVariantsFx = attach({ effect: makeReactiveGraphVariants, source: $reactiveGraph });
+	const createOwnershipGraphVariantsFx = attach({
+		effect: makeOwnershipGraphVariants,
+		source: $ownershipGraph,
+	});
+	const createReactiveOwnershipGraphVariantsFx = attach({
+		effect: makeReactiveOwnershipGraphVariants,
+		source: $reactiveOwnershipGraph,
+	});
+
+	logEffectFail(createReactiveGraphVariantsFx);
+	logEffectFail(createOwnershipGraphVariantsFx);
+	logEffectFail(createReactiveOwnershipGraphVariantsFx);
+
+	$reactiveGraph.watch((value) => console.log('🐊', value));
+	createReactiveGraphVariantsFx.watch((value) => console.log('🐓', value));
+
+	sample({
+		clock: $reactiveGraph.updates,
+		target: createReactiveGraphVariantsFx,
+	});
+
+	sample({
+		clock: $ownershipGraph,
+		target: createOwnershipGraphVariantsFx,
+	});
+
+	sample({
+		clock: $reactiveOwnershipGraph,
+		target: createReactiveOwnershipGraphVariantsFx,
+	});
+
+	const $reactiveGraphVariants = restore(createReactiveGraphVariantsFx.doneData, null);
+	const $ownershipGraphVariants = restore(createOwnershipGraphVariantsFx.doneData, null);
+	const $reactiveOwnershipGraphVariants = restore(createReactiveOwnershipGraphVariantsFx.doneData, null);
+
+	return {
+		$effectorNodesLookup,
+
+		$reactiveGraphVariants,
+		$ownershipGraphVariants,
+		$reactiveOwnershipGraphVariants,
+
+		appendUnits,
+	};
+});
+
+type GrapheneModel = ReturnType<typeof grapheneModelFactory>;
+
+export const EdgesViewVariant = {
+	Reactive: 'reactive',
+	Ownership: 'ownership',
+	ReactiveOwnership: 'reactive+ownership',
+} as const;
+
+export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewVariant];
+
+export const appModelFactory = createFactory((grapheneModel: GrapheneModel) => {
+	const edgesVariantChanged = createEvent<EdgesViewVariant>();
+	const $edgesVariant = restore(edgesVariantChanged, 'reactive');
+
+	const graphVariantChanged = createEvent<GraphVariant>();
+	const $selectedGraphVariant = restore(graphVariantChanged, 'cleaned');
+
+	const $graphVariants = combine(
+		{
+			variant: $edgesVariant,
+			reactive: grapheneModel.$reactiveGraphVariants,
+			ownership: grapheneModel.$ownershipGraphVariants,
+			reactiveOwnership: grapheneModel.$reactiveOwnershipGraphVariants,
+		},
+		({ variant, reactive, ownership, reactiveOwnership }) => {
+			switch (variant) {
+				case 'reactive':
+					return reactive;
+				case 'ownership':
+					return ownership;
+				case 'reactive+ownership':
+					return reactiveOwnership;
+				default:
+					absurd(variant);
+			}
+		},
+	);
+
+	const $graphVariant = combine(
+		{ graphVariants: $graphVariants, graphVariant: $selectedGraphVariant },
+		({ graphVariants, graphVariant }) => {
+			if (!graphVariants) return null;
+
+			switch (graphVariant) {
+				case 'raw':
+					return graphVariants.raw;
+				case 'cleaned':
+					return graphVariants.cleaned;
+				case 'cleanedNoNodes':
+					return graphVariants.cleanedNoNodes;
+				case 'cleanedNoNodesLayouted':
+					return graphVariants.cleanedNoNodesLayouted;
+				default:
+					absurd(graphVariant);
+			}
+		},
+	);
+
+	const edgesChanged = createEvent<MyEdge[]>();
+	const $edges = readonly(
+		createStore<MyEdge[]>([]).on(
+			[edgesChanged, $graphVariant.map((graph): MyEdge[] => graph?.edges ?? [])],
+			(_, edges) => edges,
+		),
+	);
+
+	const nodesChanged = createEvent<EffectorNode[]>();
+	const $nodes = readonly(
+		createStore<EffectorNode[]>([]).on(
+			[
+				nodesChanged,
+				$graphVariant.map((graph): EffectorNode[] => {
+					console.log('🧪 graph', graph);
+					return graph?.nodes ?? [];
+				}),
+			],
+			(_, nodes) => nodes,
+		),
+	);
+
+	const nodeClicked = createEvent<{ id: string }>();
+
+	const dumpNodeInfo = attach({
+		source: grapheneModel.$effectorNodesLookup,
+		effect: async (nodes, id) => {
+			const found = nodes.get(id);
+
+			if (!found) {
+				console.warn('node not found', id);
+			} else {
+				console.log('node', found);
+			}
+		},
+	});
+
+	sample({
+		clock: nodeClicked,
+		target: dumpNodeInfo,
+	});
+
+	const edgeClicked = createEvent<{ id: string }>();
+
+	const dumpEdgeInfo = attach({
+		source: $edges,
+		effect: async (edges, id) => {
+			const found = edges.find((edge) => edge.id === id);
+
+			if (!found) {
+				console.warn('edge not found', id);
+			} else {
+				console.log('edge', found);
+			}
+		},
+	});
+
+	sample({
+		clock: edgeClicked,
+		target: dumpEdgeInfo,
+	});
+
+	return {
+		'@@unitShape': () => ({
+			edgesVariantChanged,
+			edgesVariant: $edgesVariant,
+
+			graphVariantChanged,
+			selectedGraphVariant: $selectedGraphVariant,
+
+			edgesChanged,
+			edges: $edges,
+
+			nodesChanged,
+			nodes: $nodes,
+
+			nodeClicked,
+			edgeClicked,
+		}),
+	};
+});
