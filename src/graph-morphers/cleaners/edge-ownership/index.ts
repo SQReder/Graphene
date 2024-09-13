@@ -9,7 +9,7 @@ import {
 import { GraphCleaner } from '../types';
 import { createTransitiveOwnershipEdge } from './create-transitive-ownership-edge';
 import { createTransitiveReinitEdge } from './create-transitive-reinit-edge';
-import { makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
+import { dropFactories, makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
 import { OwnershipEdgeCleaner } from './types';
 
 const makeTransitiveNodeReplacerForOpType = (opType: OpType) =>
@@ -41,6 +41,7 @@ export const cleanOwnershipEdges: GraphCleaner = (graph) => {
 	}
 
 	const cleaners: OwnershipEdgeCleaner[] = [
+		dropFactories,
 		...reverseOwnershipCleaners,
 		...transitiveNodesCleaners,
 		createReinitCleaner('ownership', createTransitiveReinitEdge),

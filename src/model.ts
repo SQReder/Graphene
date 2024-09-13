@@ -1,7 +1,7 @@
 import { createFactory } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample, Store, Unit } from 'effector';
 import { Declaration, inspectGraph } from 'effector/inspect';
-import { readonly, reshape } from 'patronum';
+import { debounce, readonly, reshape } from 'patronum';
 import { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
 import { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
 import { cleanGraph } from './graph-morphers/cleaners/graph';
@@ -11,6 +11,8 @@ import {
 	absurd,
 	createEffectorNodesLookup,
 	GraphVariant,
+	isOwnershipEdge,
+	isReactiveEdge,
 	logEffectFail,
 	makeEdgesFromNodes,
 	makeGraphVariants,
@@ -111,21 +113,18 @@ export const grapheneModelFactory = createFactory(({ layouterFactory }: { layout
 	logEffectFail(createOwnershipGraphVariantsFx);
 	logEffectFail(createReactiveOwnershipGraphVariantsFx);
 
-	$reactiveGraph.watch((value) => console.log('🐊', value));
-	createReactiveGraphVariantsFx.watch((value) => console.log('🐓', value));
-
 	sample({
-		clock: $reactiveGraph.updates,
+		clock: debounce($reactiveGraph, 100),
 		target: createReactiveGraphVariantsFx,
 	});
 
 	sample({
-		clock: $ownershipGraph,
+		clock: debounce($ownershipGraph, 100),
 		target: createOwnershipGraphVariantsFx,
 	});
 
 	sample({
-		clock: $reactiveOwnershipGraph,
+		clock: debounce($reactiveOwnershipGraph, 100),
 		target: createReactiveOwnershipGraphVariantsFx,
 	});
 
@@ -213,13 +212,7 @@ export const appModelFactory = createFactory((grapheneModel: GrapheneModel) => {
 	const nodesChanged = createEvent<EffectorNode[]>();
 	const $nodes = readonly(
 		createStore<EffectorNode[]>([]).on(
-			[
-				nodesChanged,
-				$graphVariant.map((graph): EffectorNode[] => {
-					console.log('🧪 graph', graph);
-					return graph?.nodes ?? [];
-				}),
-			],
+			[nodesChanged, $graphVariant.map((graph): EffectorNode[] => graph?.nodes ?? [])],
 			(_, nodes) => nodes,
 		),
 	);
@@ -264,6 +257,22 @@ export const appModelFactory = createFactory((grapheneModel: GrapheneModel) => {
 		target: dumpEdgeInfo,
 	});
 
+	const visibleEdgesChanged = createEvent<'reactive' | 'ownership' | 'reactive+ownership'>();
+	const $visibleEdges = restore(visibleEdgesChanged, 'reactive+ownership');
+
+	const $filteredEdges = combine($edges, $visibleEdges, (edges, visibleEdges) => {
+		switch (visibleEdges) {
+			case 'reactive':
+				return edges.filter(isReactiveEdge);
+			case 'ownership':
+				return edges.filter(isOwnershipEdge);
+			case 'reactive+ownership':
+				return edges;
+			default:
+				absurd(visibleEdges);
+		}
+	});
+
 	return {
 		'@@unitShape': () => ({
 			edgesVariantChanged,
@@ -273,10 +282,13 @@ export const appModelFactory = createFactory((grapheneModel: GrapheneModel) => {
 			selectedGraphVariant: $selectedGraphVariant,
 
 			edgesChanged,
-			edges: $edges,
+			edges: $filteredEdges,
 
 			nodesChanged,
 			nodes: $nodes,
+
+			visibleEdgesChanged,
+			visibleEdges: $visibleEdges,
 
 			nodeClicked,
 			edgeClicked,

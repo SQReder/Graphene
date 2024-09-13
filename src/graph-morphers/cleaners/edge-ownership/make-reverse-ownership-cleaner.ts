@@ -1,4 +1,4 @@
-import { findNodesByOpTypeWithRelatedEdges } from '../../../lib';
+import { findNodesByOpTypeWithRelatedEdges, isOwnershipEdge } from '../../../lib';
 import { OpType, OwnershipEdge } from '../../../types';
 import { OwnershipEdgeCleaner } from './types';
 
@@ -27,5 +27,23 @@ export const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleane
 		});
 
 		return { edgesToRemove };
+	};
+};
+
+export const dropFactories: OwnershipEdgeCleaner = (_, lookups) => {
+	const factories = findNodesByOpTypeWithRelatedEdges(
+		undefined,
+		{
+			bySource: lookups.edgesBySource.ownership,
+			byTarget: lookups.edgesByTarget.ownership,
+			nodes: lookups.nodes,
+		},
+		(node) => node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
+	);
+
+	console.log('🏭🏭🏭', factories);
+
+	return {
+		edgesToRemove: factories.flatMap(({ outgoing }) => outgoing).filter(isOwnershipEdge),
 	};
 };

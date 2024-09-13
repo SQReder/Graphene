@@ -10,7 +10,6 @@ export function cleanEdges<T extends MyEdge>(cleaners: Array<EdgeCleaner<T>>, gr
 				edgesByTarget: getEdgesBy(edges, 'target'),
 				nodes: new Map(graph.nodes.map((node) => [node.id, node])),
 			});
-			console.log('🧹🧼 cleaner', edgesToRemove, edgesToAdd);
 			return edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd);
 		},
 		[...edges],

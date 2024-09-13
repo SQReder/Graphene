@@ -31,17 +31,9 @@ export const App: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }
 		selectedGraphVariant,
 		graphVariantChanged,
 		edgesVariantChanged,
+		visibleEdgesChanged,
+		visibleEdges,
 	} = useUnit(model);
-
-	useEffect(() => {
-		console.log('🙅', nodes);
-	}, [nodes]);
-	useEffect(() => {
-		console.log('🏭🏭🏭', edges);
-	}, [edges]);
-	useEffect(() => {
-		console.log('⚡', selectedGraphVariant);
-	}, [selectedGraphVariant]);
 
 	const onNodesChange = useCallback<OnNodesChange<EffectorNode>>(
 		(changes) => nodesChanged(applyNodeChanges(changes, nodes)),
@@ -57,8 +49,6 @@ export const App: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }
 	const [showNodeIds, setShowNodeIds] = useState(true);
 
 	const { isDarkMode } = useDarkMode({});
-
-	console.log(nodes);
 
 	const setGraph = useCallback(
 		(edges: EdgesViewVariant, stage: GraphVariant) => {
@@ -105,25 +95,35 @@ export const App: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }
 
 				{/*<button onClick={() => setViewMode('rx-ownership-graph')}>Reactive + Ownership</button>*/}
 				{/*<hr />*/}
-				{/*<Fieldset>*/}
-				{/*	<legend>Visible edges</legend>*/}
-				{/*	<label>*/}
-				{/*		<input type="radio" checked={visibleEdges === 'rx'} onChange={() => setVisibleEdges('rx')} />*/}
-				{/*		Reactive*/}
-				{/*	</label>*/}
-				{/*	<label>*/}
-				{/*		<input type="radio" checked={visibleEdges === 'ownership'} onChange={() => setVisibleEdges('ownership')} />*/}
-				{/*		Ownership*/}
-				{/*	</label>*/}
-				{/*	<label>*/}
-				{/*		<input*/}
-				{/*			type="radio"*/}
-				{/*			checked={visibleEdges === 'rx+ownership'}*/}
-				{/*			onChange={() => setVisibleEdges('rx+ownership')}*/}
-				{/*		/>*/}
-				{/*		Reactive + Ownership*/}
-				{/*	</label>*/}
-				{/*</Fieldset>*/}
+				<Fieldset>
+					<legend>Visible edges</legend>
+					<label>
+						<input
+							type="radio"
+							checked={visibleEdges === 'reactive'}
+							onChange={() => visibleEdgesChanged('reactive')}
+						/>
+						Reactive
+					</label>
+					<label>
+						<input
+							type="radio"
+							checked={visibleEdges === 'ownership'}
+							onChange={() => visibleEdgesChanged('ownership')}
+						/>
+						Ownership
+					</label>
+					<label>
+						<input
+							type="radio"
+							checked={visibleEdges === 'reactive+ownership'}
+							onChange={() => visibleEdgesChanged('reactive+ownership')}
+						/>
+						Reactive + Ownership
+					</label>
+				</Fieldset>
+				<hr />
+
 				<label title={'Hack to save nodes positions when switching between views'}>
 					<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
 					Replace nodes
