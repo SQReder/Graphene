@@ -47,6 +47,8 @@ export const getMetaIcon = (meta: Meta): string => {
 			return '🔁';
 		case OpType.Effect:
 			return meta.attached ? '⚡️~⚡️' : '⚡️';
+		case OpType.Merge:
+			return '🔀';
 		default:
 			switch (meta.type) {
 				case MetaType.Factory:
@@ -78,6 +80,8 @@ export function formatMeta(id: string, meta: Meta) {
 			return `${id_} 📊➕🔄 ` + meta.joint;
 		case OpType.Effect:
 			return `${meta.attached ? '⚡️~⚡️' : '⚡️'}  ${id_}` + meta.name;
+		case OpType.Merge:
+			return `${id_} merge`;
 		default:
 			switch (meta.type) {
 				case MetaType.Factory:

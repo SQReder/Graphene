@@ -2,7 +2,7 @@ import { Meta, StoryObj } from '@storybook/react';
 import { invoke } from '@withease/factories';
 import { createDomain, createEvent, createStore, fork, restore, Unit } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
-import { debounce } from 'patronum';
+import { debounce, readonly } from 'patronum';
 import { useEffect } from 'react';
 import { createTodoListApi } from './examples/todo';
 import { Graphene } from './Graphene';
@@ -89,5 +89,14 @@ const $slowData = restore(slowedEvent, null);
 export const Debounce: Story = {
 	args: {
 		units: [slowedEvent],
+	},
+};
+
+const $writeableStore = createStore(0);
+const $readonlyStore = readonly($writeableStore);
+
+export const Readonly: Story = {
+	args: {
+		units: [$readonlyStore],
 	},
 };

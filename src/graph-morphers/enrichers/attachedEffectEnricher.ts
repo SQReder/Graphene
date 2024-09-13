@@ -9,7 +9,7 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 
 	const edgesToAdd: MyEdge[] = [];
 
-	console.log('fxNodes', fxNodes);
+	console.debug('fxNodes', fxNodes);
 
 	for (const fxNode of fxNodes) {
 		if (fxNode.data.effector.graphite.meta.op !== OpType.Effect) {
@@ -40,13 +40,13 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 
 		const edgesFromFx = lookups.edgesBySource.ownership.get(fxNode.id);
 
-		console.log('edgesFromFx', edgesFromFx);
+		console.debug('edgesFromFx', edgesFromFx);
 
 		const some = edgesFromFx?.some((edge) => edge.target === id);
 
-		console.log('some', some);
+		console.debug('some', some);
 
-		console.log(edgesType, edgesType === EdgeType.Ownership);
+		console.debug(edgesType, edgesType === EdgeType.Ownership);
 		if (!some && edgesType === EdgeType.Ownership) {
 			edgesToAdd.push({
 				id: `${fxNode.id} owns ${id}`,

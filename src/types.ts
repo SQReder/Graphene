@@ -26,6 +26,7 @@ export const OpType = {
 	FilterMap: 'filterMap',
 	Effect: 'effect',
 	Combine: 'combine',
+	Merge: 'merge',
 } as const;
 
 export type OpType = (typeof OpType)[keyof typeof OpType];
@@ -38,7 +39,13 @@ export const MetaType = {
 type MetaType = (typeof MetaType)[keyof typeof MetaType];
 
 export type EmptyMeta = {
-	op: typeof OpType.Watch | typeof OpType.On | typeof OpType.Map | typeof OpType.FilterMap | typeof OpType.Combine;
+	op:
+		| typeof OpType.Watch
+		| typeof OpType.On
+		| typeof OpType.Map
+		| typeof OpType.FilterMap
+		| typeof OpType.Combine
+		| typeof OpType.Merge;
 };
 
 export type SampleMeta = {

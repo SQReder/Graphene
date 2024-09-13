@@ -1,6 +1,5 @@
 import { isOwnershipEdge } from '../../../lib';
 import { LinkEdge, OpType, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
-import { enrichGraph } from '../../enrichers';
 import {
 	cleanEdges,
 	createReinitCleaner,
@@ -27,6 +26,7 @@ const reverseOwnershipCleaners: OwnershipEdgeCleaner[] = [
 	OpType.FilterMap,
 	OpType.Sample,
 	OpType.Combine,
+	OpType.Merge,
 	undefined,
 	// @ts-expect-error tryng to force undefined lol
 ].map(makeReverseOwnershipCleaner);

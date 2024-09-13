@@ -1,5 +1,5 @@
 import { getEdgesBy, shallowCopyGraph } from '../../lib';
-import { EdgeType, EffectorGraph } from '../../types';
+import { EdgeType } from '../../types';
 import { GraphCleaner } from '../cleaners/types';
 import { attachedEffectEnricher } from './attachedEffectEnricher';
 import { EnricherImpl } from './types';

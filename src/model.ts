@@ -161,10 +161,10 @@ export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewV
 
 export const appModelFactory = createFactory((grapheneModel: GrapheneModel) => {
 	const edgesVariantChanged = createEvent<EdgesViewVariant>();
-	const $edgesVariant = restore(edgesVariantChanged, 'reactive');
+	const $edgesVariant = restore(edgesVariantChanged, 'reactive+ownership');
 
 	const graphVariantChanged = createEvent<GraphVariant>();
-	const $selectedGraphVariant = restore(graphVariantChanged, 'cleaned');
+	const $selectedGraphVariant = restore(graphVariantChanged, 'cleanedNoNodesLayouted');
 
 	const $graphVariants = combine(
 		{
