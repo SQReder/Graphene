@@ -19,7 +19,7 @@ import {
 } from './lib';
 import { DeclarationEffectorNode, EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge } from './types';
 
-export function createDeclarationsStore(): Store<readonly Declaration[]> {
+function createDeclarationsStore(): Store<readonly Declaration[]> {
 	const addDeclaration = createEvent<Declaration>();
 	const $declarations = createStore<readonly Declaration[]>([]).on(addDeclaration, (state, declaration) => [
 		...state,

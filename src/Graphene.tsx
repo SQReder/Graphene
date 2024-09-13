@@ -11,7 +11,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useUnit } from 'effector-react';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import './App.css';
 import { ConfigurationContext } from './ConfigurationContext';
@@ -20,7 +20,7 @@ import { appModelFactory, EdgesViewVariant } from './model';
 import { nodeTypes } from './nodeTypes';
 import { EffectorNode, MyEdge } from './types';
 
-export const App: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }) => {
+export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }) => {
 	const {
 		nodes,
 		nodesChanged,
@@ -28,7 +28,6 @@ export const App: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }
 		edgesChanged,
 		nodeClicked,
 		edgeClicked,
-		selectedGraphVariant,
 		graphVariantChanged,
 		edgesVariantChanged,
 		visibleEdgesChanged,

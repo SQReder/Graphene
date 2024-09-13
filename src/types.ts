@@ -192,7 +192,7 @@ export class EffectorDeclarationDetails {
 
 export type RegularEffectorDetails = {
 	label?: string;
-	nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink;
+	nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain;
 	effector: EffectorNodeDetails;
 };
 

@@ -26,6 +26,7 @@ const reverseOwnershipCleaners: OwnershipEdgeCleaner[] = [
 	OpType.Sample,
 	OpType.Combine,
 	undefined,
+	// @ts-expect-error tryng to force undefined lol
 ].map(makeReverseOwnershipCleaner);
 
 export const cleanOwnershipEdges: GraphCleaner = (graph) => {

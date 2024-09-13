@@ -1,20 +1,18 @@
-import { DecoratorFunction } from '@storybook/addon-actions';
-import { Meta, ReactRenderer, StoryObj } from '@storybook/react';
+import { Meta, StoryObj } from '@storybook/react';
 import { invoke } from '@withease/factories';
-import { createDomain, createEffect, createEvent, createStore, fork, Scope, Unit } from 'effector';
+import { createDomain, createEvent, createStore, fork, Unit } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
 import { useEffect } from 'react';
-import { App } from './App';
-import { debugDomain } from './debugDomain';
 import { createTodoListApi } from './examples/todo';
+import { Graphene } from './Graphene';
 import { Layouters } from './layouters';
 import { appModelFactory, grapheneModelFactory } from './model';
 
 type Params = { units: Unit<unknown>[] };
 
 const meta: Meta<Params> = {
-	title: 'App',
-	component: App,
+	title: 'Graphene',
+	component: Graphene,
 	render: function Render(props) {
 		const appendUnits = useUnit(grapheneModel.appendUnits);
 
@@ -22,7 +20,7 @@ const meta: Meta<Params> = {
 			appendUnits(props.units);
 		}, [appendUnits, props.units]);
 
-		return <App model={appModel} />;
+		return <Graphene model={appModel} />;
 	},
 	args: {
 		units: [],
