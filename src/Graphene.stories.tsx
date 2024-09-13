@@ -12,6 +12,7 @@ type Params = { units: Unit<unknown>[] };
 
 const meta: Meta<Params> = {
 	title: 'Graphene',
+	// @ts-expect-error don't know how to fix
 	component: Graphene,
 	render: function Render(props) {
 		const appendUnits = useUnit(grapheneModel.appendUnits);

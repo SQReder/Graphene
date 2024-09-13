@@ -5,6 +5,7 @@ import terser from '@rollup/plugin-terser';
 import del from 'rollup-plugin-delete';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
 import typescript from 'rollup-plugin-typescript2';
+import { visualizer } from 'rollup-plugin-visualizer';
 import ttypescript from 'ttypescript';
 import pkg from './package.json';
 
@@ -42,5 +43,6 @@ export default {
 		}),
 		terser(),
 		del({ targets: 'dist/*' }),
+		visualizer(),
 	],
 };

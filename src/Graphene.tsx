@@ -13,12 +13,17 @@ import '@xyflow/react/dist/style.css';
 import { useUnit } from 'effector-react';
 import { FC, useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
-import './App.css';
 import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
 import { appModelFactory, EdgesViewVariant } from './model';
 import { nodeTypes } from './nodeTypes';
 import { EffectorNode, MyEdge } from './types';
+
+const Wrapper = styled.div`
+	& * {
+		box-sizing: border-box;
+	}
+`;
 
 export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }) => {
 	const {
@@ -58,115 +63,119 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ mo
 	);
 
 	return (
-		<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
-			<Buttons>
-				<button onClick={() => edgesVariantChanged(EdgesViewVariant.Reactive)}>Reactive</button>
-				<button onClick={() => edgesVariantChanged(EdgesViewVariant.Ownership)}>Ownership</button>
-				<button onClick={() => edgesVariantChanged(EdgesViewVariant.ReactiveOwnership)}>Reactive + Ownership</button>
-				<hr />
+		<Wrapper>
+			<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
+				<Buttons>
+					<button onClick={() => edgesVariantChanged(EdgesViewVariant.Reactive)}>Reactive</button>
+					<button onClick={() => edgesVariantChanged(EdgesViewVariant.Ownership)}>Ownership</button>
+					<button onClick={() => edgesVariantChanged(EdgesViewVariant.ReactiveOwnership)}>Reactive + Ownership</button>
+					<hr />
 
-				<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
-				<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
-				<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodes)}>CleanedNoNodes</button>
-				<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodesLayouted)}>CleanedNoNodesLayouted</button>
-				<hr />
+					<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
+					<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
+					<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodes)}>CleanedNoNodes</button>
+					<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodesLayouted)}>
+						CleanedNoNodesLayouted
+					</button>
+					<hr />
 
-				<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.raw)}>Reactive Raw</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleaned)}>Reactive Cleaned</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodes)}>
-					Reactive CleanedNoNodes
-				</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodesLayouted)}>
-					Reactive CleanedNoNodesLayouted
-				</button>
-				<hr />
+					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.raw)}>Reactive Raw</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleaned)}>Reactive Cleaned</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodes)}>
+						Reactive CleanedNoNodes
+					</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodesLayouted)}>
+						Reactive CleanedNoNodesLayouted
+					</button>
+					<hr />
 
-				<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.raw)}>Ownership Raw</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleaned)}>Ownership Cleaned</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodes)}>
-					Ownership CleanedNoNodes
-				</button>
-				<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodesLayouted)}>
-					Ownership CleanedNoNodes Layouted
-				</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.raw)}>Ownership Raw</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleaned)}>Ownership Cleaned</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodes)}>
+						Ownership CleanedNoNodes
+					</button>
+					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodesLayouted)}>
+						Ownership CleanedNoNodes Layouted
+					</button>
 
-				<hr />
+					<hr />
 
-				{/*<button onClick={() => setViewMode('rx-ownership-graph')}>Reactive + Ownership</button>*/}
-				{/*<hr />*/}
-				<Fieldset>
-					<legend>Visible edges</legend>
-					<label>
-						<input
-							type="radio"
-							checked={visibleEdges === 'reactive'}
-							onChange={() => visibleEdgesChanged('reactive')}
-						/>
-						Reactive
+					{/*<button onClick={() => setViewMode('rx-ownership-graph')}>Reactive + Ownership</button>*/}
+					{/*<hr />*/}
+					<Fieldset>
+						<legend>Visible edges</legend>
+						<label>
+							<input
+								type="radio"
+								checked={visibleEdges === 'reactive'}
+								onChange={() => visibleEdgesChanged('reactive')}
+							/>
+							Reactive
+						</label>
+						<label>
+							<input
+								type="radio"
+								checked={visibleEdges === 'ownership'}
+								onChange={() => visibleEdgesChanged('ownership')}
+							/>
+							Ownership
+						</label>
+						<label>
+							<input
+								type="radio"
+								checked={visibleEdges === 'reactive+ownership'}
+								onChange={() => visibleEdgesChanged('reactive+ownership')}
+							/>
+							Reactive + Ownership
+						</label>
+					</Fieldset>
+					<hr />
+
+					<label title={'Hack to save nodes positions when switching between views'}>
+						<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
+						Replace nodes
 					</label>
-					<label>
-						<input
-							type="radio"
-							checked={visibleEdges === 'ownership'}
-							onChange={() => visibleEdgesChanged('ownership')}
-						/>
-						Ownership
+					<label title={'Show node ids in the graph'}>
+						<input type="checkbox" checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
+						Show node ids
 					</label>
-					<label>
-						<input
-							type="radio"
-							checked={visibleEdges === 'reactive+ownership'}
-							onChange={() => visibleEdgesChanged('reactive+ownership')}
-						/>
-						Reactive + Ownership
-					</label>
-				</Fieldset>
-				<hr />
-
-				<label title={'Hack to save nodes positions when switching between views'}>
-					<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
-					Replace nodes
-				</label>
-				<label title={'Show node ids in the graph'}>
-					<input type="checkbox" checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
-					Show node ids
-				</label>
-				<hr />
-				<Legend>
-					<div>
-						<strong>legend</strong>
-					</div>
-					<ul>
-						<li>📦 - store</li>
-						<li>🔔 - event</li>
-						<li>⚡️ - effect</li>
-						<li>⚡️~⚡️ - attached effect</li>
-						<li>🏭 - factory</li>
-					</ul>
-				</Legend>
-			</Buttons>
-			<div style={{ width: '100%', height: '100%' }}>
-				<ReactFlow
-					snapGrid={[10, 10]}
-					snapToGrid
-					nodes={nodes}
-					onNodesChange={onNodesChange}
-					onNodeClick={(_, node) => {
-						console.log('👉👉👉 node', node);
-						return nodeClicked(node);
-					}}
-					edges={edges}
-					onEdgesChange={onEdgesChange}
-					onEdgeClick={(_, edge) => edgeClicked(edge)}
-					fitView
-					nodeTypes={nodeTypes}
-				>
-					<Background bgColor={isDarkMode ? '#303030' : undefined} color={'#ccc'} />
-					<MiniMap pannable zoomable bgColor={isDarkMode ? '#303030' : undefined} />
-					<Controls />
-				</ReactFlow>
-			</div>
-		</ConfigurationContext.Provider>
+					<hr />
+					<Legend>
+						<div>
+							<strong>legend</strong>
+						</div>
+						<ul>
+							<li>📦 - store</li>
+							<li>🔔 - event</li>
+							<li>⚡️ - effect</li>
+							<li>⚡️~⚡️ - attached effect</li>
+							<li>🏭 - factory</li>
+						</ul>
+					</Legend>
+				</Buttons>
+				<div style={{ width: '100%', height: '100%', display: 'contents' }}>
+					<ReactFlow
+						snapGrid={[10, 10]}
+						snapToGrid
+						nodes={nodes}
+						onNodesChange={onNodesChange}
+						onNodeClick={(_, node) => {
+							console.log('👉👉👉 node', node);
+							return nodeClicked(node);
+						}}
+						edges={edges}
+						onEdgesChange={onEdgesChange}
+						onEdgeClick={(_, edge) => edgeClicked(edge)}
+						fitView
+						nodeTypes={nodeTypes}
+					>
+						<Background bgColor={isDarkMode ? '#303030' : undefined} color={'#ccc'} />
+						<MiniMap pannable zoomable bgColor={isDarkMode ? '#303030' : undefined} />
+						<Controls />
+					</ReactFlow>
+				</div>
+			</ConfigurationContext.Provider>
+		</Wrapper>
 	);
 };
 

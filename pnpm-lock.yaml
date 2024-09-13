@@ -8,54 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@babel/runtime':
-        specifier: ^7.20.7
-        version: 7.25.6
-      '@effector/swc-plugin':
-        specifier: ^0.5.0
-        version: 0.5.0(@swc/core@1.7.26)
-      '@types/dagre':
-        specifier: ^0.7.52
-        version: 0.7.52
-      '@vitejs/plugin-react-swc':
-        specifier: ^3.7.0
-        version: 3.7.0(vite@5.4.5(@types/node@18.19.50)(terser@5.32.0))
-      '@withease/factories':
-        specifier: ^1.0.5
-        version: 1.0.5
-      '@xyflow/react':
-        specifier: ^12.3.0
-        version: 12.3.0(@types/react@18.3.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@xyflow/system':
-        specifier: ^0.0.42
-        version: 0.0.42
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      dagre:
-        specifier: ^0.8.5
-        version: 0.8.5
-      effector:
-        specifier: ^23.2.2
-        version: 23.2.2
-      effector-factorio:
-        specifier: ^1.3.0
-        version: 1.3.0(effector@23.2.2)(react@18.3.1)
-      effector-react:
-        specifier: ^23.2.1
-        version: 23.2.1(effector@23.2.2)(react@18.3.1)
-      elkjs:
-        specifier: ^0.9.3
-        version: 0.9.3
-      patronum:
-        specifier: ^2.2.0
-        version: 2.2.0(effector@23.2.2)
-      usehooks-ts:
-        specifier: ^3.1.0
-        version: 3.1.0(react@18.3.1)
-      vite:
-        specifier: ^5.4.5
-        version: 5.4.5(@types/node@18.19.50)(terser@5.32.0)
+      rollup-plugin-visualizer:
+        specifier: ^5.12.0
+        version: 5.12.0(rollup@2.79.1)
     devDependencies:
       '@babel/core':
         specifier: ^7.20.12
@@ -69,6 +24,9 @@ importers:
       '@babel/preset-react':
         specifier: ^7.18.6
         version: 7.24.7(@babel/core@7.25.2)
+      '@babel/runtime':
+        specifier: ^7.20.7
+        version: 7.25.6
       '@changesets/cli':
         specifier: ^2.26.0
         version: 2.27.8
@@ -81,6 +39,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^17.4.0
         version: 17.8.1
+      '@effector/swc-plugin':
+        specifier: ^0.5.0
+        version: 0.5.0(@swc/core@1.7.26)
       '@emotion/babel-plugin':
         specifier: ^11.10.5
         version: 11.12.0
@@ -150,6 +111,9 @@ importers:
       '@trivago/prettier-plugin-sort-imports':
         specifier: ^4.0.0
         version: 4.3.0(prettier@2.8.8)
+      '@types/dagre':
+        specifier: ^0.7.52
+        version: 0.7.52
       '@types/jest':
         specifier: ^29.2.5
         version: 29.5.13
@@ -174,12 +138,42 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^5.48.1
         version: 5.62.0(eslint@8.31.0)(typescript@4.9.5)
+      '@vitejs/plugin-react-swc':
+        specifier: ^3.7.0
+        version: 3.7.0(vite@5.4.5(@types/node@18.19.50)(terser@5.32.0))
+      '@withease/factories':
+        specifier: ^1.0.5
+        version: 1.0.5
+      '@xyflow/react':
+        specifier: ^12.3.0
+        version: 12.3.0(@types/react@18.3.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@xyflow/system':
+        specifier: ^0.0.42
+        version: 0.0.42
       '@zerollup/ts-transform-paths':
         specifier: ^1.7.18
         version: 1.7.18(typescript@4.9.5)
       babel-loader:
         specifier: ^9.1.2
         version: 9.1.3(@babel/core@7.25.2)(webpack@5.94.0(@swc/core@1.7.26)(esbuild@0.23.1)(webpack-cli@5.1.4))
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      dagre:
+        specifier: ^0.8.5
+        version: 0.8.5
+      effector:
+        specifier: ^23.2.2
+        version: 23.2.2
+      effector-factorio:
+        specifier: ^1.3.0
+        version: 1.3.0(effector@23.2.2)(react@18.3.1)
+      effector-react:
+        specifier: ^23.2.1
+        version: 23.2.1(effector@23.2.2)(react@18.3.1)
+      elkjs:
+        specifier: ^0.9.3
+        version: 0.9.3
       eslint:
         specifier: 8.31.0
         version: 8.31.0
@@ -219,6 +213,9 @@ importers:
       lint-staged:
         specifier: ^13.1.0
         version: 13.3.0(enquirer@2.4.1)
+      patronum:
+        specifier: ^2.2.0
+        version: 2.2.0(effector@23.2.2)
       prettier:
         specifier: ^2.8.2
         version: 2.8.8
@@ -258,6 +255,12 @@ importers:
       typescript-transform-paths:
         specifier: ^3.4.6
         version: 3.5.1(typescript@4.9.5)
+      usehooks-ts:
+        specifier: ^3.1.0
+        version: 3.1.0(react@18.3.1)
+      vite:
+        specifier: ^5.4.5
+        version: 5.4.5(@types/node@18.19.50)(terser@5.32.0)
       webpack:
         specifier: ^5.75.0
         version: 5.94.0(@swc/core@1.7.26)(esbuild@0.23.1)(webpack-cli@5.1.4)
@@ -3098,6 +3101,10 @@ packages:
     resolution: {integrity: sha512-rBMvIzlpA8v6E+SJZoo++HAYqsLrkg7MSfIinMPFhmkorw7X+dOXVJQs+QT69zGkzMyfDnIMN2Wid1+NbL3T+A==}
     engines: {node: '>= 0.4'}
 
+  define-lazy-prop@2.0.0:
+    resolution: {integrity: sha512-Ds09qNh8yw3khSjiJjiUInaGX9xlqZDY7JVryGxdxV7NPeuqQfplOpQ66yJFZut3jLa5zOwkXw1g9EI2uKh4Og==}
+    engines: {node: '>=8'}
+
   define-properties@1.2.1:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
@@ -3895,6 +3902,11 @@ packages:
     resolution: {integrity: sha512-9YQaSxsAiSwcvS33MBk3wTCVnWK+HhF8VZR2jRxehM16QcVOdHqPn4VPHmRK4lSr38n9JriurInLcP90xsYNfQ==}
     engines: {node: '>= 0.4'}
 
+  is-docker@2.2.1:
+    resolution: {integrity: sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==}
+    engines: {node: '>=8'}
+    hasBin: true
+
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -4029,6 +4041,10 @@ packages:
   is-windows@1.0.2:
     resolution: {integrity: sha512-eXK1UInq2bPmjyX6e3VHIzMLobc4J94i4AWn+Hpq3OU5KkrRC96OAcR3PRJ/pGu6m8TRnBHP9dkXQVsT/COVIA==}
     engines: {node: '>=0.10.0'}
+
+  is-wsl@2.2.0:
+    resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
+    engines: {node: '>=8'}
 
   isarray@2.0.5:
     resolution: {integrity: sha512-xHjhDr3cNBK0BzdUJSPXZntQUx/mwMS5Rw4A7lPJ90XGAO6ISP/ePDNuo0vhqOZU+UD5JoodwCAAoZQd3FeAKw==}
@@ -4756,6 +4772,10 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
+  open@8.4.2:
+    resolution: {integrity: sha512-7x81NCL719oNbsq/3mh+hVrAWmFuEYUqrq/Iw3kUzH8ReypT9QQ0BLoJS7/G9k6N81XjW4qHWtjWwe/9eLy1EQ==}
+    engines: {node: '>=12'}
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -5178,6 +5198,16 @@ packages:
       rollup: '>=1.26.3'
       typescript: '>=2.4.0'
 
+  rollup-plugin-visualizer@5.12.0:
+    resolution: {integrity: sha512-8/NU9jXcHRs7Nnj07PF2o4gjxmm9lXIrZ8r175bT9dK8qoLlvKTwRMArRCMgpMGlq8CTLugRvEmyMeMXIU2pNQ==}
+    engines: {node: '>=14'}
+    hasBin: true
+    peerDependencies:
+      rollup: 2.x || 3.x || 4.x
+    peerDependenciesMeta:
+      rollup:
+        optional: true
+
   rollup@2.79.1:
     resolution: {integrity: sha512-uKxbd0IhMZOhjAiD5oAFp7BqvkA4Dv47qpOCtaNvng4HBwdbWtdOh8f5nZNuk2rp51PMGk3bzfWu5oayNEuYnw==}
     engines: {node: '>=10.0.0'}
@@ -5318,6 +5348,10 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+
+  source-map@0.7.4:
+    resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
+    engines: {node: '>= 8'}
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
@@ -9435,6 +9469,8 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.0.1
 
+  define-lazy-prop@2.0.0: {}
+
   define-properties@1.2.1:
     dependencies:
       define-data-property: 1.1.4
@@ -10423,6 +10459,8 @@ snapshots:
     dependencies:
       has-tostringtag: 1.0.2
 
+  is-docker@2.2.1: {}
+
   is-extglob@2.1.1: {}
 
   is-finalizationregistry@1.0.2:
@@ -10524,6 +10562,10 @@ snapshots:
       get-intrinsic: 1.2.4
 
   is-windows@1.0.2: {}
+
+  is-wsl@2.2.0:
+    dependencies:
+      is-docker: 2.2.1
 
   isarray@2.0.5: {}
 
@@ -11626,6 +11668,12 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
+  open@8.4.2:
+    dependencies:
+      define-lazy-prop: 2.0.0
+      is-docker: 2.2.1
+      is-wsl: 2.2.0
+
   optionator@0.9.4:
     dependencies:
       deep-is: 0.1.4
@@ -12066,6 +12114,15 @@ snapshots:
       tslib: 2.7.0
       typescript: 4.9.5
 
+  rollup-plugin-visualizer@5.12.0(rollup@2.79.1):
+    dependencies:
+      open: 8.4.2
+      picomatch: 2.3.1
+      source-map: 0.7.4
+      yargs: 17.7.2
+    optionalDependencies:
+      rollup: 2.79.1
+
   rollup@2.79.1:
     optionalDependencies:
       fsevents: 2.3.3
@@ -12244,6 +12301,8 @@ snapshots:
   source-map@0.5.7: {}
 
   source-map@0.6.1: {}
+
+  source-map@0.7.4: {}
 
   space-separated-tokens@2.0.2: {}
 
