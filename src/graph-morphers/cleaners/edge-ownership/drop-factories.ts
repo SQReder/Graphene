@@ -38,7 +38,7 @@ export const dimFactories: OwnershipEdgeCleaner = (_, lookups) => {
 			.map((edge) => ({
 				...edge,
 				style: {
-					stroke: 'rgba(132,215,253,0.2)',
+					stroke: 'rgba(132,215,253,0.1)',
 				},
 			})),
 	};

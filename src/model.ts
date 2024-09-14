@@ -14,10 +14,10 @@ import {
 	GraphVariant,
 	isOwnershipEdge,
 	isReactiveEdge,
-	logEffectFail,
 	makeEdgesFromNodes,
 	makeGraphVariants,
 } from './lib';
+import { logEffectFail } from './logEffectFail';
 import { DeclarationEffectorNode, EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge } from './types';
 
 function createDeclarationsStore(): Store<readonly Declaration[]> {

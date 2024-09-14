@@ -8,6 +8,9 @@ import {
 	OnEdgesChange,
 	OnNodesChange,
 	ReactFlow,
+	ReactFlowProvider,
+	useNodes,
+	useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useUnit } from 'effector-react';
@@ -28,7 +31,17 @@ const Wrapper = styled.div`
 	}
 `;
 
-export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ model }) => {
+const withReactFlowProvider = <P extends object>(Component: React.ComponentType<P>) => {
+	return function WithReactFlowProvider(props: P) {
+		return (
+			<ReactFlowProvider>
+				<Component {...props} />
+			</ReactFlowProvider>
+		);
+	};
+};
+
+export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withReactFlowProvider(({ model }) => {
 	const {
 		nodes,
 		nodesChanged,
@@ -102,7 +115,6 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ mo
 					</button>
 
 					<hr />
-
 					{/*<button onClick={() => setViewMode('rx-ownership-graph')}>Reactive + Ownership</button>*/}
 					{/*<hr />*/}
 					<Fieldset>
@@ -133,6 +145,8 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ mo
 						</label>
 					</Fieldset>
 					<hr />
+
+					<Search />
 
 					<label title={'Hack to save nodes positions when switching between views'}>
 						<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
@@ -179,6 +193,27 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = ({ mo
 				</div>
 			</ConfigurationContext.Provider>
 		</Wrapper>
+	);
+});
+
+const Search: FC = () => {
+	const nodes = useNodes();
+	const { setCenter } = useReactFlow();
+	const [centerText, setCenterText] = useState('');
+
+	return (
+		<label>
+			Center:
+			<input type="text" value={centerText} onChange={(e) => setCenterText(e.target.value)} />
+			<button
+				onClick={() => {
+					const found = nodes.find((node) => node.id === centerText);
+					if (found) setCenter(found.position.x, found.position.y);
+				}}
+			>
+				Set center
+			</button>
+		</label>
 	);
 };
 

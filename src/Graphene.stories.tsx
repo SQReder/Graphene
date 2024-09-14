@@ -84,6 +84,8 @@ export const GrapheneItself: Story = {
 
 const tooFastEvent = createEvent();
 const slowedEvent = debounce(tooFastEvent, 100);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-ignore
 const $slowData = restore(slowedEvent, null);
 
 export const Debounce: Story = {
@@ -95,8 +97,12 @@ export const Debounce: Story = {
 const $writeableStore = createStore(0);
 const $readonlyStore = readonly($writeableStore);
 
+const $writeableStore2 = createStore(0);
+const $readonlyStore2 = readonly($writeableStore2);
+$readonlyStore2.watch(console.log);
+
 export const Readonly: Story = {
 	args: {
-		units: [$readonlyStore],
+		units: [$readonlyStore, $readonlyStore2],
 	},
 };

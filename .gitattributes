@@ -27,9 +27,7 @@
 *.html            text diff=html
 *.inc             text
 *.ini             text
-*.js              text
 *.json            text
-*.jsx             text
 *.less            text
 *.ls              text
 *.map             text -diff
@@ -47,10 +45,16 @@
 *.sql             text
 *.styl            text
 *.tag             text
-*.ts              text
-*.tsx             text
 *.xml             text
 *.xhtml           text diff=html
+
+# Force LF for TypeScript files
+*.ts   text eol=lf
+*.tsx  text eol=lf
+
+# Force LF for JavaScript files
+*.js   text eol=lf
+*.jsx  text eol=lf
 
 # Docker
 Dockerfile        text
