@@ -51,14 +51,7 @@ type Story = StoryObj<Params>;
 const loneEvent = createEvent();
 const $loneStore = createStore(null);
 
-const domain = createDomain('Test');
-
-const grapheneModel = invoke(grapheneModelFactory, {
-	domain,
-	layouterFactory: Layouters.ELK,
-});
-
-grapheneModel.appendUnits([$loneStore, loneEvent]);
+const grapheneModel = invoke(grapheneModelFactory, { layouterFactory: Layouters.ELK });
 
 const appModel = invoke(appModelFactory, grapheneModel);
 
