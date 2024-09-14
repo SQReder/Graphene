@@ -1,223 +1,81 @@
-import { MarkerType } from '@xyflow/system';
-import { getEdgesBy, isRegularNode, Lookups, shallowCopyGraph } from '../../../lib';
-import { EdgeType, EffectorGraph, MyEdge, OwnershipEdge, ReactiveEdge } from '../../../types';
+import { createOwnershipEdge, createReactiveEdge } from '../../../edge-factories';
+import { isRegularNode, isUnitMeta, shallowCopyGraph } from '../../../lib';
+import { EffectorGraph, EffectorNode, OpType, RegularEffectorNode } from '../../../types';
 import { GraphCleaner } from '../types';
-import { foldEffects } from './cleaners';
+import { foldByShape, RootSelector } from './foldByShape';
 import { removeUnlinkedNodes } from './removeUnlinkedNodes';
 
-const foldByShape: GraphCleaner = (graph) => {
-	console.group('🫨 fold by shape');
+/*
+(node) => {
+			if (!isRegularNode(node)) return false;
 
-	const edgesToAdd: MyEdge[] = [];
-	const edgesToRemove: MyEdge[] = [];
+			const isKnownFactory =
+				node.data.effector.meta.op === undefined &&
+				node.data.effector.meta.type === 'factory' &&
+				['debounce', 'readonly'].includes(node.data.effector.meta.method);
 
-	const mainOwners = graph.nodes.filter(
-		(node) =>
-			isRegularNode(node) &&
-			node.data.effector.meta.op === undefined &&
-			node.data.effector.meta.type === 'factory' &&
-			['debounce', 'readonly'].includes(node.data.effector.meta.method),
-	);
+			if (isKnownFactory) return true;
 
-	console.log('mainOwners', mainOwners);
+			const isEffect = node.data.effector.meta.op === OpType.Effect;
 
-	const lookups: Lookups = {
-		edgesBySource: getEdgesBy(graph.edges, 'source'),
-		edgesByTarget: getEdgesBy(graph.edges, 'target'),
-		nodes: new Map(graph.nodes.map((node) => [node.id, node])),
-	};
+			if (isEffect) return true;
 
-	mainOwners.forEach((mainOwner) => {
-		console.groupCollapsed(`🌳 debounce ${mainOwner.id}`);
-
-		const ownershipEdges = lookups.edgesBySource.ownership.get(mainOwner.id);
-
-		console.log('ownershipEdges', ownershipEdges);
-
-		const internalNodes = ownershipEdges?.map((edge) => edge.data.relatedNodes.target);
-
-		if (!internalNodes) {
-			console.warn('owned nodes not defined for', mainOwner.id);
-			console.groupEnd();
-			return;
+			return false;
 		}
+*/
 
-		internalNodes.forEach((internalNode) => {
-			lookups.edgesBySource.ownership.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
-			lookups.edgesByTarget.ownership.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
-			lookups.edgesBySource.reactive.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
-			lookups.edgesByTarget.reactive.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
-		});
-
-		console.log('internalNodes', internalNodes);
-
-		// region input nodes
-
-		const inputNodes = internalNodes?.filter(
-			(node) => isRegularNode(node) /*&&
-				node.data.effector.meta.name === '$payload'*/,
-		);
-
-		console.log('inputNodes', inputNodes);
-
-		if (!inputNodes.length) {
-			console.warn('no input nodes found', internalNodes);
-			console.groupEnd();
-			return;
-		}
-
-		const relatedNodeIds = [mainOwner.id, ...internalNodes.map((node) => node.id)];
-
-		console.log(
-			'relatedNodeIds',
-			relatedNodeIds.sort((a, b) => Number(a) - Number(b)),
-		);
-
-		new Set(inputNodes).forEach((inputNode) => {
-			const externalInboundOwnershipEdgesOfInputNode = lookups.edgesByTarget.ownership
-				.get(inputNode.id)
-				?.filter((edge) => !relatedNodeIds.includes(edge.source));
-
-			console.log(
-				'externalInboundOwnershipEdgesOfInputNode of',
-				inputNode.id,
-				externalInboundOwnershipEdgesOfInputNode,
-			);
-
-			externalInboundOwnershipEdgesOfInputNode?.forEach((edge) => {
-				const id = `${edge.source} owns ${mainOwner.id} (in foldByShape)`;
-
-				if (!edgesToAdd.some((edge) => edge.id === id)) {
-					edgesToAdd.push({
-						id: id,
-						source: edge.source,
-						target: mainOwner.id,
-						data: {
-							edgeType: EdgeType.Ownership,
-							relatedNodes: {
-								source: inputNode,
-								target: mainOwner,
-							},
-						},
-						style: {
-							stroke: 'rgba(132,215,253,0.7)',
-						},
-					} satisfies OwnershipEdge);
-				}
-			});
-
-			const externalInboundReactiveEdgesOfInputNode = lookups.edgesByTarget.reactive
-				.get(inputNode.id)
-				?.filter((edge) => !relatedNodeIds.includes(edge.source));
-
-			console.log('externalInboundReactiveEdgesOfInputNode of', inputNode.id, externalInboundReactiveEdgesOfInputNode);
-
-			externalInboundReactiveEdgesOfInputNode?.forEach((edge) => {
-				const id = `${edge.source} --> ${mainOwner.id} (in foldByShape)`;
-
-				if (!edgesToAdd.some((edge) => edge.id === id)) {
-					edgesToAdd.push({
-						id: id,
-						source: edge.source,
-						target: mainOwner.id,
-						data: {
-							edgeType: EdgeType.Reactive,
-							relatedNodes: {
-								source: inputNode,
-								target: mainOwner,
-							},
-						},
-						animated: true,
-						markerEnd: {
-							type: MarkerType.ArrowClosed,
-						},
-						style: {
-							zIndex: 10,
-						},
-					} satisfies ReactiveEdge);
-				}
-			});
-		});
-
-		// endregion
-
-		//region output nodes
-		const outputNodes = internalNodes.filter((node) => isRegularNode(node));
-
-		console.log('outputNodes', outputNodes);
-
-		new Set(outputNodes).forEach((outputNode) => {
-			const externalOutboundEdgesOfOutputNode = lookups.edgesBySource.ownership
-				.get(outputNode.id)
-				?.filter((edge) => !relatedNodeIds.includes(edge.target));
-
-			console.log('externalOutboundEdgesOfOutputNode', externalOutboundEdgesOfOutputNode);
-
-			externalOutboundEdgesOfOutputNode?.forEach((edge) => {
-				const id = `${mainOwner.id} owns ${edge.target} (out foldByShape)`;
-				if (!edgesToAdd.some((edge) => edge.id === id)) {
-					edgesToAdd.push({
-						id: id,
-						source: mainOwner.id,
-						target: edge.target,
-						data: {
-							edgeType: EdgeType.Ownership,
-							relatedNodes: {
-								source: outputNode,
-								target: mainOwner,
-							},
-						},
-						style: {
-							stroke: 'rgba(132,215,253,0.7)',
-						},
-					} satisfies OwnershipEdge);
-				}
-			});
-
-			const externalOutboundReactiveEdgesOfOutputNode = lookups.edgesBySource.reactive
-				.get(outputNode.id)
-				?.filter((edge) => !relatedNodeIds.includes(edge.target));
-
-			console.log('externalOutboundReactiveEdgesOfOutputNode', externalOutboundReactiveEdgesOfOutputNode);
-
-			externalOutboundReactiveEdgesOfOutputNode?.forEach((edge) => {
-				const id = `${mainOwner.id} --> ${edge.target} (out foldByShape)`;
-				if (!edgesToAdd.some((edge) => edge.id === id)) {
-					edgesToAdd.push({
-						id: id,
-						source: mainOwner.id,
-						target: edge.target,
-						data: {
-							edgeType: EdgeType.Reactive,
-							relatedNodes: {
-								source: outputNode,
-								target: mainOwner,
-							},
-						},
-						animated: true,
-						style: {
-							zIndex: 10,
-						},
-					} satisfies ReactiveEdge);
-				}
-			});
-		});
-
-		//endregion
-
-		console.groupEnd();
-	});
-
-	console.groupEnd();
-	return {
-		nodes: graph.nodes,
-		edges: graph.edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd),
-	};
-};
+const patronumSelector: RootSelector = (node) =>
+	isRegularNode(node) &&
+	node.data.effector.meta.op === undefined &&
+	node.data.effector.meta.type === 'factory' &&
+	['debounce', 'readonly'].includes(node.data.effector.meta.method);
 
 export const cleanGraph: GraphCleaner = (graph: EffectorGraph) => {
-	return [foldEffects, foldByShape, removeUnlinkedNodes].reduce(
-		(graph, cleaner) => cleaner(graph),
-		shallowCopyGraph(graph),
-	);
+	return [
+		foldByShape(patronumSelector, {
+			inboundOwnership: ({ id, edge, root }) =>
+				createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+			inboundReactive: ({ id, edge, root }) =>
+				createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+			outboundOwnership: ({ id, edge, root }) =>
+				createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+			outboundReactive: ({ id, edge, root }) =>
+				createReactiveEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+		}),
+		foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Effect, {
+			inboundOwnership: ({ id, edge, root }) =>
+				createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+			inboundReactive: ({ id, edge, root }) =>
+				createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+			outboundOwnership: ({ id, edge, root }) =>
+				createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+			outboundReactive: ({ id, edge, root }) =>
+				createReactiveEdge({
+					id,
+					source: root,
+					target: edge.data.relatedNodes.target,
+					extras: (rxEdge) => {
+						const source = edge.data.relatedNodes.source as RegularEffectorNode;
+						rxEdge.style!.stroke = getEffectEdgeColor(source);
+						const meta = source.data.effector.meta;
+						rxEdge.label = isUnitMeta(meta) ? (meta.op === OpType.Store ? '$' : '') + meta.name : '??';
+						return rxEdge;
+					},
+				}),
+		}),
+
+		removeUnlinkedNodes,
+	].reduce((graph, cleaner) => cleaner(graph), shallowCopyGraph(graph));
+};
+
+const getEffectEdgeColor = (node: EffectorNode): string | undefined => {
+	if (!isRegularNode(node)) return;
+
+	const meta = node.data.effector.meta;
+
+	if (meta.op === OpType.Event) {
+		const name = meta.name;
+		if (name.startsWith('done')) return 'green';
+		if (name.startsWith('fail')) return 'red';
+	}
 };

@@ -1,9 +1,9 @@
 import { css } from '@emotion/react';
 import styled from '@emotion/styled';
-import { Handle, NodeProps, Position } from '@xyflow/react';
+import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useLayouterContext } from './ConfigurationContext';
 import { assertIsRegularEffectorDetails, getMetaIcon } from './lib';
-import { EffectorNode } from './types';
+import { EffectorNode, OpType, RegularEffectorNode } from './types';
 
 const nodeWidth = css`
 	//width: 150px;
@@ -181,5 +181,42 @@ export const SampleNode = (props: NodeProps) => {
 				</div>
 			</Content>
 		</SampleNodeContainer>
+	);
+};
+
+const FactoryNodeContainer = styled.div`
+	background: #ffffffaa;
+	${nodeWidth};
+	${nodeHeight};
+
+	font-size: 1rem;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	padding: 8px 4px;
+`;
+
+export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
+	const { layoutDirection, showNodeIds } = useLayouterContext();
+
+	const meta = props.data.effector.meta;
+	const icon = getMetaIcon(meta);
+
+	return (
+		<FactoryNodeContainer>
+			<NodeResizer isVisible={props.selected} />
+			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
+
+			{showNodeIds && <NodeId>{props.id}</NodeId>}
+			<Content>
+				<Icon>{icon}</Icon>
+				<div>
+					<div>{meta.op === undefined ? `${meta.method}(${meta.name})` : '???'}</div>
+				</div>
+			</Content>
+		</FactoryNodeContainer>
 	);
 };

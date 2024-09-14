@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
-import { invoke } from '@withease/factories';
-import { createDomain, createEvent, createStore, fork, restore, Unit } from 'effector';
+import { createFactory, invoke } from '@withease/factories';
+import { createDomain, createEffect, createEvent, createStore, Event, fork, restore, sample, Unit } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
 import { debounce, readonly } from 'patronum';
 import { useEffect } from 'react';
@@ -104,5 +104,55 @@ $readonlyStore2.watch(console.log);
 export const Readonly: Story = {
 	args: {
 		units: [$readonlyStore, $readonlyStore2],
+	},
+};
+
+const effectFactory = () => {
+	const trigerEffect = createEvent();
+	const testEffect = createEffect();
+
+	sample({
+		clock: trigerEffect,
+		target: testEffect,
+	});
+
+	testEffect.finally.watch((result) => console.log('finally', result));
+
+	testEffect.done.watch((result) => console.log('done', result));
+	testEffect.doneData.watch((result) => console.log('doneData', result));
+	testEffect.fail.watch((result) => console.log('fail', result));
+	testEffect.failData.watch((result) => console.log('failData', result));
+
+	testEffect.pending.watch((result) => console.log('pending', result));
+	testEffect.inFlight.watch((result) => console.log('inFlight', result));
+
+	return [trigerEffect, testEffect];
+};
+
+export const Effect: Story = {
+	args: {
+		units: [...effectFactory()],
+	},
+};
+
+const childFactory = createFactory((event: Event<unknown>) => {
+	const $value = restore(event, []);
+
+	return { $value };
+});
+
+const parentFactory = createFactory(() => {
+	const event = createEvent();
+
+	const childModel = invoke(childFactory, event);
+
+	return { event, $value: childModel.$value };
+});
+
+const parentModel = invoke(parentFactory);
+
+export const NestedFactories = {
+	args: {
+		units: [...Object.values(parentModel)],
 	},
 };

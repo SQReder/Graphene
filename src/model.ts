@@ -1,7 +1,7 @@
 import { createFactory } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample, Store, Unit } from 'effector';
 import { Declaration, inspectGraph } from 'effector/inspect';
-import { debounce, readonly, reshape } from 'patronum';
+import { debounce, debug, readonly, reshape } from 'patronum';
 import { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
 import { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
 import { cleanGraph } from './graph-morphers/cleaners/graph';
@@ -16,6 +16,7 @@ import {
 	isReactiveEdge,
 	makeEdgesFromNodes,
 	makeGraphVariants,
+	sortNodes,
 } from './lib';
 import { logEffectFail } from './logEffectFail';
 import { DeclarationEffectorNode, EffectorDeclarationDetails, EffectorGraph, EffectorNode, MyEdge } from './types';
@@ -33,7 +34,7 @@ function createDeclarationsStore(): Store<readonly Declaration[]> {
 		},
 	});
 
-	return $declarations;
+	return restore(debounce($declarations, 100), []);
 }
 
 export const grapheneModelFactory = createFactory(({ layouterFactory }: { layouterFactory: () => Layouter }) => {
@@ -81,7 +82,9 @@ export const grapheneModelFactory = createFactory(({ layouterFactory }: { layout
 		},
 	});
 
-	const $nodeList = $effectorNodesLookup.map((nodes) => Array.from(nodes.values()));
+	const $nodeList = $effectorNodesLookup.map((nodes) => sortNodes(Array.from(nodes.values())));
+
+	debug({ trace: true, handler: (context) => console.log(context) }, $nodeList);
 
 	const $reactiveGraph = combine<EffectorGraph>({ nodes: $nodeList, edges: edges.$reactive });
 	const $ownershipGraph = combine<EffectorGraph>({ nodes: $nodeList, edges: edges.$ownership });

@@ -1,5 +1,6 @@
 import { MarkerType } from '@xyflow/system';
 import { Unit } from 'effector';
+import { combineComparators, Comparator } from './comparison';
 import { GraphCleaner } from './graph-morphers/cleaners/types';
 import { layoutGraph } from './layouters';
 import { Layouter } from './layouters/types';
@@ -85,7 +86,7 @@ export function formatMeta(id: string, meta: Meta) {
 		default:
 			switch (meta.type) {
 				case MetaType.Factory:
-					return '🏭 factory ' + meta.method;
+					return `🏭 ${meta.method}(${meta.name})`;
 				case MetaType.Domain:
 					return '🫠 domain ' + meta.name;
 				default:
@@ -274,6 +275,8 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 				? 'effectNode'
 				: graphite.meta.op === 'sample'
 				? 'sampleNode'
+				: graphite.meta.op === undefined && graphite.meta.type === 'factory'
+				? 'factoryNode'
 				: undefined,
 
 		style: {
@@ -288,7 +291,7 @@ function getBackground(linkType: NodeFamily) {
 		case NodeFamily.Crosslink:
 			return '#f3f38f';
 		case NodeFamily.Regular:
-			return '#dadada';
+			return 'transparent';
 		case NodeFamily.Declaration:
 			return '#efefef';
 		case NodeFamily.Domain:
@@ -326,30 +329,20 @@ export function assertIsRegularEffectorDetails(details: unknown): asserts detail
 	}
 }
 
+const idComparator: Comparator<EffectorNode> = (a, b) => Number(a.id) - Number(b.id);
+const parentIdComparator: Comparator<EffectorNode> = (a, b) => {
+	if (a.parentId === undefined && b.parentId === undefined) return 0;
+
+	if (a.parentId === undefined) return -1;
+	if (b.parentId === undefined) return 1;
+
+	return Number(b.parentId) - Number(a.parentId);
+};
+
+const combined = combineComparators(parentIdComparator, idComparator);
+
 export const sortNodes = (initialNodes: EffectorNode[]): EffectorNode[] => {
-	return [...initialNodes]
-		.sort((a, b) => {
-			if (a.id < b.id) {
-				return -1;
-			} else {
-				return 1;
-			}
-		})
-		.sort((a, b) => {
-			if (a.parentId != null && b.parentId != null) {
-				if (a.parentId < b.parentId) {
-					return -1;
-				} else {
-					return 1;
-				}
-			} else if (a.parentId != null) {
-				return 1;
-			} else if (b.parentId != null) {
-				return -1;
-			} else {
-				return 0;
-			}
-		});
+	return [...initialNodes].sort(combined);
 };
 
 export function getEdgeRelatedGraphite(edge: MyEdge, relation: 'source' | 'target'): Graphite | undefined {
@@ -534,6 +527,13 @@ export type GraphVariants = {
 	cleanedNoNodesLayouted: EffectorGraph;
 };
 
+const sortGraphNodes = (graph: EffectorGraph): EffectorGraph => {
+	return {
+		nodes: sortNodes(graph.nodes),
+		edges: graph.edges,
+	};
+};
+
 export async function makeGraphVariants(
 	graph: EffectorGraph,
 	edgesCleaner: GraphCleaner,
@@ -544,10 +544,13 @@ export async function makeGraphVariants(
 	const cleaned = edgesCleaner(raw);
 	const cleanedNoNodes = nodesCleaner(cleaned);
 
+	const cleanedNoNodesLayouted = sortGraphNodes(await layoutGraph(cleanedNoNodes, layouterFactory));
+	console.log('⚠️', cleanedNoNodesLayouted.nodes);
+
 	return {
-		raw: raw,
-		cleaned: cleaned,
-		cleanedNoNodes: cleanedNoNodes,
-		cleanedNoNodesLayouted: await layoutGraph(cleanedNoNodes, layouterFactory),
+		raw: sortGraphNodes(raw),
+		cleaned: sortGraphNodes(cleaned),
+		cleanedNoNodes: sortGraphNodes(cleanedNoNodes),
+		cleanedNoNodesLayouted: cleanedNoNodesLayouted,
 	};
 }

@@ -1,13 +1,48 @@
-import { getEdgesBy, shallowCopyGraph } from '../../lib';
-import { EdgeType } from '../../types';
+import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isOwnershipEdge, shallowCopyGraph } from '../../lib';
+import { EdgeType, MyEdge, OpType } from '../../types';
 import { GraphCleaner } from '../cleaners/types';
 import { attachedEffectEnricher } from './attachedEffectEnricher';
 import { EnricherImpl } from './types';
 
+const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
+	console.group('ENRICHER');
+	const factories = findNodesByOpTypeWithRelatedEdges(
+		// @ts-expect-error force undefined to find factories
+		undefined,
+		{
+			bySource: lookups.edgesBySource.ownership,
+			byTarget: lookups.edgesByTarget.ownership,
+			nodes: lookups.nodes,
+		},
+		(node) =>
+			node.data.effector.meta.op === undefined &&
+			node.data.effector.meta.type === 'factory' &&
+			node.data.effector.meta.method === 'invoke',
+	);
+	console.groupEnd();
+
+	const edgesToRemove: MyEdge[] = [];
+
+	factories.forEach(({ node, incoming, outgoing }) => {
+		outgoing.filter(isOwnershipEdge).forEach((outgoingEdge) => {
+			const target = outgoingEdge.data.relatedNodes.target;
+			const nodeeee = lookups.nodes.get(target.id)!;
+			nodeeee.parentId = node.id;
+			nodeeee.expandParent = true;
+		});
+		edgesToRemove.push(...outgoing);
+	});
+
+	return {
+		edgesToRemove,
+	};
+};
+
+const enrichers: EnricherImpl[] = [attachedEffectEnricher, invokeEnricher];
+
 export const enrichGraph =
 	(edgesType: EdgeType): GraphCleaner =>
 	(graph) => {
-		const enrichers: EnricherImpl[] = [attachedEffectEnricher];
 		return enrichers.reduce((graph, enrich) => {
 			const { edgesToRemove = [], edgesToAdd = [] } =
 				enrich(
