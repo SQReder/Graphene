@@ -2,7 +2,7 @@ import { findNodesByOpTypeWithRelatedEdges } from '../../../lib';
 import { OpType, OwnershipEdge } from '../../../types';
 import { OwnershipEdgeCleaner } from './types';
 
-export const makeReverseOwnershipCleaner = (opType: OpType): OwnershipEdgeCleaner => {
+export const makeReverseOwnershipCleaner = (opType: OpType | undefined): OwnershipEdgeCleaner => {
 	return (_, lookups) => {
 		const edgesToRemove: OwnershipEdge[] = [];
 

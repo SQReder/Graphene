@@ -1,5 +1,5 @@
 import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, GraphTypedEdgesSelector, isRegularNode } from '../../lib';
-import { EffectorGraph, MyEdge, OpType } from '../../types';
+import { EffectorGraph, EffectorNode, MyEdge, OpType, RegularEffectorNode } from '../../types';
 import { EdgeCleaner, EdgeCreator } from './types';
 
 export function cleanEdges<T extends MyEdge>(cleaners: Array<EdgeCleaner<T>>, graph: EffectorGraph, edges: T[]) {
@@ -17,9 +17,10 @@ export function cleanEdges<T extends MyEdge>(cleaners: Array<EdgeCleaner<T>>, gr
 }
 
 export const makeTransitiveNodeReplacer = <T extends MyEdge>(
-	transitiveOpType: OpType,
+	transitiveOpType: OpType | undefined,
 	selector: GraphTypedEdgesSelector<T>,
 	edgeCreator: EdgeCreator<T>,
+	filter?: (node: EffectorNode) => boolean,
 ): EdgeCleaner<T> => {
 	return (_, lookups) => {
 		const edgesToRemove: T[] = [];
@@ -32,6 +33,11 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 		});
 
 		nodesAndStuff.forEach(({ node, incoming, outgoing }) => {
+			if (filter ? filter(node) : false) {
+				console.log('skipped', node.data.label);
+				return;
+			}
+
 			const { factoryOwners, nonFactoryOwners } = incoming.reduce<{
 				factoryOwners: T[];
 				nonFactoryOwners: T[];
@@ -149,4 +155,31 @@ export const createReinitCleaner =
 		}
 
 		return { edgesToRemove, edgesToAdd };
+	};
+
+export const dropEdgesOfNode =
+	<T extends MyEdge>(
+		opType: OpType,
+		drop: 'incoming' | 'outcoming',
+		selector: GraphTypedEdgesSelector<T>,
+		filter?: (node: RegularEffectorNode) => boolean,
+	): EdgeCleaner<T> =>
+	(_, lookups) => {
+		const factories = findNodesByOpTypeWithRelatedEdges(
+			opType,
+			{
+				bySource: lookups.edgesBySource[selector] as Map<string, T[]>,
+				byTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
+				nodes: lookups.nodes,
+			},
+			filter,
+		);
+
+		console.log(`found ${factories.length} of ${opType}`, factories);
+
+		return {
+			edgesToRemove: factories
+				.flatMap((nodeAndStuff) => nodeAndStuff[drop])
+				.filter((edge: MyEdge) => edge.data.edgeType === selector),
+		};
 	};

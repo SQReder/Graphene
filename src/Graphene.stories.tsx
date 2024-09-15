@@ -28,7 +28,11 @@ const meta: Meta<Params> = {
 		units: [],
 	},
 	argTypes: {
-		units: { table: { disable: true } },
+		units: {
+			table: {
+				disable: true,
+			},
+		},
 	},
 	decorators: [
 		(Story) => {
@@ -51,9 +55,9 @@ type Story = StoryObj<Params>;
 const loneEvent = createEvent();
 const $loneStore = createStore(null);
 
-const grapheneModel = invoke(grapheneModelFactory, { layouterFactory: Layouters.ELK });
+const grapheneModel = invoke(grapheneModelFactory);
 
-const appModel = invoke(appModelFactory, grapheneModel);
+const appModel = invoke(appModelFactory, { grapheneModel, layouterFactory: Layouters.ELK });
 
 const todoModel = invoke(createTodoListApi, []);
 
@@ -147,5 +151,35 @@ const parentModel = invoke(parentFactory);
 export const NestedFactories = {
 	args: {
 		units: [...Object.values(parentModel)],
+	},
+};
+
+const domainNestedTestModelFactory = createFactory(() => {
+	const rootDomain = createDomain('root');
+
+	const childDomain = createDomain('child', { domain: rootDomain });
+
+	const someEvent = createEvent({ domain: childDomain });
+
+	return { someEvent };
+});
+
+export const DomainNested: Story = {
+	args: {
+		units: [...Object.values(invoke(domainNestedTestModelFactory))],
+	},
+};
+
+const domainTestModelFactory = createFactory(() => {
+	const rootDomain = createDomain('root');
+
+	const someEvent = createEvent({ domain: rootDomain });
+
+	return { someEvent };
+});
+
+export const Domain: Story = {
+	args: {
+		units: [...Object.values(invoke(domainTestModelFactory))],
 	},
 };

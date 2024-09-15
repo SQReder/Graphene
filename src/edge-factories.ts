@@ -4,11 +4,11 @@ type EdgeFactory<T extends MyEdge> = (params: {
 	id: string;
 	source: EffectorNode;
 	target: EffectorNode;
-	extras?: (edge: T) => T;
+	extras?: (edge: T) => void;
 }) => T;
 
-export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, target, extras = (x) => x }) =>
-	extras({
+export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, target, extras = (x) => x }) => {
+	const result = {
 		id: id,
 		source: source.id,
 		target: target.id,
@@ -23,10 +23,15 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 		style: {
 			zIndex: 10,
 		},
-	} satisfies ReactiveEdge);
+	} satisfies ReactiveEdge;
 
-export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, target, extras = (x) => x }) =>
-	extras({
+	extras(result);
+
+	return result;
+};
+
+export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, target, extras = (x) => x }) => {
+	const result = {
 		id: id,
 		source: source.id,
 		target: target.id,
@@ -40,4 +45,9 @@ export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, ta
 		style: {
 			stroke: 'rgba(132,215,253,0.7)',
 		},
-	} satisfies OwnershipEdge);
+	} satisfies OwnershipEdge;
+
+	extras(result);
+
+	return result;
+};

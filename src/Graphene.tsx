@@ -71,7 +71,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 	const { isDarkMode } = useDarkMode({});
 
 	const setGraph = useCallback(
-		(edges: EdgesViewVariant, stage: GraphVariant) => {
+		(edges: EdgesViewVariant[], stage: GraphVariant) => {
 			edgesVariantChanged(edges);
 			graphVariantChanged(stage);
 		},
@@ -82,9 +82,11 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		<Wrapper>
 			<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
 				<Buttons>
-					<button onClick={() => edgesVariantChanged(EdgesViewVariant.Reactive)}>Reactive</button>
-					<button onClick={() => edgesVariantChanged(EdgesViewVariant.Ownership)}>Ownership</button>
-					<button onClick={() => edgesVariantChanged(EdgesViewVariant.ReactiveOwnership)}>Reactive + Ownership</button>
+					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive])}>Reactive</button>
+					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Ownership])}>Ownership</button>
+					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive, EdgesViewVariant.Ownership])}>
+						Reactive + Ownership
+					</button>
 					<hr />
 
 					<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
@@ -95,22 +97,24 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					</button>
 					<hr />
 
-					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.raw)}>Reactive Raw</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleaned)}>Reactive Cleaned</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodes)}>
+					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.raw)}>Reactive Raw</button>
+					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleaned)}>Reactive Cleaned</button>
+					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodes)}>
 						Reactive CleanedNoNodes
 					</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Reactive, GraphVariant.cleanedNoNodesLayouted)}>
+					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodesLayouted)}>
 						Reactive CleanedNoNodesLayouted
 					</button>
 					<hr />
 
-					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.raw)}>Ownership Raw</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleaned)}>Ownership Cleaned</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodes)}>
+					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.raw)}>Ownership Raw</button>
+					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleaned)}>
+						Ownership Cleaned
+					</button>
+					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodes)}>
 						Ownership CleanedNoNodes
 					</button>
-					<button onClick={() => setGraph(EdgesViewVariant.Ownership, GraphVariant.cleanedNoNodesLayouted)}>
+					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodesLayouted)}>
 						Ownership CleanedNoNodes Layouted
 					</button>
 

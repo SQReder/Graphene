@@ -27,6 +27,7 @@ export const OpType = {
 	Effect: 'effect',
 	Combine: 'combine',
 	Merge: 'merge',
+	Domain: 'domain',
 } as const;
 
 export type OpType = (typeof OpType)[keyof typeof OpType];
@@ -54,7 +55,7 @@ export type SampleMeta = {
 };
 
 export type UnitMeta = {
-	op: typeof OpType.Store | typeof OpType.Event;
+	op: typeof OpType.Store | typeof OpType.Event | typeof OpType.Domain;
 	name: string;
 	derived: boolean;
 };

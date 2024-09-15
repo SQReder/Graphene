@@ -3,7 +3,6 @@ import { OwnershipEdgeCleaner } from './types';
 
 export const dropFactories: OwnershipEdgeCleaner = (_, lookups) => {
 	const factories = findNodesByOpTypeWithRelatedEdges(
-		// @ts-expect-error tryng to force undefined lol
 		undefined,
 		{
 			bySource: lookups.edgesBySource.ownership,
@@ -20,7 +19,6 @@ export const dropFactories: OwnershipEdgeCleaner = (_, lookups) => {
 
 export const dimFactories: OwnershipEdgeCleaner = (_, lookups) => {
 	const factories = findNodesByOpTypeWithRelatedEdges(
-		// @ts-expect-error tryng to force undefined lol
 		undefined,
 		{
 			bySource: lookups.edgesBySource.ownership,

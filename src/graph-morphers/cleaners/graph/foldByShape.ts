@@ -1,3 +1,4 @@
+import { createOwnershipEdge, createReactiveEdge } from '../../../edge-factories';
 import { getEdgesBy, isRegularNode, Lookups } from '../../../lib';
 import { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from '../../../types';
 import { GraphCleaner } from '../types';
@@ -13,9 +14,28 @@ type EdgeFactories = {
 	outboundReactive: EdgeCreator<ReactiveEdge>;
 };
 
-export const foldByShape =
-	(rootSelector: RootSelector, factories: EdgeFactories): GraphCleaner =>
-	(graph) => {
+const defaultEdgeFactories: EdgeFactories = {
+	inboundOwnership: ({ id, edge, root }) =>
+		createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+	inboundReactive: ({ id, edge, root }) =>
+		createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root }),
+	outboundOwnership: ({ id, edge, root }) =>
+		createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+	outboundReactive: ({ id, edge, root }) =>
+		createReactiveEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+};
+
+export const foldByShape = (
+	rootSelector: RootSelector,
+	factories_: Partial<EdgeFactories>,
+	internalNodeNames?: string[],
+): GraphCleaner => {
+	const factories: EdgeFactories = {
+		...defaultEdgeFactories,
+		...factories_,
+	};
+
+	return (graph) => {
 		console.group('🫨 fold by shape');
 
 		const edgesToAdd: MyEdge[] = [];
@@ -38,7 +58,16 @@ export const foldByShape =
 
 			console.log('ownershipEdges', ownershipEdges);
 
-			const internalNodes = ownershipEdges?.map((edge) => edge.data.relatedNodes.target);
+			const internalNodes = ownershipEdges
+				?.map((edge) => edge.data.relatedNodes.target)
+				?.filter(
+					(node) =>
+						isRegularNode(node) &&
+						node.data.effector.name != null &&
+						(!internalNodeNames ||
+							internalNodeNames.length === 0 ||
+							internalNodeNames.includes(node.data.effector.name)),
+				);
 
 			if (!internalNodes) {
 				console.warn('owned nodes not defined for', mainOwner.id);
@@ -59,7 +88,7 @@ export const foldByShape =
 
 			const inputNodes = internalNodes?.filter(
 				(node) => isRegularNode(node) /*&&
-				node.data.effector.meta.name === '$payload'*/,
+					node.data.effector.meta.name === '$payload'*/,
 			);
 
 			console.log('inputNodes', inputNodes);
@@ -77,24 +106,30 @@ export const foldByShape =
 				relatedNodeIds.sort((a, b) => Number(a) - Number(b)),
 			);
 
-			new Set(inputNodes).forEach((inputNode) => {
+			console.group('input nodes');
+
+			for (const inputNode of new Set(inputNodes)) {
+				console.group(`[${inputNode.id}] ${inputNode.data.label}`);
+				console.group('ownership');
+
 				const externalInboundOwnershipEdgesOfInputNode = lookups.edgesByTarget.ownership
 					.get(inputNode.id)
 					?.filter((edge) => !relatedNodeIds.includes(edge.source));
 
-				console.log(
-					'externalInboundOwnershipEdgesOfInputNode of',
-					inputNode.id,
-					externalInboundOwnershipEdgesOfInputNode,
-				);
+				console.log('externalInboundOwnershipEdgesOfInputNode of', externalInboundOwnershipEdgesOfInputNode);
 
 				externalInboundOwnershipEdgesOfInputNode?.forEach((edge) => {
 					const id = `${edge.source} owns ${mainOwner.id} (in foldByShape)`;
 
 					if (!edgesToAdd.some((edge) => edge.id === id)) {
+						console.log('add', id, edge);
 						edgesToAdd.push(factories.inboundOwnership({ id, edge, root: mainOwner }));
 					}
 				});
+
+				console.groupEnd();
+
+				console.group('reactive');
 
 				const externalInboundReactiveEdgesOfInputNode = lookups.edgesByTarget.reactive
 					.get(inputNode.id)
@@ -102,7 +137,8 @@ export const foldByShape =
 
 				console.log(
 					'externalInboundReactiveEdgesOfInputNode of',
-					inputNode.id,
+					`"[${inputNode.id}] ${inputNode.data.label}"`,
+
 					externalInboundReactiveEdgesOfInputNode,
 				);
 
@@ -110,19 +146,27 @@ export const foldByShape =
 					const id = `${edge.source} --> ${mainOwner.id} (in foldByShape)`;
 
 					if (!edgesToAdd.some((edge) => edge.id === id)) {
+						console.log('add', id, edge);
 						edgesToAdd.push(factories.inboundReactive({ id, edge, root: mainOwner }));
 					}
 				});
-			});
+
+				console.groupEnd();
+				console.groupEnd();
+			}
+
+			console.groupEnd();
 
 			// endregion
 
 			//region output nodes
+
 			const outputNodes = internalNodes.filter((node) => isRegularNode(node));
 
 			console.log('outputNodes', outputNodes);
 
-			new Set(outputNodes).forEach((outputNode) => {
+			console.group('output nodes');
+			for (const outputNode of new Set(outputNodes)) {
 				const externalOutboundEdgesOfOutputNode = lookups.edgesBySource.ownership
 					.get(outputNode.id)
 					?.filter((edge) => !relatedNodeIds.includes(edge.target));
@@ -148,7 +192,8 @@ export const foldByShape =
 						edgesToAdd.push(factories.outboundReactive({ id, edge, root: mainOwner }));
 					}
 				});
-			});
+			}
+			console.groupEnd();
 
 			//endregion
 
@@ -161,3 +206,4 @@ export const foldByShape =
 			edges: graph.edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd),
 		};
 	};
+};

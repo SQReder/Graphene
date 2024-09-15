@@ -1,5 +1,5 @@
 import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isOwnershipEdge, shallowCopyGraph } from '../../lib';
-import { EdgeType, MyEdge, OpType } from '../../types';
+import { EdgeType, MyEdge } from '../../types';
 import { GraphCleaner } from '../cleaners/types';
 import { attachedEffectEnricher } from './attachedEffectEnricher';
 import { EnricherImpl } from './types';
@@ -7,7 +7,6 @@ import { EnricherImpl } from './types';
 const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	console.group('ENRICHER');
 	const factories = findNodesByOpTypeWithRelatedEdges(
-		// @ts-expect-error force undefined to find factories
 		undefined,
 		{
 			bySource: lookups.edgesBySource.ownership,
@@ -38,7 +37,7 @@ const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	};
 };
 
-const enrichers: EnricherImpl[] = [attachedEffectEnricher, invokeEnricher];
+const enrichers: EnricherImpl[] = [attachedEffectEnricher /*invokeEnricher*/];
 
 export const enrichGraph =
 	(edgesType: EdgeType): GraphCleaner =>

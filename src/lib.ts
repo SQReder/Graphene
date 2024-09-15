@@ -50,6 +50,8 @@ export const getMetaIcon = (meta: Meta): string => {
 			return meta.attached ? '⚡️~⚡️' : '⚡️';
 		case OpType.Merge:
 			return '🔀';
+		case OpType.Domain:
+			return '🌐';
 		default:
 			switch (meta.type) {
 				case MetaType.Factory:
@@ -83,6 +85,8 @@ export function formatMeta(id: string, meta: Meta) {
 			return `${meta.attached ? '⚡️~⚡️' : '⚡️'}  ${id_}` + meta.name;
 		case OpType.Merge:
 			return `${id_} merge`;
+		case OpType.Domain:
+			return `🌐 ${meta.name}${meta.derived ? ' (derived)' : ''}`;
 		default:
 			switch (meta.type) {
 				case MetaType.Factory:
@@ -108,15 +112,20 @@ export function isUnitMeta(meta: Meta): meta is UnitMeta {
 	return meta.op === OpType.Store || meta.op === OpType.Event || meta.op === OpType.Effect;
 }
 
-export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Map<string, Graphite> {
-	const graphitesById = new Map<string, Graphite>();
+export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Array<Graphite> {
+	const result: Array<Graphite> = [];
+	const visited = new Set<string>();
+
+	console.groupCollapsed('traversing');
 
 	function traverse(graphite: Graphite) {
-		if (graphitesById.has(graphite.id)) {
-			console.warn('already known graphite', graphite);
+		if (visited.has(graphite.id)) {
+			console.debug('already known graphite', graphite.id);
 			return;
 		} else {
-			graphitesById.set(graphite.id, graphite);
+			console.debug('add graphite', graphite.id);
+			result.push(graphite);
+			visited.add(graphite.id);
 		}
 
 		if (graphite.family) {
@@ -125,8 +134,6 @@ export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Map<stri
 			graphite.next.filter(traverse);
 		}
 	}
-
-	console.groupCollapsed('traversing');
 
 	units.forEach((unit) => {
 		if (!hasGraphite(unit)) {
@@ -139,9 +146,8 @@ export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Map<stri
 
 	console.groupEnd();
 
-	return graphitesById;
+	return result;
 }
-
 export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 	linkingEdges: Array<LinkEdge>;
 	ownerhipEdges: Array<OwnershipEdge>;
@@ -462,7 +468,7 @@ type NodeWithRelatedEdges<T extends MyEdge> = {
 };
 
 export function findNodesByOpTypeWithRelatedEdges<T extends MyEdge>(
-	opType: OpType,
+	opType: OpType | undefined,
 	lookups: {
 		byTarget: Map<string, T[]>;
 		bySource: Map<string, T[]>;
@@ -506,9 +512,9 @@ export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, 
 	return new Map(Array.from(map.entries()).map(([k, v]) => [k, fn(v)]));
 }
 
-export function createEffectorNodesLookup(units: readonly Unit<unknown>[]): Map<string, RegularEffectorNode> {
-	const graphiteById = traverseEffectorGraph(units);
-	return remap(graphiteById, makeEffectorNode);
+export function createEffectorNodesLookup(units: readonly Unit<unknown>[]): RegularEffectorNode[] {
+	const graphites = traverseEffectorGraph(units);
+	return graphites.map(makeEffectorNode);
 }
 
 export const GraphVariant = {
@@ -520,12 +526,7 @@ export const GraphVariant = {
 
 export type GraphVariant = (typeof GraphVariant)[keyof typeof GraphVariant];
 
-export type GraphVariants = {
-	raw: EffectorGraph;
-	cleaned: EffectorGraph;
-	cleanedNoNodes: EffectorGraph;
-	cleanedNoNodesLayouted: EffectorGraph;
-};
+export type AsyncGraphVariantGenerators = Record<GraphVariant, (graph: EffectorGraph) => Promise<EffectorGraph>>;
 
 const sortGraphNodes = (graph: EffectorGraph): EffectorGraph => {
 	return {
@@ -534,23 +535,57 @@ const sortGraphNodes = (graph: EffectorGraph): EffectorGraph => {
 	};
 };
 
-export async function makeGraphVariants(
-	graph: EffectorGraph,
+function jsonStringifyRecursive(obj) {
+	const cache = new Set();
+	return JSON.stringify(
+		obj,
+		(key, value) => {
+			if (typeof value === 'object' && value !== null) {
+				if (cache.has(value)) {
+					// Circular reference found, discard key
+					return;
+				}
+				// Store value in our collection
+				cache.add(value);
+			}
+			return value;
+		},
+		4,
+	);
+}
+
+async function digest(value: string) {
+	const encoder = new TextEncoder();
+	const data = encoder.encode(value);
+	const hash = await window.crypto.subtle.digest('SHA-256', data);
+	return hash;
+}
+
+function memoize<T extends (...args: any[]) => any>(fn: T): T {
+	const cache = new WeakMap();
+	return ((...args: any[]) => {
+		const key = digest(jsonStringifyRecursive(args));
+		if (!cache.has(key)) {
+			cache.set(key, fn(...args));
+		}
+		return cache.get(key);
+	}) as T;
+}
+
+export function makeGraphVariants(
 	edgesCleaner: GraphCleaner,
 	nodesCleaner: GraphCleaner,
 	layouterFactory: () => Layouter,
-): Promise<GraphVariants> {
-	const raw = await layoutGraph(graph, layouterFactory);
-	const cleaned = edgesCleaner(raw);
-	const cleanedNoNodes = nodesCleaner(cleaned);
-
-	const cleanedNoNodesLayouted = sortGraphNodes(await layoutGraph(cleanedNoNodes, layouterFactory));
-	console.log('⚠️', cleanedNoNodesLayouted.nodes);
-
+): AsyncGraphVariantGenerators {
+	const raw = (graph: EffectorGraph) => layoutGraph(graph, layouterFactory);
+	const cleaned = async (graph: EffectorGraph) => edgesCleaner(await raw(graph));
+	const cleanedNoNodes = async (graph: EffectorGraph) => nodesCleaner(await cleaned(graph));
+	const cleanedNoNodesLayouted = async (graph: EffectorGraph) =>
+		sortGraphNodes(await layoutGraph(await cleanedNoNodes(graph), layouterFactory));
 	return {
-		raw: sortGraphNodes(raw),
-		cleaned: sortGraphNodes(cleaned),
-		cleanedNoNodes: sortGraphNodes(cleanedNoNodes),
-		cleanedNoNodesLayouted: cleanedNoNodesLayouted,
+		raw,
+		cleaned,
+		cleanedNoNodes,
+		cleanedNoNodesLayouted,
 	};
 }

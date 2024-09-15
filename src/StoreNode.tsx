@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import { Handle, NodeProps, NodeResizer, Position } from '@xyflow/react';
 import { useLayouterContext } from './ConfigurationContext';
 import { assertIsRegularEffectorDetails, getMetaIcon } from './lib';
-import { EffectorNode, OpType, RegularEffectorNode } from './types';
+import { EffectorNode, RegularEffectorNode } from './types';
 
 const nodeWidth = css`
 	//width: 150px;

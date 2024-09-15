@@ -1,23 +1,38 @@
-import { isOwnershipEdge } from '../../../lib';
-import { LinkEdge, OpType, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
+import { isOwnershipEdge, isRegularNode } from '../../../lib';
+import { EffectorNode, LinkEdge, OpType, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
 import {
 	cleanEdges,
 	createReinitCleaner,
 	createStoreUpdatesWithNoChildrenCleaner,
+	dropEdgesOfNode,
 	makeTransitiveNodeReplacer,
 } from '../lib';
 import { GraphCleaner } from '../types';
 import { createTransitiveOwnershipEdge } from './create-transitive-ownership-edge';
 import { createTransitiveReinitEdge } from './create-transitive-reinit-edge';
-import { dimFactories } from './drop-factories';
+import { dimFactories, dropFactories } from './drop-factories';
 import { makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
 import { OwnershipEdgeCleaner } from './types';
 
-const makeTransitiveNodeReplacerForOpType = (opType: OpType) =>
-	makeTransitiveNodeReplacer(opType, 'ownership', createTransitiveOwnershipEdge);
+const makeTransitiveNodeReplacerForOpType = (opType: OpType | undefined, filter?: (node: EffectorNode) => boolean) =>
+	makeTransitiveNodeReplacer(opType, 'ownership', createTransitiveOwnershipEdge, filter);
 
-const transitiveNodesCleaners: OwnershipEdgeCleaner[] = [OpType.On, OpType.Map, OpType.FilterMap].map(
-	makeTransitiveNodeReplacerForOpType,
+type Params =
+	| [opTyp: OpType, filter?: (node: EffectorNode) => boolean]
+	| [opTyp: undefined, filter: (node: EffectorNode) => boolean];
+
+const params: readonly Params[] = [
+	[OpType.On, undefined],
+	[OpType.Map, undefined],
+	[OpType.FilterMap, undefined],
+	[
+		undefined,
+		(node) =>
+			isRegularNode(node) && node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
+	],
+];
+const transitiveNodeReplacers: OwnershipEdgeCleaner[] = params.map(([opType, filter]) =>
+	makeTransitiveNodeReplacerForOpType(opType, filter),
 );
 
 const reverseOwnershipCleaners: OwnershipEdgeCleaner[] = [
@@ -28,7 +43,6 @@ const reverseOwnershipCleaners: OwnershipEdgeCleaner[] = [
 	OpType.Combine,
 	OpType.Merge,
 	undefined,
-	// @ts-expect-error tryng to force undefined lol
 ].map(makeReverseOwnershipCleaner);
 
 export const cleanOwnershipEdges: GraphCleaner = (graph) => {
@@ -45,11 +59,12 @@ export const cleanOwnershipEdges: GraphCleaner = (graph) => {
 
 	const cleaners: OwnershipEdgeCleaner[] = [
 		...reverseOwnershipCleaners,
-		...transitiveNodesCleaners,
+		...transitiveNodeReplacers,
 		createReinitCleaner('ownership', createTransitiveReinitEdge),
 		createStoreUpdatesWithNoChildrenCleaner('ownership'),
-		// dropFactories,
 		dimFactories,
+		// dropFactories,
+		dropEdgesOfNode(OpType.Watch, 'incoming', 'ownership'),
 	];
 
 	const cleanedOwnershipEdges = cleanEdges(cleaners, graph, ownership);
