@@ -1,6 +1,7 @@
-import ELK, { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs';
-import { EffectorNode, MyEdge } from '../types';
-import { Layouter } from './types';
+import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs';
+import ELK from 'elkjs';
+import type { EffectorNode, MyEdge } from '../types';
+import type { Layouter } from './types';
 
 export const getElkLayouter = (): Layouter => {
 	const elk = new ELK();
@@ -26,7 +27,7 @@ export const getElkLayouter = (): Layouter => {
 		edges: ElkExtendedEdge[],
 		options = elkOptions,
 	): Promise<{
-		edges: (MyEdge & ElkExtendedEdge)[];
+		edges: Array<MyEdge & ElkExtendedEdge>;
 		nodes: Array<ElkNode & EffectorNode>;
 	}> => {
 		const isHorizontal = options?.['elk.direction'] === 'RIGHT';
@@ -41,7 +42,7 @@ export const getElkLayouter = (): Layouter => {
 				sourcePosition: isHorizontal ? 'right' : 'bottom',
 
 				// Hardcode a width and height for elk to use when layouting.
-				width: 150,
+				width: 160,
 				height: 42,
 			})),
 			edges: edges,

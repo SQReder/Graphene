@@ -1,7 +1,7 @@
-import { createReactiveEdge } from '../../../edge-factories';
+import { createOwnershipEdge, createReactiveEdge } from '../../../edge-factories';
 import { isRegularNode, isUnitMeta, shallowCopyGraph } from '../../../lib';
 import type { EffectorNode, RegularEffectorNode } from '../../../types';
-import { OpType } from '../../../types';
+import { EdgeType, OpType } from '../../../types';
 import type { GraphCleaner, NamedGraphCleaner } from '../types';
 import type { RootSelector } from './foldByShape';
 import { foldByShape } from './foldByShape';
@@ -30,6 +30,18 @@ export const graphCleaners: readonly NamedGraphCleaner[] = [
 	{
 		name: 'Fold Effect',
 		apply: foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Effect, {
+			outboundOwnership: ({ id, edge, root }) =>
+				createOwnershipEdge({
+					id,
+					source: root,
+					target: edge.data.relatedNodes.target,
+					extras: (ownershipEdge) => {
+						const source = edge.data.relatedNodes.source as RegularEffectorNode;
+						ownershipEdge.style!.stroke = getEffectEdgeColor(source, EdgeType.Ownership);
+						const meta = source.data.effector.meta;
+						ownershipEdge.label = isUnitMeta(meta) ? (meta.op === OpType.Store ? '$' : '') + meta.name : '??';
+					},
+				}),
 			outboundReactive: ({ id, edge, root }) =>
 				createReactiveEdge({
 					id,
@@ -37,7 +49,7 @@ export const graphCleaners: readonly NamedGraphCleaner[] = [
 					target: edge.data.relatedNodes.target,
 					extras: (rxEdge) => {
 						const source = edge.data.relatedNodes.source as RegularEffectorNode;
-						rxEdge.style!.stroke = getEffectEdgeColor(source);
+						rxEdge.style!.stroke = getEffectEdgeColor(source, EdgeType.Reactive);
 						const meta = source.data.effector.meta;
 						rxEdge.label = isUnitMeta(meta) ? (meta.op === OpType.Store ? '$' : '') + meta.name : '??';
 					},
@@ -57,14 +69,14 @@ export const createGraphCleaner =
 		return cleaners.reduce((graph, namedCleaner) => namedCleaner.apply(graph), shallowCopyGraph(graph));
 	};
 
-const getEffectEdgeColor = (node: EffectorNode): string | undefined => {
+const getEffectEdgeColor = (node: EffectorNode, kind: EdgeType): string | undefined => {
 	if (!isRegularNode(node)) return;
 
 	const meta = node.data.effector.meta;
 
 	if (meta.op === OpType.Event) {
 		const name = meta.name;
-		if (name.startsWith('done')) return 'green';
-		if (name.startsWith('fail')) return 'red';
+		if (name.startsWith('done')) return kind === 'ownership' ? 'lightgreen' : 'green';
+		if (name.startsWith('fail')) return kind === 'ownership' ? 'lightcoral' : 'red';
 	}
 };

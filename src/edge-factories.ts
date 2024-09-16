@@ -1,4 +1,5 @@
-import { EdgeType, EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from './types';
+import type { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from './types';
+import { EdgeType } from './types';
 
 type EdgeFactory<T extends MyEdge> = (params: {
 	id: string;
@@ -22,6 +23,7 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 		animated: true,
 		style: {
 			zIndex: 10,
+			stroke: '#303030',
 		},
 	} satisfies ReactiveEdge;
 
@@ -43,7 +45,7 @@ export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, ta
 			},
 		},
 		style: {
-			stroke: 'rgba(132,215,253,0.7)',
+			stroke: 'rgba(132,199,253,0.86)',
 		},
 	} satisfies OwnershipEdge;
 

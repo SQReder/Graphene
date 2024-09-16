@@ -16,7 +16,7 @@ const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 		(node) =>
 			node.data.effector.meta.op === undefined &&
 			node.data.effector.meta.type === 'factory' &&
-			node.data.effector.meta.method === 'invoke',
+			['invoke'].includes(node.data.effector.meta.method),
 	);
 	console.groupEnd();
 
@@ -37,7 +37,7 @@ const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	};
 };
 
-const enrichers: EnricherImpl[] = [attachedEffectEnricher /*invokeEnricher*/];
+const enrichers: EnricherImpl[] = [attachedEffectEnricher, invokeEnricher];
 
 export const enrichGraph =
 	(edgesType: EdgeType): GraphCleaner =>

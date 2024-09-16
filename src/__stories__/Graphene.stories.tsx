@@ -1,99 +1,28 @@
-import type { Meta, StoryObj } from '@storybook/react';
 import { createFactory, invoke } from '@withease/factories';
-import type { Event, Unit } from 'effector';
-import { createDomain, createEffect, createEvent, createStore, fork, restore, sample } from 'effector';
-import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
+import type { Event } from 'effector';
+import { createDomain, createEffect, createEvent, createStore, restore, sample } from 'effector';
 import { debounce, readonly } from 'patronum';
-import { useEffect } from 'react';
-import { createTodoListApi } from './examples/todo';
-import { ownershipEdgeCleaners } from './graph-morphers/cleaners/edge-ownership';
-import type { NamedOwnershipEdgeCleaner } from './graph-morphers/cleaners/edge-ownership/types';
-import { reactiveEdgeCleaners } from './graph-morphers/cleaners/edge-reactive';
-import type { NamedReactiveEdgeCleaner } from './graph-morphers/cleaners/edge-reactive/types';
-import { graphCleaners } from './graph-morphers/cleaners/graph';
-import type { NamedGraphCleaner } from './graph-morphers/cleaners/types';
-import { Graphene } from './Graphene';
-import { Layouters } from './layouters';
-import { appModelFactory, grapheneModelFactory } from './model';
-import { CleanerSelector } from './ui/CleanerSelector';
-
-type Params = { units: Array<Unit<unknown>> };
-
-const meta: Meta<Params> = {
-	title: 'Graphene',
-	// @ts-expect-error don't know how to fix
-	component: Graphene,
-	render: function Render(props) {
-		const appendUnits = useUnit(grapheneModel.appendUnits);
-
-		useEffect(() => {
-			appendUnits(props.units);
-		}, [appendUnits, props.units]);
-
-		return <Graphene model={appModel} />;
-	},
-	args: {
-		units: [],
-	},
-	argTypes: {
-		units: {
-			table: {
-				disable: true,
-			},
-		},
-	},
-	decorators: [
-		(Story) => {
-			const scope = fork();
-
-			console.log('😈😈😈', scope);
-			return (
-				<EffectorScopeProvider value={scope}>
-					<Story />
-				</EffectorScopeProvider>
-			);
-		},
-	],
-};
-
-export default meta;
-
-type Story = StoryObj<Params>;
+import { createTodoListApi } from '../examples/todo';
+import { appModel, type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta';
 
 const loneEvent = createEvent();
 const $loneStore = createStore(null);
 
-const grapheneModel = invoke(grapheneModelFactory);
-const graphCleanerSelector = invoke(CleanerSelector.factory<NamedGraphCleaner>(), graphCleaners);
-const ownershipEdgeCleanerSelector = invoke(
-	CleanerSelector.factory<NamedOwnershipEdgeCleaner>(),
-	ownershipEdgeCleaners,
-);
-const reactiveEdgeCleanerSelector = invoke(CleanerSelector.factory<NamedReactiveEdgeCleaner>(), reactiveEdgeCleaners);
-
-const appModel = invoke(appModelFactory, {
-	grapheneModel,
-	layouterFactory: Layouters.ELK,
-	graphCleanerSelector,
-	ownershipEdgeCleanerSelector,
-	reactiveEdgeCleanerSelector,
-});
-
 const todoModel = invoke(createTodoListApi, []);
 
-export const ToDo: Story = {
+export const ToDo: GrapheneStory = {
 	args: {
 		units: Object.values(todoModel),
 	},
 };
 
-export const Test: Story = {
+export const Test: GrapheneStory = {
 	args: {
 		units: [$loneStore, loneEvent],
 	},
 };
 
-export const GrapheneItself: Story = {
+export const GrapheneItself: GrapheneStory = {
 	args: {
 		units: Object.values(appModel['@@unitShape']()),
 	},
@@ -105,7 +34,7 @@ const slowedEvent = debounce(tooFastEvent, 100);
 // @ts-ignore
 const $slowData = restore(slowedEvent, null);
 
-export const Debounce: Story = {
+export const Debounce: GrapheneStory = {
 	args: {
 		units: [slowedEvent],
 	},
@@ -118,7 +47,7 @@ const $writeableStore2 = createStore(0);
 const $readonlyStore2 = readonly($writeableStore2);
 $readonlyStore2.watch(console.log);
 
-export const Readonly: Story = {
+export const Readonly: GrapheneStory = {
 	args: {
 		units: [$readonlyStore, $readonlyStore2],
 	},
@@ -146,9 +75,19 @@ const effectFactory = () => {
 	return [trigerEffect, testEffect];
 };
 
-export const Effect: Story = {
+export const Effect: GrapheneStory = {
 	args: {
 		units: [...effectFactory()],
+	},
+};
+
+export const SingleEffect: GrapheneStory = {
+	args: {
+		units: [
+			createEffect({
+				name: 'Single Effect',
+			}),
+		],
 	},
 };
 
@@ -184,7 +123,7 @@ const domainNestedTestModelFactory = createFactory(() => {
 	return { someEvent };
 });
 
-export const DomainNested: Story = {
+export const DomainNested: GrapheneStory = {
 	args: {
 		units: [...Object.values(invoke(domainNestedTestModelFactory))],
 	},
@@ -198,8 +137,15 @@ const domainTestModelFactory = createFactory(() => {
 	return { someEvent };
 });
 
-export const Domain: Story = {
+export const Domain: GrapheneStory = {
 	args: {
 		units: [...Object.values(invoke(domainTestModelFactory))],
 	},
 };
+
+const genericGrapheneMeta: GrapheneMeta = {
+	...grapheneStoryMeta,
+	title: 'Graphene/Generic',
+};
+
+export default genericGrapheneMeta;

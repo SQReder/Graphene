@@ -1,25 +1,16 @@
-import { MarkerType } from '@xyflow/system';
-import { EdgeType, ReactiveEdge } from '../../../types';
-import { EdgeCreator } from '../types';
+import { createReactiveEdge } from '../../../edge-factories';
+import type { ReactiveEdge } from '../../../types';
+import type { EdgeCreator } from '../types';
 
-export const createTransitiveReinitEdge: EdgeCreator<ReactiveEdge> = (inbound, outbound, node) => ({
-	id: `${inbound.source} owns ${outbound.target} [collapse of ${node.id}]`,
-	source: inbound.source,
-	target: outbound.target,
-	markerEnd: {
-		type: MarkerType.ArrowClosed,
-	},
-	style: {
-		zIndex: 10,
-	},
-	label: 'reinit',
-	animated: true,
-	data: {
-		edgeType: EdgeType.Reactive,
-		relatedNodes: {
-			source: inbound.data.relatedNodes.source,
-			target: outbound.data.relatedNodes.target,
-			collapsed: [node],
+export const createTransitiveReinitEdge: EdgeCreator<ReactiveEdge> = (inbound, outbound, node) => {
+	const id = `${inbound.source} owns ${outbound.target} [collapse of ${node.id}]`;
+	return createReactiveEdge({
+		id: id,
+		source: inbound.data.relatedNodes.source,
+		target: outbound.data.relatedNodes.target,
+		extras: (edge) => {
+			edge.label = 'reinit';
+			edge.data.relatedNodes.collapsed = [node];
 		},
-	},
-});
+	});
+};

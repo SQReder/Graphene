@@ -1,7 +1,7 @@
-import { MarkerType } from '@xyflow/system';
 import type { Unit } from 'effector';
 import type { Comparator } from './comparison';
 import { combineComparators } from './comparison';
+import { createOwnershipEdge, createReactiveEdge } from './edge-factories';
 import type { GraphCleaner } from './graph-morphers/cleaners/types';
 import { layoutGraph } from './layouters';
 import type { Layouter } from './layouters/types';
@@ -191,22 +191,13 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 			try {
 				const id = `${current.id} --> ${next.id}`;
 
-				reactiveEdges.push({
-					id,
-					source: current.id,
-					target: next.id,
-					animated: true,
-					style: {
-						zIndex: 10,
-					},
-					data: {
-						edgeType: EdgeType.Reactive,
-						relatedNodes: {
-							source: ensureDefined(nodesMap.get(current.id)),
-							target: ensureDefined(nodesMap.get(next.id)),
-						},
-					},
-				});
+				reactiveEdges.push(
+					createReactiveEdge({
+						id,
+						source: nodesMap.get(current.id)!,
+						target: nodesMap.get(next.id)!,
+					}),
+				);
 			} catch (e) {
 				console.error(e, current, next);
 			}
@@ -218,25 +209,13 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 			try {
 				const id = `${owner.id} owns ${current.id}`;
 
-				ownershipEdges.push({
-					id,
-					source: owner.id,
-					target: current.id,
-					// label: `${owner.id} 🔽 ${current.id}`,
-					markerEnd: {
-						type: MarkerType.ArrowClosed,
-					},
-					style: {
-						stroke: 'rgba(132,215,253,0.7)',
-					},
-					data: {
-						edgeType: EdgeType.Ownership,
-						relatedNodes: {
-							source: ensureDefined(nodesMap.get(owner.id)),
-							target: ensureDefined(nodesMap.get(current.id)),
-						},
-					},
-				});
+				ownershipEdges.push(
+					createOwnershipEdge({
+						id,
+						source: ensureDefined(nodesMap.get(owner.id)),
+						target: ensureDefined(nodesMap.get(current.id)),
+					}),
+				);
 			} catch (e) {
 				console.error(e, current, owner);
 			}

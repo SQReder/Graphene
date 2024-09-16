@@ -34,7 +34,7 @@ export function abortable<Params extends WithAbortSignal, Done, Fail = Error>(
 		mapParams: (params: OmitAbortSignal<Params>, { signal }): Params =>
 			// @ts-expect-error false-positive type substitution error
 			({ ...params, signal: signal } as Params),
-		name: `${effect.shortName}.cancellable`,
+		name: `${effect.shortName}.abortable`,
 	});
 
 	const abortableFx = createEffect<OmitAbortSignal<Params>, Done, Fail>(async (params) => {

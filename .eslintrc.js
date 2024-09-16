@@ -70,5 +70,6 @@ module.exports = {
 		'no-mixed-spaces-and-tabs': ['error', 'smart-tabs'],
 		'@typescript-eslint/no-explicit-any': 'off',
 		'@typescript-eslint/ban-ts-comment': 'off',
+		'prettier/prettier': 'warn',
 	},
 };

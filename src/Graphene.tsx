@@ -12,7 +12,7 @@ import {
 	useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useUnit } from 'effector-react';
+import { useGate, useUnit } from 'effector-react';
 import type { FC, KeyboardEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
@@ -44,6 +44,8 @@ const withReactFlowProvider = <P extends object>(Component: React.ComponentType<
 };
 
 export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withReactFlowProvider(({ model }) => {
+	useGate(model.Gate);
+
 	const {
 		nodes,
 		nodesChanged,
@@ -124,8 +126,8 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					</details>
 
 					<hr />
-					<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />
 					<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />
+					<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />
 					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
 					<hr />
 					<Fieldset>

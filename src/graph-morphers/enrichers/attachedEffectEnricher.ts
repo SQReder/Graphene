@@ -1,8 +1,9 @@
-import { MarkerType } from '@xyflow/system';
 import { is } from 'effector';
+import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
 import { findNodesByOpType } from '../../lib';
-import { EdgeType, Graphite, MyEdge, OpType, OwnershipEdge, ReactiveEdge } from '../../types';
-import { EnricherImpl } from './types';
+import type { Graphite, MyEdge } from '../../types';
+import { EdgeType, OpType } from '../../types';
+import type { EnricherImpl } from './types';
 
 export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	const fxNodes = findNodesByOpType(OpType.Effect, graph.nodes);
@@ -34,63 +35,44 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 
 		// @ts-ignore
 		const graphite = handler.graphite as Graphite;
-		const id = graphite.id;
+		const targetId = graphite.id;
 
-		const target = lookups.nodes.get(id)!;
+		const target = lookups.nodes.get(targetId)!;
 
 		const edgesFromFx = lookups.edgesBySource.ownership.get(fxNode.id);
 
 		console.debug('edgesFromFx', edgesFromFx);
 
-		const some = edgesFromFx?.some((edge) => edge.target === id);
+		const some = edgesFromFx?.some((edge) => edge.target === targetId);
 
 		console.debug('some', some);
 
 		console.debug(edgesType, edgesType === EdgeType.Ownership);
 		if (!some && edgesType === EdgeType.Ownership) {
-			edgesToAdd.push({
-				id: `${fxNode.id} owns ${id}`,
-				source: fxNode.id,
-				target: id,
-				style: {
-					stroke: 'rgba(132,215,253,0.7)',
-				},
-				markerEnd: {
-					type: MarkerType.ArrowClosed,
-				},
-				data: {
-					edgeType: EdgeType.Ownership,
-					synthetic: true,
-					relatedNodes: {
-						source: fxNode,
-						target: target,
-						collapsed: [],
-					},
-				},
-			} satisfies OwnershipEdge);
+			const id = `${fxNode.id} owns ${target.id}`;
+
+			edgesToAdd.push(
+				createOwnershipEdge({
+					id,
+					source: fxNode,
+					target: target,
+				}),
+			);
 		}
 
 		if (
-			!lookups.edgesBySource.reactive.get(fxNode.id)?.some((edge) => edge.target === id) &&
+			!lookups.edgesBySource.reactive.get(fxNode.id)?.some((edge) => edge.target === targetId) &&
 			edgesType === EdgeType.Reactive
 		) {
-			edgesToAdd.push({
-				id: `${fxNode.id} ==> ${id}`,
-				source: fxNode.id,
-				target: id,
-				data: {
-					edgeType: EdgeType.Reactive,
-					relatedNodes: {
-						source: fxNode,
-						target: target,
-						collapsed: [],
-					},
-				},
-				style: {
-					zIndex: 10,
-				},
-				animated: true,
-			} satisfies ReactiveEdge);
+			const id = `${fxNode.id} ==> ${target.id}`;
+
+			edgesToAdd.push(
+				createReactiveEdge({
+					id,
+					source: fxNode,
+					target: target,
+				}),
+			);
 		}
 	}
 

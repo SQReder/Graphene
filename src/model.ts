@@ -1,6 +1,7 @@
 import { createFactory } from '@withease/factories';
 import type { Store, Unit } from 'effector';
 import { attach, combine, createEffect, createEvent, createStore, restore, sample } from 'effector';
+import { createGate } from 'effector-react';
 import type { Declaration } from 'effector/inspect';
 import { inspectGraph } from 'effector/inspect';
 import { debounce, debug, readonly, reshape } from 'patronum';
@@ -28,7 +29,6 @@ import {
 import { logEffectFail } from './logEffectFail';
 import type { DeclarationEffectorNode, EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from './types';
 import { EdgeType, EffectorDeclarationDetails } from './types';
-import type { CleanerSelector } from './ui/CleanerSelector';
 import type { NamedCleanerSelector } from './ui/CleanerSelector/model';
 
 function createDeclarationsStore(): Store<readonly Declaration[]> {
@@ -217,6 +217,8 @@ export const appModelFactory = createFactory(
 		ownershipEdgeCleanerSelector: NamedOwnerhipEdgesCleanerSelectorModel;
 		reactiveEdgeCleanerSelector: NamedReactiveEdgesCleanerSelectorModel;
 	}) => {
+		const Gate = createGate();
+
 		const edgesVariantChanged = createEvent<EdgeType[]>();
 		const $edgesVariant = restore(
 			edgesVariantChanged.map((items) => new Set(items)),
@@ -274,6 +276,13 @@ export const appModelFactory = createFactory(
 		logEffectFail(getGraphVariantGeneratorsFx);
 
 		sample({
+			clock: [
+				Gate.open,
+				$edgesVariant,
+				graphCleanerSelector.$selectedCleaners,
+				ownershipEdgeCleanerSelector.$selectedCleaners,
+				reactiveEdgeCleanerSelector.$selectedCleaners,
+			],
 			source: {
 				edgesVariant: $edgesVariant,
 				graphCleaners: graphCleanerSelector.$selectedCleaners,
@@ -312,11 +321,13 @@ export const appModelFactory = createFactory(
 
 		logEffectFail(getGraph.abortableFx);
 
+		const $generator = restore(getGraphVariantGeneratorsFx.doneData, null);
+
 		sample({
 			source: {
 				graph: $graph,
 				selectedGraphVariant: $selectedGraphVariant,
-				generators: restore(getGraphVariantGeneratorsFx.doneData, null),
+				generators: $generator,
 			},
 			target: getGraph.abortableFx,
 		});
@@ -389,6 +400,7 @@ export const appModelFactory = createFactory(
 		});
 
 		return {
+			Gate,
 			graphCleanerSelector: graphCleanerSelector['@@ui'],
 			ownershipEdgeCleanerSelector: ownershipEdgeCleanerSelector['@@ui'],
 			reactiveEdgeCleanerSelector: reactiveEdgeCleanerSelector['@@ui'],
