@@ -1,5 +1,5 @@
 import { findNodesByOpTypeWithRelatedEdges, isOwnershipEdge } from '../../../lib';
-import { OwnershipEdgeCleaner } from './types';
+import type { OwnershipEdgeCleaner } from './types';
 
 export const dropFactories: OwnershipEdgeCleaner = (_, lookups) => {
 	const factories = findNodesByOpTypeWithRelatedEdges(
@@ -28,16 +28,14 @@ export const dimFactories: OwnershipEdgeCleaner = (_, lookups) => {
 		(node) => node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
 	);
 
+	const outgoing = factories.flatMap(({ outgoing }) => outgoing).filter(isOwnershipEdge);
 	return {
-		edgesToRemove: factories.flatMap(({ outgoing }) => outgoing).filter(isOwnershipEdge),
-		edgesToAdd: factories
-			.flatMap(({ outgoing }) => outgoing)
-			.filter(isOwnershipEdge)
-			.map((edge) => ({
-				...edge,
-				style: {
-					stroke: 'rgba(132,215,253,0.1)',
-				},
-			})),
+		edgesToRemove: outgoing,
+		edgesToAdd: outgoing.map((edge) => ({
+			...edge,
+			style: {
+				stroke: 'rgba(132,215,253,0.1)',
+			},
+		})),
 	};
 };

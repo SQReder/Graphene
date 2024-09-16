@@ -1,5 +1,5 @@
 import { isRegularNode } from '../../../lib';
-import { GraphCleaner } from '../types';
+import type { GraphCleaner } from '../types';
 
 export const removeUnlinkedNodes: GraphCleaner = (graph) => {
 	const usedNodeIds = new Set(graph.edges.flatMap((edge) => [edge.source, edge.target]));

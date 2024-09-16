@@ -1,7 +1,8 @@
 import { createOwnershipEdge, createReactiveEdge } from '../../../edge-factories';
-import { getEdgesBy, isRegularNode, Lookups } from '../../../lib';
-import { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from '../../../types';
-import { GraphCleaner } from '../types';
+import type { Lookups } from '../../../lib';
+import { getEdgesBy, isRegularNode } from '../../../lib';
+import type { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from '../../../types';
+import type { GraphCleaner } from '../types';
 
 export type RootSelector = (node: EffectorNode) => boolean;
 

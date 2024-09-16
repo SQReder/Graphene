@@ -1,28 +1,25 @@
 import { MarkerType } from '@xyflow/system';
-import { Unit } from 'effector';
-import { combineComparators, Comparator } from './comparison';
-import { GraphCleaner } from './graph-morphers/cleaners/types';
+import type { Unit } from 'effector';
+import type { Comparator } from './comparison';
+import { combineComparators } from './comparison';
+import type { GraphCleaner } from './graph-morphers/cleaners/types';
 import { layoutGraph } from './layouters';
-import { Layouter } from './layouters/types';
-import {
+import type { Layouter } from './layouters/types';
+import type {
 	DeclarationEffectorNode,
-	EdgeType,
 	EffectorGraph,
 	EffectorNode,
-	EffectorNodeDetails,
 	Graphite,
 	LinkEdge,
 	Meta,
-	MetaType,
 	MyEdge,
-	NodeFamily,
-	OpType,
 	OwnershipEdge,
 	ReactiveEdge,
 	RegularEffectorDetails,
 	RegularEffectorNode,
 	UnitMeta,
 } from './types';
+import { EdgeType, EffectorNodeDetails, MetaType, NodeFamily, OpType } from './types';
 
 export function absurd(value: never): never {
 	throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
@@ -112,8 +109,8 @@ export function isUnitMeta(meta: Meta): meta is UnitMeta {
 	return meta.op === OpType.Store || meta.op === OpType.Event || meta.op === OpType.Effect;
 }
 
-export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Array<Graphite> {
-	const result: Array<Graphite> = [];
+export function traverseEffectorGraph(units: ReadonlyArray<Unit<unknown>>): Graphite[] {
+	const result: Graphite[] = [];
 	const visited = new Set<string>();
 
 	console.groupCollapsed('traversing');
@@ -149,9 +146,9 @@ export function traverseEffectorGraph(units: readonly Unit<unknown>[]): Array<Gr
 	return result;
 }
 export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
-	linkingEdges: Array<LinkEdge>;
-	ownerhipEdges: Array<OwnershipEdge>;
-	reactiveEdges: Array<ReactiveEdge>;
+	linkingEdges: LinkEdge[];
+	ownerhipEdges: OwnershipEdge[];
+	reactiveEdges: ReactiveEdge[];
 } {
 	const reactiveEdges: ReactiveEdge[] = [];
 	const ownershipEdges: OwnershipEdge[] = [];
@@ -475,8 +472,8 @@ export function findNodesByOpTypeWithRelatedEdges<T extends MyEdge>(
 		nodes: Map<string, EffectorNode>;
 	},
 	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
-): NodeWithRelatedEdges<T>[] {
-	const result: NodeWithRelatedEdges<T>[] = [];
+): Array<NodeWithRelatedEdges<T>> {
+	const result: Array<NodeWithRelatedEdges<T>> = [];
 
 	Array.from(lookups.nodes.values()).forEach((node) => {
 		if (isRegularNode(node) && node.data.effector.meta.op === opType && extraFilter(node)) {
@@ -512,7 +509,7 @@ export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, 
 	return new Map(Array.from(map.entries()).map(([k, v]) => [k, fn(v)]));
 }
 
-export function createEffectorNodesLookup(units: readonly Unit<unknown>[]): RegularEffectorNode[] {
+export function createEffectorNodesLookup(units: ReadonlyArray<Unit<unknown>>): RegularEffectorNode[] {
 	const graphites = traverseEffectorGraph(units);
 	return graphites.map(makeEffectorNode);
 }
@@ -561,7 +558,7 @@ async function digest(value: string) {
 	return hash;
 }
 
-function memoize<T extends (...args: any[]) => any>(fn: T): T {
+export function memoize<T extends (...args: any[]) => any>(fn: T): T {
 	const cache = new WeakMap();
 	return ((...args: any[]) => {
 		const key = digest(jsonStringifyRecursive(args));

@@ -1,11 +1,17 @@
-import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, GraphTypedEdgesSelector, isRegularNode } from '../../lib';
-import { EffectorGraph, EffectorNode, MyEdge, OpType, RegularEffectorNode } from '../../types';
-import { EdgeCleaner, EdgeCreator } from './types';
+import type { GraphTypedEdgesSelector } from '../../lib';
+import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isRegularNode } from '../../lib';
+import type { EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from '../../types';
+import { OpType } from '../../types';
+import type { EdgeCleaner, EdgeCreator, NamedEdgeCleaner } from './types';
 
-export function cleanEdges<T extends MyEdge>(cleaners: Array<EdgeCleaner<T>>, graph: EffectorGraph, edges: T[]) {
+export function cleanEdges<T extends MyEdge>(
+	cleaners: ReadonlyArray<NamedEdgeCleaner<T>>,
+	graph: EffectorGraph,
+	edges: T[],
+) {
 	return cleaners.reduce(
 		(edges, cleaner) => {
-			const { edgesToRemove = [], edgesToAdd = [] } = cleaner(edges, {
+			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(edges, {
 				edgesBySource: getEdgesBy(edges, 'source'),
 				edgesByTarget: getEdgesBy(edges, 'target'),
 				nodes: new Map(graph.nodes.map((node) => [node.id, node])),

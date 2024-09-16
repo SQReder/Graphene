@@ -1,9 +1,19 @@
-import { Lookups } from '../../lib';
-import { EffectorGraph, EffectorNode, MyEdge, OpType } from '../../types';
+import type { Lookups } from '../../lib';
+import type { EffectorGraph, EffectorNode, MyEdge, OpType } from '../../types';
+
+export interface NamedCleaner<T> {
+	name: string;
+	apply: T;
+	priority?: number;
+}
 
 export interface GraphCleaner {
 	(graph: EffectorGraph): EffectorGraph;
 }
+
+export type NamedGraphCleaner = NamedCleaner<GraphCleaner>;
+
+export type NamedEdgeCleaner<T extends MyEdge> = NamedCleaner<EdgeCleaner<T>>;
 
 export interface EdgeCleaner<T extends MyEdge = MyEdge> {
 	(edges: T[], lookups: Lookups): {
@@ -11,10 +21,9 @@ export interface EdgeCleaner<T extends MyEdge = MyEdge> {
 		edgesToAdd?: T[];
 	};
 }
-
 export type EdgeCreator<T extends MyEdge> = (
 	inbound: T,
 	outbound: T,
 	node: EffectorNode,
-	transitiveOpType: OpType,
+	transitiveOpType: OpType | undefined,
 ) => T;

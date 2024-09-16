@@ -1,12 +1,11 @@
 import styled from '@emotion/styled';
+import type { OnEdgesChange, OnNodesChange } from '@xyflow/react';
 import {
 	applyEdgeChanges,
 	applyNodeChanges,
 	Background,
 	Controls,
 	MiniMap,
-	OnEdgesChange,
-	OnNodesChange,
 	ReactFlow,
 	ReactFlowProvider,
 	useNodes,
@@ -14,13 +13,16 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useUnit } from 'effector-react';
-import { FC, useCallback, useState } from 'react';
+import type { FC, KeyboardEventHandler } from 'react';
+import { useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
-import { appModelFactory, EdgesViewVariant } from './model';
+import type { appModelFactory } from './model';
+import { EdgesViewVariant } from './model';
 import { nodeTypes } from './nodeTypes';
-import { EffectorNode, MyEdge } from './types';
+import type { EffectorNode, MyEdge } from './types';
+import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
 	width: 100%;
@@ -81,7 +83,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 	return (
 		<Wrapper>
 			<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
-				<Buttons>
+				<Aside>
 					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive])}>Reactive</button>
 					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Ownership])}>Ownership</button>
 					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive, EdgesViewVariant.Ownership])}>
@@ -97,30 +99,35 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					</button>
 					<hr />
 
-					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.raw)}>Reactive Raw</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleaned)}>Reactive Cleaned</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodes)}>
-						Reactive CleanedNoNodes
-					</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodesLayouted)}>
-						Reactive CleanedNoNodesLayouted
-					</button>
-					<hr />
+					<details style={{ display: 'contents' }}>
+						<summary>Reactive</summary>
+						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.raw)}>Raw</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleaned)}>Cleaned</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodes)}>
+							CleanedNoNodes
+						</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodesLayouted)}>
+							CleanedNoNodesLayouted
+						</button>
+					</details>
 
-					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.raw)}>Ownership Raw</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleaned)}>
-						Ownership Cleaned
-					</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodes)}>
-						Ownership CleanedNoNodes
-					</button>
-					<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodesLayouted)}>
-						Ownership CleanedNoNodes Layouted
-					</button>
+					<details style={{ display: 'contents' }}>
+						<summary>Ownership</summary>
+						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.raw)}>Raw</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleaned)}>Cleaned</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodes)}>
+							CleanedNoNodes
+						</button>
+						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodesLayouted)}>
+							CleanedNoNodes Layouted
+						</button>
+					</details>
 
 					<hr />
-					{/*<button onClick={() => setViewMode('rx-ownership-graph')}>Reactive + Ownership</button>*/}
-					{/*<hr />*/}
+					<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />
+					<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />
+					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
+					<hr />
 					<Fieldset>
 						<legend>Visible edges</legend>
 						<label>
@@ -151,7 +158,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					<hr />
 
 					<Search />
-
+					<hr />
 					<label title={'Hack to save nodes positions when switching between views'}>
 						<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
 						Replace nodes
@@ -162,9 +169,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					</label>
 					<hr />
 					<Legend>
-						<div>
-							<strong>legend</strong>
-						</div>
+						<summary>Legend</summary>
 						<ul>
 							<li>📦 - store</li>
 							<li>🔔 - event</li>
@@ -173,7 +178,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 							<li>🏭 - factory</li>
 						</ul>
 					</Legend>
-				</Buttons>
+				</Aside>
 				<div style={{ width: '100%', height: '100%', display: 'contents' }}>
 					<ReactFlow
 						snapGrid={[10, 10]}
@@ -205,22 +210,39 @@ const Search: FC = () => {
 	const { setCenter } = useReactFlow();
 	const [centerText, setCenterText] = useState('');
 
+	function tryCenterNode() {
+		const found = nodes.find((node) => node.id === centerText);
+		if (found) setCenter(found.position.x, found.position.y);
+	}
+
+	const handleEnter: KeyboardEventHandler<HTMLInputElement> = (e) => {
+		if (e.key === 'Enter') {
+			tryCenterNode();
+		}
+	};
+
 	return (
-		<label>
-			Center:
-			<input type="text" value={centerText} onChange={(e) => setCenterText(e.target.value)} />
+		<label style={{ display: 'flex', flexFlow: 'row nowrap', gap: '4px' }}>
+			<input
+				type="text"
+				value={centerText}
+				onChange={(e) => setCenterText(e.target.value)}
+				onKeyUp={handleEnter}
+				style={{ flex: 1 }}
+				placeholder={'Center on node'}
+			/>
 			<button
-				onClick={() => {
-					const found = nodes.find((node) => node.id === centerText);
-					if (found) setCenter(found.position.x, found.position.y);
+				onClick={(e) => {
+					e.preventDefault();
+					tryCenterNode();
 				}}
+				style={{ flex: 'none' }}
 			>
 				Set center
 			</button>
 		</label>
 	);
 };
-
 const Box = styled.div`
 	display: flex;
 	flex-flow: column;
@@ -232,13 +254,14 @@ const Box = styled.div`
 	background: rgba(255, 255, 255, 0.75);
 `;
 
-const Buttons = styled(Box)`
+const Aside = styled(Box)`
 	position: absolute;
 	top: 10px;
 	right: 10px;
 
 	z-index: 100;
-`;
+	width: 300px;
+`.withComponent('aside');
 
 const Fieldset = styled(Box)`
 	background: rgba(255, 255, 255, 0.75);
@@ -251,4 +274,4 @@ const Legend = styled(Box)`
 
 		margin: 0;
 	}
-`;
+`.withComponent('details');

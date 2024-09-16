@@ -1,5 +1,6 @@
 import { isReactiveEdge, isRegularNode } from '../../../lib';
-import { EffectorNode, LinkEdge, OpType, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
+import type { EffectorNode, LinkEdge, OwnershipEdge, ReactiveEdge, UnknownEdge } from '../../../types';
+import { OpType } from '../../../types';
 import {
 	cleanEdges,
 	createReinitCleaner,
@@ -7,55 +8,66 @@ import {
 	dropEdgesOfNode,
 	makeTransitiveNodeReplacer,
 } from '../lib';
-import { GraphCleaner } from '../types';
+import type { GraphCleaner } from '../types';
 import { createTransitiveReactiveEdge } from './createTransitiveReactiveEdge';
 import { createTransitiveReinitEdge } from './createTransitiveReinitEdge';
-import { ReactiveEdgeCleaner } from './types';
+import type { ReactiveEdgeCleaner } from './types';
+import { type NamedReactiveEdgeCleaner } from './types';
 
 const makeTransitiveNodeReplacerForOpType = (opType: OpType | undefined, filter?: (node: EffectorNode) => boolean) =>
 	makeTransitiveNodeReplacer(opType, 'reactive', createTransitiveReactiveEdge, filter);
 
 type Params =
-	| [opType: OpType, filter?: (node: EffectorNode) => boolean]
-	| [opType: undefined, filter: (node: EffectorNode) => boolean];
+	| [name: string, opType: OpType, filter?: (node: EffectorNode) => boolean]
+	| [name: string, opType: undefined, filter: (node: EffectorNode) => boolean];
 
 const params: readonly Params[] = [
-	[OpType.On, undefined],
-	[OpType.Map, undefined],
-	[OpType.FilterMap, undefined],
+	[OpType.On, OpType.On, undefined],
+	[OpType.Map, OpType.Map, undefined],
+	[OpType.FilterMap, OpType.FilterMap, undefined],
 	[
+		'Factory',
 		undefined,
 		(node) =>
 			isRegularNode(node) && node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
 	],
 ];
-const transitiveNodeReplacers: ReactiveEdgeCleaner[] = params.map(([opType, filter]) =>
-	makeTransitiveNodeReplacerForOpType(opType, filter),
+
+const transitiveNodeReplacers = params.map(
+	([name, opType, filter]): NamedReactiveEdgeCleaner => ({
+		name: `Transitive node replacer for [${name}]`,
+		apply: makeTransitiveNodeReplacerForOpType(opType, filter),
+	}),
 );
 
-export const cleanReactiveEdges: GraphCleaner = (graph) => {
-	const reactive: ReactiveEdge[] = [];
-	const other: (OwnershipEdge | LinkEdge | UnknownEdge)[] = [];
+export const reactiveEdgeCleaners: NamedReactiveEdgeCleaner[] = [
+	...transitiveNodeReplacers,
+	{ name: `Reinit`, apply: createReinitCleaner('reactive', createTransitiveReinitEdge) },
+	{ name: `Store updates with no children`, apply: createStoreUpdatesWithNoChildrenCleaner('reactive') },
+	{
+		name: `Drop incoming reactive edges of Watch nodes`,
+		apply: dropEdgesOfNode(OpType.Watch, 'incoming', 'reactive'),
+	},
+];
 
-	for (const edge of graph.edges) {
-		if (isReactiveEdge(edge)) {
-			reactive.push(edge);
-		} else {
-			other.push(edge);
+export const cleanReactiveEdges =
+	(cleaners: readonly NamedReactiveEdgeCleaner[]): GraphCleaner =>
+	(graph) => {
+		const reactive: ReactiveEdge[] = [];
+		const other: Array<OwnershipEdge | LinkEdge | UnknownEdge> = [];
+
+		for (const edge of graph.edges) {
+			if (isReactiveEdge(edge)) {
+				reactive.push(edge);
+			} else {
+				other.push(edge);
+			}
 		}
-	}
 
-	const cleaners: ReactiveEdgeCleaner[] = [
-		...transitiveNodeReplacers,
-		createReinitCleaner('reactive', createTransitiveReinitEdge),
-		createStoreUpdatesWithNoChildrenCleaner('reactive'),
-		dropEdgesOfNode(OpType.Watch, 'incoming', 'reactive'),
-	];
+		const cleanedReactiveEdges = cleanEdges(cleaners, graph, reactive);
 
-	const cleanedReactiveEdges = cleanEdges(cleaners, graph, reactive);
-
-	return {
-		nodes: graph.nodes,
-		edges: [...cleanedReactiveEdges, ...other],
+		return {
+			nodes: graph.nodes,
+			edges: [...cleanedReactiveEdges, ...other],
+		};
 	};
-};

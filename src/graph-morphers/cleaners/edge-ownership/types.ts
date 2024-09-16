@@ -1,4 +1,5 @@
-import { OwnershipEdge } from '../../../types';
-import { EdgeCleaner } from '../types';
+import type { OwnershipEdge } from '../../../types';
+import type { EdgeCleaner, NamedCleaner } from '../types';
 
+export type NamedOwnershipEdgeCleaner = NamedCleaner<OwnershipEdgeCleaner>;
 export type OwnershipEdgeCleaner = EdgeCleaner<OwnershipEdge>;

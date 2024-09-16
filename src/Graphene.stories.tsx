@@ -1,15 +1,23 @@
-import { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import { createFactory, invoke } from '@withease/factories';
-import { createDomain, createEffect, createEvent, createStore, Event, fork, restore, sample, Unit } from 'effector';
+import type { Event, Unit } from 'effector';
+import { createDomain, createEffect, createEvent, createStore, fork, restore, sample } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
 import { debounce, readonly } from 'patronum';
 import { useEffect } from 'react';
 import { createTodoListApi } from './examples/todo';
+import { ownershipEdgeCleaners } from './graph-morphers/cleaners/edge-ownership';
+import type { NamedOwnershipEdgeCleaner } from './graph-morphers/cleaners/edge-ownership/types';
+import { reactiveEdgeCleaners } from './graph-morphers/cleaners/edge-reactive';
+import type { NamedReactiveEdgeCleaner } from './graph-morphers/cleaners/edge-reactive/types';
+import { graphCleaners } from './graph-morphers/cleaners/graph';
+import type { NamedGraphCleaner } from './graph-morphers/cleaners/types';
 import { Graphene } from './Graphene';
 import { Layouters } from './layouters';
 import { appModelFactory, grapheneModelFactory } from './model';
+import { CleanerSelector } from './ui/CleanerSelector';
 
-type Params = { units: Unit<unknown>[] };
+type Params = { units: Array<Unit<unknown>> };
 
 const meta: Meta<Params> = {
 	title: 'Graphene',
@@ -56,8 +64,20 @@ const loneEvent = createEvent();
 const $loneStore = createStore(null);
 
 const grapheneModel = invoke(grapheneModelFactory);
+const graphCleanerSelector = invoke(CleanerSelector.factory<NamedGraphCleaner>(), graphCleaners);
+const ownershipEdgeCleanerSelector = invoke(
+	CleanerSelector.factory<NamedOwnershipEdgeCleaner>(),
+	ownershipEdgeCleaners,
+);
+const reactiveEdgeCleanerSelector = invoke(CleanerSelector.factory<NamedReactiveEdgeCleaner>(), reactiveEdgeCleaners);
 
-const appModel = invoke(appModelFactory, { grapheneModel, layouterFactory: Layouters.ELK });
+const appModel = invoke(appModelFactory, {
+	grapheneModel,
+	layouterFactory: Layouters.ELK,
+	graphCleanerSelector,
+	ownershipEdgeCleanerSelector,
+	reactiveEdgeCleanerSelector,
+});
 
 const todoModel = invoke(createTodoListApi, []);
 

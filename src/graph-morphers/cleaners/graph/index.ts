@@ -1,8 +1,10 @@
 import { createReactiveEdge } from '../../../edge-factories';
 import { isRegularNode, isUnitMeta, shallowCopyGraph } from '../../../lib';
-import { EffectorGraph, EffectorNode, OpType, RegularEffectorNode } from '../../../types';
-import { GraphCleaner } from '../types';
-import { foldByShape, RootSelector } from './foldByShape';
+import type { EffectorNode, RegularEffectorNode } from '../../../types';
+import { OpType } from '../../../types';
+import type { GraphCleaner, NamedGraphCleaner } from '../types';
+import type { RootSelector } from './foldByShape';
+import { foldByShape } from './foldByShape';
 import { removeUnlinkedNodes } from './removeUnlinkedNodes';
 
 const patronumSelector: RootSelector = (node) =>
@@ -11,16 +13,23 @@ const patronumSelector: RootSelector = (node) =>
 	node.data.effector.meta.type === 'factory' &&
 	['debounce', 'readonly'].includes(node.data.effector.meta.method);
 
-export const cleanGraph: GraphCleaner = (graph: EffectorGraph) => {
-	return [
-		foldByShape(patronumSelector, {}),
-		foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Domain, {}, [
+export const graphCleaners: readonly NamedGraphCleaner[] = [
+	{
+		name: 'Fold Patronum operators',
+		apply: foldByShape(patronumSelector, {}),
+	},
+	{
+		name: 'Fold Domain',
+		apply: foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Domain, {}, [
 			'onEvent',
 			'onStore',
 			'onEffect',
 			'onDomain',
 		]),
-		foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Effect, {
+	},
+	{
+		name: 'Fold Effect',
+		apply: foldByShape((node) => isRegularNode(node) && node.data.effector.meta.op === OpType.Effect, {
 			outboundReactive: ({ id, edge, root }) =>
 				createReactiveEdge({
 					id,
@@ -34,10 +43,19 @@ export const cleanGraph: GraphCleaner = (graph: EffectorGraph) => {
 					},
 				}),
 		}),
+	},
+	{
+		name: 'Remove Unlinked Nodes',
+		apply: removeUnlinkedNodes,
+		priority: 9999,
+	},
+];
 
-		removeUnlinkedNodes,
-	].reduce((graph, cleaner) => cleaner(graph), shallowCopyGraph(graph));
-};
+export const createGraphCleaner =
+	(cleaners: readonly NamedGraphCleaner[]): GraphCleaner =>
+	(graph) => {
+		return cleaners.reduce((graph, namedCleaner) => namedCleaner.apply(graph), shallowCopyGraph(graph));
+	};
 
 const getEffectEdgeColor = (node: EffectorNode): string | undefined => {
 	if (!isRegularNode(node)) return;

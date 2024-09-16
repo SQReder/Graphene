@@ -1,8 +1,8 @@
 import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isOwnershipEdge, shallowCopyGraph } from '../../lib';
-import { EdgeType, MyEdge } from '../../types';
-import { GraphCleaner } from '../cleaners/types';
+import type { EdgeType, MyEdge } from '../../types';
+import type { GraphCleaner } from '../cleaners/types';
 import { attachedEffectEnricher } from './attachedEffectEnricher';
-import { EnricherImpl } from './types';
+import type { EnricherImpl } from './types';
 
 const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	console.group('ENRICHER');

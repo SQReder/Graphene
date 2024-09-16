@@ -34,6 +34,19 @@ module.exports = {
 			rules: {
 				'@typescript-eslint/ban-ts-comment': 'warn',
 				'@typescript-eslint/explicit-module-boundary-types': 'off',
+				'@typescript-eslint/array-type': [
+					'error',
+					{
+						default: 'array-simple',
+					},
+				],
+				'@typescript-eslint/consistent-type-imports': [
+					'error',
+					{
+						prefer: 'type-imports',
+						fixStyle: 'separate-type-imports',
+					},
+				],
 			},
 		},
 		{

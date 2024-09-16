@@ -1,11 +1,11 @@
 import { createOwnershipEdge } from '../../../edge-factories';
-import { EffectorNode, OpType, OwnershipEdge } from '../../../types';
+import type { EffectorNode, OpType, OwnershipEdge } from '../../../types';
 
 export const createTransitiveOwnershipEdge = (
 	owner: OwnershipEdge,
 	child: OwnershipEdge,
 	node: EffectorNode,
-	transitiveOpType: OpType,
+	transitiveOpType: OpType | undefined,
 ) => {
 	return createOwnershipEdge({
 		id: `${owner.source} owns ${child.target}`,

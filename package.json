@@ -118,10 +118,12 @@
 		"prettier": "^2.8.2",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
+		"react-select": "^5.8.0",
 		"rollup": "^2.79.1",
 		"rollup-plugin-delete": "^2.0.0",
 		"rollup-plugin-peer-deps-external": "^2.2.4",
 		"rollup-plugin-typescript2": "^0.34.1",
+		"rollup-plugin-visualizer": "^5.12.0",
 		"storybook": "^8.3.0",
 		"ts-jest": "^29.0.4",
 		"tslib": "^2.4.1",
@@ -134,25 +136,23 @@
 		"webpack-cli": "^5.0.1"
 	},
 	"peerDependencies": {
-		"@emotion/react": "^11.0.0",
-		"@emotion/styled": "^11.0.0",
-		"@withease/factories": "^1.0.5",
-		"@xyflow/react": "^12.3.0",
-		"@xyflow/system": "^0.0.42",
-		"dagre": "^0.8.5",
-		"effector": "^23.2.2",
-		"effector-factorio": "^1.3.0",
-		"effector-react": "^23.2.1",
-		"elkjs": "^0.9.3",
-		"patronum": "^2.2.0",
+		"@emotion/react": ">=11",
+		"@emotion/styled": ">=11",
+		"@withease/factories": ">=1",
+		"@xyflow/react": ">=12.3.0",
+		"@xyflow/system": ">=0.0.42",
+		"dagre": ">=0.8.5",
+		"effector": "*",
+		"effector-factorio": "*",
+		"effector-react": "*",
+		"elkjs": ">=0.9.3",
+		"patronum": ">=2",
 		"react": "^16.8.0 || ^17 || ^18",
 		"react-dom": "^16.8.0 || ^17 || ^18",
-		"usehooks-ts": "^3.1.0"
+		"react-select": ">=5",
+		"usehooks-ts": ">=3"
 	},
 	"engines": {
 		"node": ">=16"
-	},
-	"dependencies": {
-		"rollup-plugin-visualizer": "^5.12.0"
 	}
 }
