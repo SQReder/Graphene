@@ -10,13 +10,8 @@ export const makeReverseOwnershipCleaner = (opType: OpType | undefined): Ownersh
 			bySource: lookups.edgesBySource.ownership,
 			byTarget: lookups.edgesByTarget.ownership,
 			nodes: lookups.nodes,
-		}).forEach(({ outgoing, node }) => {
-			console.log('node', node.data.label);
+		}).forEach(({ outgoing }) => {
 			for (const outgoingEdge of outgoing) {
-				// look for edges that sourced from outgoingEdge.target and targeted into outgoingEdge.source
-
-				// if (outgoingEdge.target === '665') debugger;
-
 				const edgesFromTarget = lookups.edgesBySource.ownership.get(outgoingEdge.target);
 				const looped = edgesFromTarget?.filter((edgeFromTarget) => edgeFromTarget.target === outgoingEdge.source);
 

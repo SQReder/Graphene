@@ -27,7 +27,7 @@ const params: readonly Params[] = [
 	[OpType.On, OpType.On, undefined],
 	[OpType.Map, OpType.Map, undefined],
 	[OpType.FilterMap, OpType.FilterMap, undefined],
-	['factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
+	// ['factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
 ];
 const transitiveNodeReplacers: NamedOwnershipEdgeCleaner[] = params.map(
 	([name, opType, filter]): NamedOwnershipEdgeCleaner => ({

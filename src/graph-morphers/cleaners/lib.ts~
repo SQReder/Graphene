@@ -98,7 +98,7 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 
 			edgesToRemove.push(...factoryOwners, ...nonFactoryOwners, ...regularChildren);
 		});
-		console.groupEnd();
+console.groupEnd()
 
 		return { edgesToRemove, edgesToAdd };
 	};

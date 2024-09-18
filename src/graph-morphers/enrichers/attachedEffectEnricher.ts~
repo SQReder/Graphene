@@ -12,7 +12,7 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 
 	console.debug('fxNodes', fxNodes);
 
-	console.groupCollapsed('Process fx nodes');
+	console.groupCollapsed('Process fx nodes')
 	for (const fxNode of fxNodes) {
 		if (fxNode.data.effector.graphite.meta.op !== OpType.Effect) {
 			console.warn('Unexpected op type', fxNode.data.effector.graphite.meta.op);
@@ -81,7 +81,7 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 			);
 		}
 	}
-	console.groupEnd();
+	console.groupEnd()
 
 	console.debug('added', edgesToAdd, 'ownership and reactive edges');
 

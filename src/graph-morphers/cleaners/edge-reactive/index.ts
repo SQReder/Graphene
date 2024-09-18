@@ -24,7 +24,7 @@ const params: readonly Params[] = [
 	[OpType.On, OpType.On, undefined],
 	[OpType.Map, OpType.Map, undefined],
 	[OpType.FilterMap, OpType.FilterMap, undefined],
-	['Factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
+	// ['Factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
 ];
 
 const transitiveNodeReplacers = params.map(

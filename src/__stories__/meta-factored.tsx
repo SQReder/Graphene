@@ -58,15 +58,19 @@ export const grapheneStoryMeta: GrapheneMeta = {
 				},
 			});
 
+			console.log('subscribed!!', id);
+
 			clearDeclarations();
 
-			console.group('🫨 make units');
-			const model = factory();
-			const units = Object.values(model).filter(is.unit);
+			setTimeout(() => {
+				console.group('🫨 make units');
+				const model = factory();
+				const units = Object.values(model).filter(is.unit);
 
-			console.log('appendUnits', units);
-			appendUnits(units);
-			console.groupEnd();
+				console.log('appendUnits', units);
+				appendUnits(units);
+				console.groupEnd();
+			}, 100);
 
 			console.groupEnd();
 
