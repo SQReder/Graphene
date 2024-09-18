@@ -1,8 +1,25 @@
-import type { GraphTypedEdgesSelector } from '../../lib';
-import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isRegularNode } from '../../lib';
+import {
+	findNodesByOpTypeWithRelatedEdges,
+	getEdgesBy,
+	type GraphTypedEdgesSelector,
+	isRegularNode,
+	type Lookups,
+	shallowCopyGraph,
+} from '../../lib';
 import type { EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from '../../types';
 import { OpType } from '../../types';
-import type { EdgeCleaner, EdgeCreator, NamedEdgeCleaner } from './types';
+import type { EdgeCleaner, EdgeCreator, GraphCleaner, NamedEdgeCleaner, NamedGraphCleaner } from './types';
+
+export function makeGraphLookups<T extends MyEdge>(
+	graph: EffectorGraph,
+	filter?: (edge: MyEdge) => edge is T,
+): Lookups {
+	return {
+		edgesBySource: getEdgesBy(filter ? graph.edges.filter(filter) : graph.edges, 'source'),
+		edgesByTarget: getEdgesBy(filter ? graph.edges.filter(filter) : graph.edges, 'target'),
+		nodes: new Map(graph.nodes.map((node) => [node.id, node])),
+	};
+}
 
 export function cleanEdges<T extends MyEdge>(
 	cleaners: ReadonlyArray<NamedEdgeCleaner<T>>,
@@ -11,11 +28,7 @@ export function cleanEdges<T extends MyEdge>(
 ) {
 	return cleaners.reduce(
 		(edgesToClean, cleaner) => {
-			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(edgesToClean, {
-				edgesBySource: getEdgesBy(edgesToClean, 'source'),
-				edgesByTarget: getEdgesBy(edgesToClean, 'target'),
-				nodes: new Map(graph.nodes.map((node) => [node.id, node])),
-			});
+			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(edgesToClean, makeGraphLookups(graph));
 			return edgesToClean.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd);
 		},
 		[...edges],
@@ -131,6 +144,7 @@ export const createStoreUpdatesWithNoChildrenCleaner =
 export const createReinitCleaner =
 	<T extends MyEdge>(selector: GraphTypedEdgesSelector<T>, edgeCreator: EdgeCreator<T>): EdgeCleaner<T> =>
 	(_, lookups) => {
+		console.group('reinit cleaner', selector);
 		const nodes = findNodesByOpTypeWithRelatedEdges(
 			OpType.Event,
 			{
@@ -145,32 +159,111 @@ export const createReinitCleaner =
 		const edgesToAdd: T[] = [];
 
 		for (const { node, incoming, outgoing } of nodes) {
-			if (incoming.length > 0) {
-				console.warn('expected no incoming edges for reinit event', node, incoming);
+			console.group('node', node.data.label, node);
+
+			const incomingNonFactoryEdges = incoming.filter((edge) => {
+				const source = edge.data.relatedNodes.source;
+				console.debug('incoming edge', edge);
+				console.debug('source', source);
+				const isFactory = isRegularNode(source) && source.data.effector.isFactory;
+				console.debug('is factory', isFactory);
+				return !isFactory;
+			});
+
+			if (incomingNonFactoryEdges.length > 0) {
+				console.warn('expected no incoming non-factory edges for reinit event', incomingNonFactoryEdges);
+				console.groupEnd();
 				continue;
 			}
 
 			if (outgoing.length === 0) {
-				console.warn('no outgoing edges for reinit event', node, outgoing);
+				console.warn('no outgoing edges for reinit event', outgoing);
+				console.groupEnd();
 				continue;
 			}
 
 			if (outgoing.length > 1) {
-				console.warn('expected one, but found few outgoing edges for reinit event', node, outgoing);
+				console.warn('expected one, but found few outgoing edges for reinit event', outgoing);
+				console.groupEnd();
 				continue;
 			}
 
 			const singleOutgoingEdge = outgoing[0];
 
 			for (const incomingEdge of incoming) {
+				console.debug('incoming edge', incomingEdge);
 				edgesToAdd.push(edgeCreator(incomingEdge, singleOutgoingEdge, node, OpType.Event));
 			}
 
 			edgesToRemove.push(...incoming, ...outgoing);
+
+			console.groupEnd();
 		}
 
+		console.groupEnd();
 		return { edgesToRemove, edgesToAdd };
 	};
+
+export function namedEdgeCleanerToGraphCleaner<T extends MyEdge>({
+	edgeFilter,
+	cleaner,
+}: {
+	edgeFilter: (edge: MyEdge) => edge is T;
+	cleaner: NamedEdgeCleaner<T>;
+}): NamedGraphCleaner {
+	return {
+		name: cleaner.name,
+		apply: (graph) => {
+			const dirty: T[] = [];
+			const other: MyEdge[] = [];
+
+			for (const edge of graph.edges) {
+				if (edgeFilter(edge)) {
+					dirty.push(edge);
+				} else {
+					other.push(edge);
+				}
+			}
+
+			const lookups = makeGraphLookups(graph, edgeFilter);
+			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(dirty, lookups);
+
+			return {
+				edges: [...dirty.filter((edge) => !edgesToRemove.includes(edge)).concat(edgesToAdd), ...other],
+				nodes: graph.nodes,
+			};
+		},
+	};
+}
+
+export function edgeCleanerToGraphCleaner<T extends MyEdge>({
+	edgeFilter,
+	cleaner,
+}: {
+	edgeFilter: (edge: MyEdge) => edge is T;
+	cleaner: EdgeCleaner<T>;
+}): GraphCleaner {
+	return (graph) => {
+		const dirty: T[] = [];
+		const other: MyEdge[] = [];
+
+		for (const edge of graph.edges) {
+			if (edgeFilter(edge)) {
+				dirty.push(edge);
+			} else {
+				other.push(edge);
+			}
+		}
+
+		const lookups = makeGraphLookups(graph, edgeFilter);
+		const { edgesToRemove = [], edgesToAdd = [] } = cleaner(dirty, lookups);
+
+		return {
+			edges: [...dirty.filter((edge) => !edgesToRemove.includes(edge)).concat(edgesToAdd), ...other],
+			nodes: graph.nodes,
+		};
+	};
+}
 
 export const dropEdgesOfNode =
 	<T extends MyEdge>(
@@ -198,3 +291,19 @@ export const dropEdgesOfNode =
 				.filter((edge: MyEdge) => edge.data.edgeType === selector),
 		};
 	};
+
+export const createGraphCleaner =
+	(cleaners: readonly NamedGraphCleaner[]): GraphCleaner =>
+	(graph) => {
+		return cleaners.reduce((graph, namedCleaner) => namedCleaner.apply(graph), shallowCopyGraph(graph));
+	};
+
+export function withOrder(order: number, ...cleaners: NamedGraphCleaner[]): NamedGraphCleaner[] {
+	return cleaners.map(
+		(cleaner): NamedGraphCleaner => ({
+			name: cleaner.name,
+			apply: cleaner.apply,
+			order,
+		}),
+	);
+}

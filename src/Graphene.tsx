@@ -22,7 +22,6 @@ import type { appModelFactory } from './model';
 import { EdgesViewVariant } from './model';
 import { nodeTypes } from './nodeTypes';
 import type { EffectorNode, MyEdge } from './types';
-import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
 	width: 100%;
@@ -125,10 +124,10 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						</button>
 					</details>
 
-					<hr />
-					<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />
-					<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />
-					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
+					{/*<hr />*/}
+					{/*<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />*/}
+					{/*<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />*/}
+					{/*<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />*/}
 					<hr />
 					<Fieldset>
 						<legend>Visible edges</legend>

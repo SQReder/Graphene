@@ -13,17 +13,13 @@ import {
 import type { Gate } from 'effector-react';
 import { createGate } from 'effector-react';
 import type { Declaration } from 'effector/inspect';
-import { debounce, debug, readonly, reshape } from 'patronum';
+import { debug, readonly, reshape } from 'patronum';
 import type { WithAbortSignal } from './abortable';
 import { abortable } from './abortable';
+import { debounceStore } from './debounceStore';
 import { sortTreeNodesBFS } from './dfs';
-import { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
-import type { NamedOwnershipEdgeCleaner, OwnershipEdgeCleaner } from './graph-morphers/cleaners/edge-ownership/types';
-import { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
-import type { NamedReactiveEdgeCleaner, ReactiveEdgeCleaner } from './graph-morphers/cleaners/edge-reactive/types';
-import { createGraphCleaner } from './graph-morphers/cleaners/graph';
-import type { GraphCleaner, NamedGraphCleaner } from './graph-morphers/cleaners/types';
-import { enrichGraph } from './graph-morphers/enrichers';
+import { createGraphCleaner } from './graph-morphers/cleaners/lib';
+import { dropPipeline, pipeline } from './graph-morphers/pipeline';
 import type { Layouter } from './layouters/types';
 import {
 	absurd,
@@ -40,9 +36,8 @@ import {
 import { logEffectFail } from './logEffectFail';
 import type { DeclarationEffectorNode, EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from './types';
 import { EdgeType, EffectorDeclarationDetails } from './types';
-import type { NamedCleanerSelector } from './ui/CleanerSelector/model';
 
-export const createDeclarationsStore = createFactory(() => {
+export const declarationsStoreModelFactory = createFactory(() => {
 	const addDeclaration = createEvent<Declaration>();
 	const clearDeclarations = createEvent();
 	const $declarations = readonly(
@@ -51,6 +46,8 @@ export const createDeclarationsStore = createFactory(() => {
 			.reset(clearDeclarations),
 	);
 
+	debug(clearDeclarations);
+
 	return {
 		$declarations,
 		clearDeclarations,
@@ -58,20 +55,10 @@ export const createDeclarationsStore = createFactory(() => {
 	};
 });
 
-function debounceStore<T>({
-	source,
-	defaultState,
-	timeoutMs,
-}: {
-	source: Store<T>;
-	defaultState: T;
-	timeoutMs: number;
-}): Store<T> {
-	return readonly(restore(debounce(source, timeoutMs), defaultState));
-}
+type DeclarationsStoreModel = ReturnType<typeof declarationsStoreModelFactory>;
 
 export const grapheneModelFactory = createFactory(
-	({ declarationsModel }: { declarationsModel: ReturnType<typeof createDeclarationsStore> }) => {
+	({ declarationsModel }: { declarationsModel: DeclarationsStoreModel }) => {
 		const appendUnits = createEvent<ReadonlyArray<Unit<unknown>>>();
 
 		const $units = readonly(
@@ -185,9 +172,9 @@ export const EdgesViewVariant = {
 
 export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewVariant];
 
-export type NamedCleanerSelectorModel = NamedCleanerSelector<GraphCleaner>;
-export type NamedOwnerhipEdgesCleanerSelectorModel = NamedCleanerSelector<OwnershipEdgeCleaner>;
-export type NamedReactiveEdgesCleanerSelectorModel = NamedCleanerSelector<ReactiveEdgeCleaner>;
+// export type NamedCleanerSelectorModel = NamedCleanerSelector<GraphCleaner>;
+// export type NamedOwnerhipEdgesCleanerSelectorModel = NamedCleanerSelector<OwnershipEdgeCleaner>;
+// export type NamedReactiveEdgesCleanerSelectorModel = NamedCleanerSelector<ReactiveEdgeCleaner>;
 
 const generatedGraphModelFactory = createFactory(
 	({
@@ -195,18 +182,18 @@ const generatedGraphModelFactory = createFactory(
 		$edgesVariant,
 		layouterFactory,
 		Gate,
-		graphCleanerSelector,
-		ownershipEdgeCleanerSelector,
-		reactiveEdgeCleanerSelector,
+		// graphCleanerSelector,
+		// ownershipEdgeCleanerSelector,
+		// reactiveEdgeCleanerSelector,
 		$selectedGraphVariant,
 	}: {
 		grapheneModel: GrapheneModel;
 		$edgesVariant: Store<Set<EdgeType>>;
 		layouterFactory: () => Layouter;
 		Gate: Gate<unknown>;
-		graphCleanerSelector: NamedCleanerSelectorModel;
-		ownershipEdgeCleanerSelector: NamedOwnerhipEdgesCleanerSelectorModel;
-		reactiveEdgeCleanerSelector: NamedReactiveEdgesCleanerSelectorModel;
+		// graphCleanerSelector: NamedCleanerSelectorModel;
+		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
+		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
 		$selectedGraphVariant: Store<GraphVariant>;
 	}) => {
 		const $graph = combine(
@@ -231,33 +218,31 @@ const generatedGraphModelFactory = createFactory(
 			},
 		);
 
-		const ownershipEnricher = enrichGraph('ownership');
-		const reactiveEnricher = enrichGraph('reactive');
+		// const ownershipEnricher = enrichGraph('ownership');
+		// const reactiveEnricher = enrichGraph('reactive');
 
 		const getGraphVariantGeneratorsFx = createEffect<
 			{
 				edgesVariant: Set<EdgeType>;
-				graphCleaners: readonly NamedGraphCleaner[];
-				ownershipEdgeCleaners: readonly NamedOwnershipEdgeCleaner[];
-				reactiveEdgeCleaners: readonly NamedReactiveEdgeCleaner[];
+				// graphCleaners: readonly NamedGraphCleaner[];
+				// ownershipEdgeCleaners: readonly NamedOwnershipEdgeCleaner[];
+				// reactiveEdgeCleaners: readonly NamedReactiveEdgeCleaner[];
 			},
 			AsyncGraphVariantGenerators
-		>(({ graphCleaners, edgesVariant, ownershipEdgeCleaners, reactiveEdgeCleaners }) => {
-			const processingPipeline: GraphCleaner[] = [];
+		>(({ edgesVariant }) => {
+			// const processingPipeline: GraphCleaner[] = [];
+			//
+			// if (edgesVariant.has('reactive')) {
+			// 	processingPipeline.push(cleanReactiveEdges(reactiveEdgeCleaners));
+			// 	processingPipeline.push(reactiveEnricher);
+			// }
+			//
+			// if (edgesVariant.has('ownership')) {
+			// 	processingPipeline.push(cleanOwnershipEdges(ownershipEdgeCleaners));
+			// 	processingPipeline.push(ownershipEnricher);
+			// }
 
-			if (edgesVariant.has('reactive')) {
-				processingPipeline.push(cleanReactiveEdges(reactiveEdgeCleaners));
-				processingPipeline.push(reactiveEnricher);
-			}
-
-			if (edgesVariant.has('ownership')) {
-				processingPipeline.push(cleanOwnershipEdges(ownershipEdgeCleaners));
-				processingPipeline.push(ownershipEnricher);
-			}
-
-			const cleaner: GraphCleaner = (graph: EffectorGraph) =>
-				processingPipeline.reduce((graph, cleaner) => cleaner(graph), graph);
-			return makeGraphVariants(cleaner, createGraphCleaner(graphCleaners), layouterFactory);
+			return makeGraphVariants(createGraphCleaner(pipeline), createGraphCleaner(dropPipeline), layouterFactory);
 		});
 
 		logEffectFail(getGraphVariantGeneratorsFx);
@@ -266,15 +251,15 @@ const generatedGraphModelFactory = createFactory(
 			clock: [
 				Gate.open,
 				$edgesVariant,
-				graphCleanerSelector.$selectedCleaners,
-				ownershipEdgeCleanerSelector.$selectedCleaners,
-				reactiveEdgeCleanerSelector.$selectedCleaners,
+				// graphCleanerSelector.$selectedCleaners,
+				// ownershipEdgeCleanerSelector.$selectedCleaners,
+				// reactiveEdgeCleanerSelector.$selectedCleaners,
 			],
 			source: {
 				edgesVariant: $edgesVariant,
-				graphCleaners: graphCleanerSelector.$selectedCleaners,
-				ownershipEdgeCleaners: ownershipEdgeCleanerSelector.$selectedCleaners,
-				reactiveEdgeCleaners: reactiveEdgeCleanerSelector.$selectedCleaners,
+				// graphCleaners: graphCleanerSelector.$selectedCleaners,
+				// ownershipEdgeCleaners: ownershipEdgeCleanerSelector.$selectedCleaners,
+				// reactiveEdgeCleaners: reactiveEdgeCleanerSelector.$selectedCleaners,
 			},
 			target: getGraphVariantGeneratorsFx,
 		});
@@ -344,15 +329,15 @@ export const appModelFactory = createFactory(
 	({
 		layouterFactory,
 		grapheneModel,
-		graphCleanerSelector,
-		ownershipEdgeCleanerSelector,
-		reactiveEdgeCleanerSelector,
-	}: {
+	}: // graphCleanerSelector,
+	// ownershipEdgeCleanerSelector,
+	// reactiveEdgeCleanerSelector,
+	{
 		layouterFactory: () => Layouter;
 		grapheneModel: GrapheneModel;
-		graphCleanerSelector: NamedCleanerSelectorModel;
-		ownershipEdgeCleanerSelector: NamedOwnerhipEdgesCleanerSelectorModel;
-		reactiveEdgeCleanerSelector: NamedReactiveEdgesCleanerSelectorModel;
+		// graphCleanerSelector: NamedCleanerSelectorModel;
+		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
+		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
 	}) => {
 		const Gate = createGate();
 
@@ -369,9 +354,9 @@ export const appModelFactory = createFactory(
 			$edgesVariant,
 			layouterFactory,
 			Gate,
-			graphCleanerSelector,
-			ownershipEdgeCleanerSelector,
-			reactiveEdgeCleanerSelector,
+			// graphCleanerSelector,
+			// ownershipEdgeCleanerSelector,
+			// reactiveEdgeCleanerSelector,
 			$selectedGraphVariant,
 		});
 
@@ -476,9 +461,9 @@ export const appModelFactory = createFactory(
 		return {
 			appendUnits: grapheneModel.appendUnits,
 			Gate,
-			graphCleanerSelector: graphCleanerSelector['@@ui'],
-			ownershipEdgeCleanerSelector: ownershipEdgeCleanerSelector['@@ui'],
-			reactiveEdgeCleanerSelector: reactiveEdgeCleanerSelector['@@ui'],
+			// graphCleanerSelector: graphCleanerSelector['@@ui'],
+			// ownershipEdgeCleanerSelector: ownershipEdgeCleanerSelector['@@ui'],
+			// reactiveEdgeCleanerSelector: reactiveEdgeCleanerSelector['@@ui'],
 			'@@unitShape': () => ({
 				edgesVariantChanged,
 				edgesVariant: $edgesVariant,

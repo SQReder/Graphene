@@ -4,7 +4,7 @@ import type { EffectorGraph, EffectorNode, MyEdge, OpType } from '../../types';
 export interface NamedCleaner<T> {
 	name: string;
 	apply: T;
-	priority?: number;
+	order?: number;
 }
 
 export interface GraphCleaner {

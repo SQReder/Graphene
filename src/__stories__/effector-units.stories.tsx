@@ -1,7 +1,8 @@
 import { createFactory, invoke } from '@withease/factories';
 import type { Event } from 'effector';
 import { createDomain, createEffect, createEvent, createStore, restore, sample } from 'effector';
-import { bootstrapped } from '../bootstrap';
+import { debug } from 'patronum';
+import { createBooleanStore } from '../debounceStore';
 import { createTodoListApi } from '../examples/todo';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
@@ -21,12 +22,6 @@ export const Test: GrapheneStory = {
 
 			return { $loneStore, loneEvent };
 		},
-	},
-};
-
-export const GrapheneItself: GrapheneStory = {
-	args: {
-		factory: () => bootstrapped['@@unitShape'](),
 	},
 };
 
@@ -132,3 +127,13 @@ const genericGrapheneMeta: GrapheneMeta = {
 };
 
 export default genericGrapheneMeta;
+
+export const TestFactories: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $boolean = createBooleanStore();
+			debug($boolean);
+			return { $boolean };
+		},
+	},
+};

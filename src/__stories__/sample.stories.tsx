@@ -4,7 +4,7 @@ import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta
 
 const meta: GrapheneMeta = {
 	...grapheneStoryMeta,
-	title: 'Effectos/Sample',
+	title: 'Effector/Sample',
 };
 
 export default meta;

@@ -3,8 +3,5 @@ export { appModelFactory, grapheneModelFactory } from './model';
 export { Layouters } from './layouters';
 export { CleanerSelector } from './ui/CleanerSelector';
 
-export { graphCleaners } from './graph-morphers/cleaners/graph';
-export { cleanOwnershipEdges } from './graph-morphers/cleaners/edge-ownership';
-export { cleanReactiveEdges } from './graph-morphers/cleaners/edge-reactive';
-
-export { bootstrapped } from './bootstrap';
+export { fastStart } from './bootstrap';
+export { createGraphCleaner } from './graph-morphers/cleaners/lib';

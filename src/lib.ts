@@ -1,4 +1,4 @@
-import type { Unit } from 'effector';
+import { type Unit } from 'effector';
 import type { Comparator } from './comparison';
 import { combineComparators } from './comparison';
 import { createOwnershipEdge, createReactiveEdge } from './edge-factories';
@@ -558,13 +558,6 @@ export type GraphVariant = (typeof GraphVariant)[keyof typeof GraphVariant];
 
 export type AsyncGraphVariantGenerators = Record<GraphVariant, (graph: EffectorGraph) => Promise<EffectorGraph>>;
 
-const sortGraphNodes = (graph: EffectorGraph): EffectorGraph => {
-	return {
-		nodes: sortNodes(graph.nodes),
-		edges: graph.edges,
-	};
-};
-
 function jsonStringifyRecursive(obj) {
 	const cache = new Set();
 	return JSON.stringify(
@@ -603,15 +596,15 @@ export function memoize<T extends (...args: any[]) => any>(fn: T): T {
 }
 
 export function makeGraphVariants(
-	edgesCleaner: GraphCleaner,
-	nodesCleaner: GraphCleaner,
+	cleaningPipeline: GraphCleaner,
+	dropNodes: GraphCleaner,
 	layouterFactory: () => Layouter,
 ): AsyncGraphVariantGenerators {
 	const raw = (graph: EffectorGraph) => layoutGraph(graph, layouterFactory);
-	const cleaned = async (graph: EffectorGraph) => edgesCleaner(await raw(graph));
-	const cleanedNoNodes = async (graph: EffectorGraph) => nodesCleaner(await cleaned(graph));
+	const cleaned = async (graph: EffectorGraph) => cleaningPipeline(await raw(graph));
+	const cleanedNoNodes = async (graph: EffectorGraph) => dropNodes(await cleaned(graph));
 	const cleanedNoNodesLayouted = async (graph: EffectorGraph) =>
-		sortGraphNodes(await layoutGraph(await cleanedNoNodes(graph), layouterFactory));
+		await layoutGraph(await cleanedNoNodes(graph), layouterFactory);
 	return {
 		raw,
 		cleaned,

@@ -1,5 +1,4 @@
 import react from '@vitejs/plugin-react-swc';
-import * as path from 'node:path';
 import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config/
@@ -7,7 +6,6 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			elkjs: 'elkjs/lib/elk.bundled.js',
-			'@src': path.resolve(__dirname, './src'),
 		},
 	},
 	plugins: [
@@ -27,9 +25,7 @@ export default defineConfig({
 							'atomic-router',
 							'@withease/factories',
 							'patronum',
-							'./src/logEffectFail',
-							'./logEffectFail',
-							'/src/logEffectFail.ts',
+							'./src/debounceStore',
 						],
 					},
 				],

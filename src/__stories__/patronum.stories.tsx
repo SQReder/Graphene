@@ -1,6 +1,7 @@
 import { createFactory, invoke } from '@withease/factories';
 import { createEvent, createStore, restore } from 'effector';
 import { combineEvents, debounce, readonly } from 'patronum';
+import { debounceStore } from '../debounceStore';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
 const meta: GrapheneMeta = {
@@ -59,5 +60,43 @@ const readonlyModelFactory = createFactory(() => {
 export const Readonly: GrapheneStory = {
 	args: {
 		factory: () => invoke(readonlyModelFactory),
+	},
+};
+
+export const DebouncedStore = {
+	args: {
+		factory: () => {
+			const $store = createStore(0);
+			const $debounced = debounceStore({ source: $store, defaultState: 0, timeoutMs: 100 });
+
+			$debounced.watch(console.log);
+
+			return $debounced;
+		},
+	},
+};
+
+export const readonlyOwnershipDemoInlined = {
+	args: {
+		factory: () => {
+			const debouncedStoreValueChanged = createEvent<number>();
+			const $inlined = readonly(restore(debouncedStoreValueChanged, 0));
+
+			const $fooed = $inlined.map(Boolean);
+			return $fooed;
+		},
+	},
+};
+
+export const readonlyOwnershipDemoSepearted = {
+	args: {
+		factory: () => {
+			const debouncedStoreValueChanged = createEvent<number>();
+			const $separate = restore(debouncedStoreValueChanged, 0);
+			const $separated = readonly($separate);
+			const $fooed = $separated.map(Boolean);
+
+			return $fooed;
+		},
 	},
 };

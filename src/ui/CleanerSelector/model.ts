@@ -7,7 +7,7 @@ import type { NamedCleaner } from '../../graph-morphers/cleaners/types';
 const byPriority =
 	(origin: ReadonlyArray<NamedCleaner<unknown>>): Comparator<NamedCleaner<unknown>> =>
 	(a, b) =>
-		(a.priority ?? origin.indexOf(a)) - (b.priority ?? origin.indexOf(b));
+		(a.order ?? origin.indexOf(a)) - (b.order ?? origin.indexOf(b));
 
 export const namedCleanerSelectorModelFactoryFactory = <T extends NamedCleaner<unknown>>() =>
 	createFactory((availableCleaners: readonly T[]) => {
