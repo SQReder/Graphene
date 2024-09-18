@@ -8,7 +8,7 @@ export const createTransitiveOwnershipEdge = (
 	transitiveOpType: OpType | undefined,
 ) => {
 	return createOwnershipEdge({
-		id: `${owner.source} owns ${child.target}`,
+		id: `${owner.source} owns ${child.target} [[${node.id}]]`,
 		source: owner.data.relatedNodes.source,
 		target: child.data.relatedNodes.target,
 		extras: (edge) => {

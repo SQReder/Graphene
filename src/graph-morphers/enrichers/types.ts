@@ -1,5 +1,5 @@
-import { Lookups } from '../../lib';
-import { EdgeType, EffectorGraph, MyEdge } from '../../types';
+import type { Lookups } from '../../lib';
+import type { EdgeType, EffectorGraph, MyEdge } from '../../types';
 
 export interface EnricherImpl {
 	(

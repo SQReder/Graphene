@@ -1,7 +1,7 @@
 import { Position } from '@xyflow/react';
 import dagre from 'dagre';
-import { EffectorGraph, EffectorNode, MyEdge } from '../types';
-import { Layouter } from './types';
+import type { EffectorGraph, EffectorNode, MyEdge } from '../types';
+import type { Layouter } from './types';
 
 export const getDagreLayouter = (): Layouter => {
 	const dagreGraph = new dagre.graphlib.Graph();

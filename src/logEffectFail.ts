@@ -1,4 +1,5 @@
-import { createEffect, Effect, sample } from 'effector';
+import type { Effect } from 'effector';
+import { createEffect, sample } from 'effector';
 
 type EffectFailParams<Params, Fail> = { params: Params; error: Fail };
 type LogEffectFailFormatter<Params, Fail> = (failParams: EffectFailParams<Params, Fail>) => string;

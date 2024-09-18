@@ -11,8 +11,9 @@ import {
 import type { GraphCleaner } from '../types';
 import { createTransitiveOwnershipEdge } from './create-transitive-ownership-edge';
 import { createTransitiveReinitEdge } from './create-transitive-reinit-edge';
-import { dimFactories } from './drop-factories';
+import { dimFactories, dropFactories } from './drop-factories';
 import { makeReverseOwnershipCleaner } from './make-reverse-ownership-cleaner';
+import { regionOwnershipReflow } from './region-ownership-reflow';
 import type { NamedOwnershipEdgeCleaner } from './types';
 
 const makeTransitiveNodeReplacerForOpType = (opType: OpType | undefined, filter?: (node: EffectorNode) => boolean) =>
@@ -26,12 +27,7 @@ const params: readonly Params[] = [
 	[OpType.On, OpType.On, undefined],
 	[OpType.Map, OpType.Map, undefined],
 	[OpType.FilterMap, OpType.FilterMap, undefined],
-	[
-		'factory',
-		undefined,
-		(node) =>
-			isRegularNode(node) && node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
-	],
+	['factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
 ];
 const transitiveNodeReplacers: NamedOwnershipEdgeCleaner[] = params.map(
 	([name, opType, filter]): NamedOwnershipEdgeCleaner => ({
@@ -55,23 +51,31 @@ const reverseOwnershipCleaners: NamedOwnershipEdgeCleaner[] = [
 
 export const ownershipEdgeCleaners: NamedOwnershipEdgeCleaner[] = [
 	...reverseOwnershipCleaners,
+	regionOwnershipReflow,
 	...transitiveNodeReplacers,
+	{
+		name: 'Dim factories',
+		apply: dimFactories,
+		priority: 99,
+	},
 	{
 		name: 'Reinit',
 		apply: createReinitCleaner('ownership', createTransitiveReinitEdge),
+		priority: 100,
 	},
 	{
 		name: 'Store updates with no children',
 		apply: createStoreUpdatesWithNoChildrenCleaner('ownership'),
+		priority: 100,
 	},
-	{
-		name: 'Dim factories',
-		apply: dimFactories,
-	},
-	// dropFactories,
 	{
 		name: 'Drop incoming ownership edges of Watch nodes',
 		apply: dropEdgesOfNode(OpType.Watch, 'incoming', 'ownership'),
+		priority: 100,
+	},
+	{
+		name: 'Drop factories',
+		apply: dropFactories,
 	},
 ];
 

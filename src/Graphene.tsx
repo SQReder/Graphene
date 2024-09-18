@@ -187,15 +187,13 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						snapToGrid
 						nodes={nodes}
 						onNodesChange={onNodesChange}
-						onNodeClick={(_, node) => {
-							console.log('👉👉👉 node', node);
-							return nodeClicked(node);
-						}}
+						onNodeClick={(_, node) => nodeClicked(node)}
 						edges={edges}
 						onEdgesChange={onEdgesChange}
 						onEdgeClick={(_, edge) => edgeClicked(edge)}
 						fitView
 						nodeTypes={nodeTypes}
+						minZoom={0.1}
 					>
 						<Background bgColor={isDarkMode ? '#303030' : undefined} color={'#ccc'} />
 						<MiniMap pannable zoomable bgColor={isDarkMode ? '#303030' : undefined} />

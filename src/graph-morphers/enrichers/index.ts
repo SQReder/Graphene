@@ -1,43 +1,66 @@
-import { findNodesByOpTypeWithRelatedEdges, getEdgesBy, isOwnershipEdge, shallowCopyGraph } from '../../lib';
-import type { EdgeType, MyEdge } from '../../types';
+import { getEdgesBy, isRegularNode, shallowCopyGraph } from '../../lib';
+import { type EdgeType, type MyEdge, OpType } from '../../types';
 import type { GraphCleaner } from '../cleaners/types';
 import { attachedEffectEnricher } from './attachedEffectEnricher';
 import type { EnricherImpl } from './types';
 
-const invokeEnricher: EnricherImpl = (graph, lookups, edgesType) => {
+const parentEnricher: EnricherImpl = (graph, lookups, edgesType) => {
 	console.group('ENRICHER');
-	const factories = findNodesByOpTypeWithRelatedEdges(
-		undefined,
-		{
-			bySource: lookups.edgesBySource.ownership,
-			byTarget: lookups.edgesByTarget.ownership,
-			nodes: lookups.nodes,
-		},
-		(node) =>
-			node.data.effector.meta.op === undefined &&
-			node.data.effector.meta.type === 'factory' &&
-			['invoke'].includes(node.data.effector.meta.method),
-	);
-	console.groupEnd();
 
 	const edgesToRemove: MyEdge[] = [];
 
-	factories.forEach(({ node, incoming, outgoing }) => {
-		outgoing.filter(isOwnershipEdge).forEach((outgoingEdge) => {
-			const target = outgoingEdge.data.relatedNodes.target;
-			const nodeeee = lookups.nodes.get(target.id)!;
-			nodeeee.parentId = node.id;
-			nodeeee.expandParent = true;
-		});
-		edgesToRemove.push(...outgoing);
-	});
+	for (const node of lookups.nodes.values()) {
+		if (isRegularNode(node)) {
+			const { effector, declaration } = node.data;
+			if (declaration) {
+				console.log('Found parent', node.data.label, declaration.parentId);
+				node.parentId = declaration.parentId;
+				node.expandParent = true;
+			} else {
+				if (effector.meta.op === OpType.Domain) {
+					const owners = lookups.edgesByTarget.ownership
+						.get(node.id)
+						?.map((edge) => edge.data.relatedNodes.source)
+						?.filter(isRegularNode)
+						?.filter((node) => node.data.effector.meta.op !== OpType.Domain);
 
-	return {
-		edgesToRemove,
-	};
+					if (!owners) {
+						console.log('No owners', node.data.label, node);
+						continue;
+					}
+
+					const owner = owners[0];
+
+					if (!owner) {
+						console.log('No owner', node.data.label, node);
+						continue;
+					}
+
+					node.parentId = owner.id;
+					node.expandParent = true;
+				}
+			}
+
+			if (node.parentId) {
+				const nodeToParentEdge = lookups.edgesByTarget.ownership
+					.get(node.id)
+					?.filter((edge) => edge.source === node.parentId);
+
+				if (nodeToParentEdge?.length) {
+					edgesToRemove.push(...nodeToParentEdge);
+				}
+			}
+		} else {
+			console.log('Non-regular node', node.data.label, node);
+		}
+	}
+
+	console.groupEnd();
+
+	return {};
 };
 
-const enrichers: EnricherImpl[] = [attachedEffectEnricher, invokeEnricher];
+const enrichers: EnricherImpl[] = [attachedEffectEnricher, parentEnricher];
 
 export const enrichGraph =
 	(edgesType: EdgeType): GraphCleaner =>

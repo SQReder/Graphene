@@ -145,6 +145,7 @@ export function traverseEffectorGraph(units: ReadonlyArray<Unit<unknown>>): Grap
 
 	return result;
 }
+
 export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 	linkingEdges: LinkEdge[];
 	ownerhipEdges: OwnershipEdge[];
@@ -257,6 +258,8 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 				? 'effectNode'
 				: graphite.meta.op === 'sample'
 				? 'sampleNode'
+				: graphite.meta.op === 'combine'
+				? 'combineNode'
 				: graphite.meta.op === undefined && graphite.meta.type === 'factory'
 				? 'factoryNode'
 				: undefined,
@@ -264,6 +267,13 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 		style: {
 			border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
 			background: getBackground(graphite.family.type),
+			...(graphite.meta.op === 'combine'
+				? {
+						width: '20px',
+						height: '20px',
+						borderRadius: '10px',
+				  }
+				: {}),
 		},
 	};
 }
@@ -443,6 +453,17 @@ type NodeWithRelatedEdges<T extends MyEdge> = {
 	node: EffectorNode;
 };
 
+type TypedEdgeList = {
+	ownership: OwnershipEdge[];
+	reactive: ReactiveEdge[];
+};
+
+type NodeWithRelatedTypedEdges = {
+	incoming: TypedEdgeList;
+	outgoing: TypedEdgeList;
+	node: EffectorNode;
+};
+
 export function findNodesByOpTypeWithRelatedEdges<T extends MyEdge>(
 	opType: OpType | undefined,
 	lookups: {
@@ -455,11 +476,37 @@ export function findNodesByOpTypeWithRelatedEdges<T extends MyEdge>(
 	const result: Array<NodeWithRelatedEdges<T>> = [];
 
 	Array.from(lookups.nodes.values()).forEach((node) => {
-		if (isRegularNode(node) && node.data.effector.meta.op === opType && extraFilter(node)) {
+		if (isRegularNode(node) && node.data.effector.meta.hasOpType(opType) && extraFilter(node)) {
 			result.push({
 				node,
 				incoming: lookups.byTarget.get(node.id) || [],
 				outgoing: lookups.bySource.get(node.id) || [],
+			});
+		}
+	});
+
+	return result;
+}
+
+export function findNodesByOpTypeWithRelatedTypedEdges(
+	opType: OpType | undefined,
+	lookups: Lookups,
+	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
+): NodeWithRelatedTypedEdges[] {
+	const result: NodeWithRelatedTypedEdges[] = [];
+
+	Array.from(lookups.nodes.values()).forEach((node) => {
+		if (isRegularNode(node) && node.data.effector.meta.hasOpType(opType) && extraFilter(node)) {
+			result.push({
+				node,
+				incoming: {
+					ownership: lookups.edgesByTarget.ownership.get(node.id) ?? [],
+					reactive: lookups.edgesByTarget.reactive.get(node.id) ?? [],
+				},
+				outgoing: {
+					ownership: lookups.edgesBySource.ownership.get(node.id) ?? [],
+					reactive: lookups.edgesBySource.reactive.get(node.id) ?? [],
+				},
 			});
 		}
 	});
@@ -472,7 +519,7 @@ export function findNodesByOpType(
 	nodes: EffectorNode[],
 	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
 ): RegularEffectorNode[] {
-	return nodes.filter(isRegularNode).filter((node) => node.data.effector.meta.op === opType && extraFilter(node));
+	return nodes.filter(isRegularNode).filter((node) => node.data.effector.meta.hasOpType(opType) && extraFilter(node));
 }
 
 export function ensureDefined<T>(value: T, message?: string): NonNullable<T> {
@@ -482,6 +529,13 @@ export function ensureDefined<T>(value: T, message?: string): NonNullable<T> {
 		throw new RangeError(errorMessage);
 	}
 	return value;
+}
+
+export function assertDefined<T>(value: T, variableName?: string): asserts value is NonNullable<T> {
+	if (value === undefined || value === null) {
+		console.error(`${variableName} expected to be defined, but receive ${String(value)}`);
+		throw new Error(`${variableName} expected to be defined, but receive ${String(value)}`);
+	}
 }
 
 export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, U> {

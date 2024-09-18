@@ -61,14 +61,11 @@ export const foldByShape = (
 
 			const internalNodes = ownershipEdges
 				?.map((edge) => edge.data.relatedNodes.target)
-				?.filter(
-					(node) =>
-						isRegularNode(node) &&
-						node.data.effector.name != null &&
-						(!internalNodeNames ||
-							internalNodeNames.length === 0 ||
-							internalNodeNames.includes(node.data.effector.name)),
-				);
+				?.filter(isRegularNode)
+				?.filter((node) => {
+					if (!internalNodeNames?.length) return true;
+					return node.data.effector.name && internalNodeNames.includes(node.data.effector.name);
+				});
 
 			if (!internalNodes) {
 				console.warn('owned nodes not defined for', mainOwner.id);
@@ -87,14 +84,9 @@ export const foldByShape = (
 
 			// region input nodes
 
-			const inputNodes = internalNodes?.filter(
-				(node) => isRegularNode(node) /*&&
-					node.data.effector.meta.name === '$payload'*/,
-			);
+			console.log('inputNodes', internalNodes);
 
-			console.log('inputNodes', inputNodes);
-
-			if (!inputNodes.length) {
+			if (!internalNodes.length) {
 				console.warn('no input nodes found', internalNodes);
 				console.groupEnd();
 				return;
@@ -109,18 +101,20 @@ export const foldByShape = (
 
 			console.group('input nodes');
 
-			for (const inputNode of new Set(inputNodes)) {
-				console.group(`[${inputNode.id}] ${inputNode.data.label}`);
+			for (const internalNode of new Set(internalNodes)) {
+				console.group(`[${internalNode.id}] ${internalNode.data.label}`);
 				console.group('ownership');
 
 				const externalInboundOwnershipEdgesOfInputNode = lookups.edgesByTarget.ownership
-					.get(inputNode.id)
+					.get(internalNode.id)
 					?.filter((edge) => !relatedNodeIds.includes(edge.source));
 
 				console.log('externalInboundOwnershipEdgesOfInputNode of', externalInboundOwnershipEdgesOfInputNode);
 
 				externalInboundOwnershipEdgesOfInputNode?.forEach((edge) => {
 					const id = `${edge.source} owns ${mainOwner.id} (in foldByShape)`;
+
+					// if (id.startsWith('665 owns 612')) debugger;
 
 					if (!edgesToAdd.some((edge) => edge.id === id)) {
 						console.log('add', id, edge);
@@ -133,18 +127,20 @@ export const foldByShape = (
 				console.group('reactive');
 
 				const externalInboundReactiveEdgesOfInputNode = lookups.edgesByTarget.reactive
-					.get(inputNode.id)
+					.get(internalNode.id)
 					?.filter((edge) => !relatedNodeIds.includes(edge.source));
 
 				console.log(
 					'externalInboundReactiveEdgesOfInputNode of',
-					`"[${inputNode.id}] ${inputNode.data.label}"`,
+					`"[${internalNode.id}] ${internalNode.data.label}"`,
 
 					externalInboundReactiveEdgesOfInputNode,
 				);
 
 				externalInboundReactiveEdgesOfInputNode?.forEach((edge) => {
 					const id = `${edge.source} --> ${mainOwner.id} (in foldByShape)`;
+
+					// if (id.startsWith('665 --> 612')) debugger;
 
 					if (!edgesToAdd.some((edge) => edge.id === id)) {
 						console.log('add', id, edge);

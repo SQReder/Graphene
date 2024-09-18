@@ -10,13 +10,13 @@ export function cleanEdges<T extends MyEdge>(
 	edges: T[],
 ) {
 	return cleaners.reduce(
-		(edges, cleaner) => {
-			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(edges, {
-				edgesBySource: getEdgesBy(edges, 'source'),
-				edgesByTarget: getEdgesBy(edges, 'target'),
+		(edgesToClean, cleaner) => {
+			const { edgesToRemove = [], edgesToAdd = [] } = cleaner.apply(edgesToClean, {
+				edgesBySource: getEdgesBy(edgesToClean, 'source'),
+				edgesByTarget: getEdgesBy(edgesToClean, 'target'),
 				nodes: new Map(graph.nodes.map((node) => [node.id, node])),
 			});
-			return edges.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd);
+			return edgesToClean.filter((edge) => !edgesToRemove.includes(edge)).concat(...edgesToAdd);
 		},
 		[...edges],
 	);
@@ -39,10 +39,12 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 		});
 
 		nodesAndStuff.forEach(({ node, incoming, outgoing }) => {
-			if (filter ? filter(node) : false) {
-				console.log('skipped', node.data.label);
+			if (filter ? !filter(node) : false) {
+				console.debug('skipped', node.data.label);
 				return;
 			}
+
+			console.debug('transitive node', node.data.label, node);
 
 			const { factoryOwners, nonFactoryOwners } = incoming.reduce<{
 				factoryOwners: T[];
@@ -141,6 +143,11 @@ export const createReinitCleaner =
 		const edgesToAdd: T[] = [];
 
 		for (const { node, incoming, outgoing } of nodes) {
+			if (incoming.length > 0) {
+				console.warn('expected no incoming edges for reinit event', node, incoming);
+				continue;
+			}
+
 			if (outgoing.length === 0) {
 				console.warn('no outgoing edges for reinit event', node, outgoing);
 				continue;

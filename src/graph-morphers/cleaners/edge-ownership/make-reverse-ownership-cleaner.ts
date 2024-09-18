@@ -1,6 +1,6 @@
 import { findNodesByOpTypeWithRelatedEdges } from '../../../lib';
-import { OpType, OwnershipEdge } from '../../../types';
-import { OwnershipEdgeCleaner } from './types';
+import type { OpType, OwnershipEdge } from '../../../types';
+import type { OwnershipEdgeCleaner } from './types';
 
 export const makeReverseOwnershipCleaner = (opType: OpType | undefined): OwnershipEdgeCleaner => {
 	return (_, lookups) => {
@@ -10,9 +10,12 @@ export const makeReverseOwnershipCleaner = (opType: OpType | undefined): Ownersh
 			bySource: lookups.edgesBySource.ownership,
 			byTarget: lookups.edgesByTarget.ownership,
 			nodes: lookups.nodes,
-		}).forEach(({ outgoing }) => {
+		}).forEach(({ outgoing, node }) => {
+			console.log('node', node.data.label);
 			for (const outgoingEdge of outgoing) {
-				// look for edges that sourced from outgoingEdge.target and targered into outgoingEdge.source
+				// look for edges that sourced from outgoingEdge.target and targeted into outgoingEdge.source
+
+				// if (outgoingEdge.target === '665') debugger;
 
 				const edgesFromTarget = lookups.edgesBySource.ownership.get(outgoingEdge.target);
 				const looped = edgesFromTarget?.filter((edgeFromTarget) => edgeFromTarget.target === outgoingEdge.source);

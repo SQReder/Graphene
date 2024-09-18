@@ -1,4 +1,4 @@
-import { Domain, Effect, Event, Store } from 'effector';
+import type { Domain, Effect, Event, Store } from 'effector';
 import { debug } from 'patronum';
 
 const keys = new WeakSet();

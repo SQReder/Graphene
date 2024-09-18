@@ -6,7 +6,6 @@ import del from 'rollup-plugin-delete';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
 import typescript from 'rollup-plugin-typescript2';
 import { visualizer } from 'rollup-plugin-visualizer';
-import ttypescript from 'ttypescript';
 import pkg from './package.json';
 
 export default {
@@ -31,8 +30,8 @@ export default {
 	plugins: [
 		peerDepsExternal(),
 		typescript({
-			typescript: ttypescript,
-			tsconfig: './tsconfig.build.json',
+			// typescript: tspc,
+			// tsconfig: './tsconfig.build.json',
 		}),
 		nodeResolve(),
 		commonjs(),

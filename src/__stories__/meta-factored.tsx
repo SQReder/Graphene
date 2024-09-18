@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { createFactory, invoke } from '@withease/factories';
-import type { Unit } from 'effector';
-import { createEvent, fork, merge } from 'effector';
+import { invoke } from '@withease/factories';
+import { fork, is } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
+import { inspectGraph } from 'effector/inspect';
 import { useEffect } from 'react';
 import { ownershipEdgeCleaners } from '../graph-morphers/cleaners/edge-ownership';
 import type { NamedOwnershipEdgeCleaner } from '../graph-morphers/cleaners/edge-ownership/types';
@@ -12,10 +12,13 @@ import { graphCleaners } from '../graph-morphers/cleaners/graph';
 import type { NamedGraphCleaner } from '../graph-morphers/cleaners/types';
 import { Graphene } from '../Graphene';
 import { Layouters } from '../layouters';
-import { appModelFactory, grapheneModelFactory } from '../model';
+import { appModelFactory, createDeclarationsStore, grapheneModelFactory } from '../model';
 import { CleanerSelector } from '../ui/CleanerSelector';
 
-const grapheneModel = invoke(grapheneModelFactory);
+export type Params = { factory: () => Record<string, unknown> };
+
+const declarationsModel = invoke(createDeclarationsStore);
+const grapheneModel = invoke(grapheneModelFactory, { declarationsModel });
 const graphCleanerSelector = invoke(CleanerSelector.factory<NamedGraphCleaner>(), graphCleaners);
 const ownershipEdgeCleanerSelector = invoke(
 	CleanerSelector.factory<NamedOwnershipEdgeCleaner>(),
@@ -31,27 +34,55 @@ const appModel = invoke(appModelFactory, {
 	reactiveEdgeCleanerSelector,
 });
 
-type Params = { units: Array<Unit<unknown>> };
-type Story = StoryObj<Params>;
-
-const meta: Meta<Params> = {
-	title: 'Graphene/Merge',
+export type GrapheneMeta = Meta<Params>;
+export const grapheneStoryMeta: GrapheneMeta = {
+	title: 'Graphene',
 	// @ts-expect-error don't know how to fix
 	component: Graphene,
-	render: function Render(props) {
-		const appendUnits = useUnit(grapheneModel.appendUnits);
+	tags: ['!autodocs'],
+	render: function Render({ factory }) {
+		const appendUnits = useUnit(appModel.appendUnits);
+		const addDeclaration = useUnit(declarationsModel.addDeclaration);
+		const clearDeclarations = useUnit(declarationsModel.clearDeclarations);
 
 		useEffect(() => {
-			appendUnits(props.units);
-		}, [appendUnits, props.units]);
+			console.group('foo');
+			const id = Math.floor(Math.random() * 10000).toString(16);
+
+			console.log('subscribe', id);
+
+			const subscription = inspectGraph({
+				fn: (declaration) => {
+					console.log(id, '...', declaration.id, declaration);
+					addDeclaration(declaration);
+				},
+			});
+
+			clearDeclarations();
+
+			console.group('🫨 make units');
+			const model = factory();
+			const units = Object.values(model).filter(is.unit);
+
+			console.log('appendUnits', units);
+			appendUnits(units);
+			console.groupEnd();
+
+			console.groupEnd();
+
+			return () => {
+				console.log('unsubscribe', id);
+				subscription.unsubscribe();
+			};
+		}, [addDeclaration, appendUnits, clearDeclarations, factory]);
 
 		return <Graphene model={appModel} />;
 	},
 	args: {
-		units: [],
+		factory: () => ({}),
 	},
 	argTypes: {
-		units: {
+		factory: {
 			table: {
 				disable: true,
 			},
@@ -60,6 +91,9 @@ const meta: Meta<Params> = {
 	decorators: [
 		(Story) => {
 			const scope = fork();
+
+			// @ts-expect-error untyped
+			scope._debugId = (Math.random() * 100000).toString(16);
 
 			return (
 				<EffectorScopeProvider value={scope}>
@@ -70,23 +104,4 @@ const meta: Meta<Params> = {
 	],
 };
 
-export default meta;
-
-const eventsMergeModelFactory = createFactory(() => {
-	const firstEvent = createEvent();
-	const secondEvent = createEvent();
-
-	const merged = merge([firstEvent, secondEvent]);
-
-	return {
-		merged,
-	};
-});
-
-const eventsSampleClockModel = invoke(eventsMergeModelFactory);
-
-export const MergeEvents: Story = {
-	args: {
-		units: Object.values(eventsSampleClockModel),
-	},
-};
+export type GrapheneStory = StoryObj<Params>;

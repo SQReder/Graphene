@@ -1,5 +1,5 @@
-import { EffectorGraph } from '../types';
-import { Layouter } from './types';
+import type { EffectorGraph } from '../types';
+import type { Layouter } from './types';
 
 export * as Layouters from './namespace';
 

@@ -37,7 +37,12 @@ export const attachedEffectEnricher: EnricherImpl = (graph, lookups, edgesType) 
 		const graphite = handler.graphite as Graphite;
 		const targetId = graphite.id;
 
-		const target = lookups.nodes.get(targetId)!;
+		const target = lookups.nodes.get(targetId);
+
+		if (!target) {
+			console.warn('No target', targetId);
+			continue;
+		}
 
 		const edgesFromFx = lookups.edgesBySource.ownership.get(fxNode.id);
 

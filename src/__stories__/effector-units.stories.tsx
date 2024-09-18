@@ -1,55 +1,32 @@
 import { createFactory, invoke } from '@withease/factories';
 import type { Event } from 'effector';
 import { createDomain, createEffect, createEvent, createStore, restore, sample } from 'effector';
-import { debounce, readonly } from 'patronum';
+import { bootstrapped } from '../bootstrap';
 import { createTodoListApi } from '../examples/todo';
-import { appModel, type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta';
-
-const loneEvent = createEvent();
-const $loneStore = createStore(null);
+import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
 const todoModel = invoke(createTodoListApi, []);
 
 export const ToDo: GrapheneStory = {
 	args: {
-		units: Object.values(todoModel),
+		factory: () => todoModel,
 	},
 };
 
 export const Test: GrapheneStory = {
 	args: {
-		units: [$loneStore, loneEvent],
+		factory: () => {
+			const loneEvent = createEvent();
+			const $loneStore = createStore(null);
+
+			return { $loneStore, loneEvent };
+		},
 	},
 };
 
 export const GrapheneItself: GrapheneStory = {
 	args: {
-		units: Object.values(appModel['@@unitShape']()),
-	},
-};
-
-const tooFastEvent = createEvent();
-const slowedEvent = debounce(tooFastEvent, 100);
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore
-const $slowData = restore(slowedEvent, null);
-
-export const Debounce: GrapheneStory = {
-	args: {
-		units: [slowedEvent],
-	},
-};
-
-const $writeableStore = createStore(0);
-const $readonlyStore = readonly($writeableStore);
-
-const $writeableStore2 = createStore(0);
-const $readonlyStore2 = readonly($writeableStore2);
-$readonlyStore2.watch(console.log);
-
-export const Readonly: GrapheneStory = {
-	args: {
-		units: [$readonlyStore, $readonlyStore2],
+		factory: () => bootstrapped['@@unitShape'](),
 	},
 };
 
@@ -72,22 +49,22 @@ const effectFactory = () => {
 	testEffect.pending.watch((result) => console.log('pending', result));
 	testEffect.inFlight.watch((result) => console.log('inFlight', result));
 
-	return [trigerEffect, testEffect];
+	return { trigerEffect, testEffect };
 };
 
 export const Effect: GrapheneStory = {
 	args: {
-		units: [...effectFactory()],
+		factory: () => effectFactory(),
 	},
 };
 
 export const SingleEffect: GrapheneStory = {
 	args: {
-		units: [
-			createEffect({
+		factory: () => ({
+			effect: createEffect({
 				name: 'Single Effect',
 			}),
-		],
+		}),
 	},
 };
 
@@ -105,16 +82,22 @@ const parentFactory = createFactory(() => {
 	return { event, $value: childModel.$value };
 });
 
-const parentModel = invoke(parentFactory);
-
 export const NestedFactories = {
 	args: {
-		units: [...Object.values(parentModel)],
+		factory: () => invoke(parentFactory),
 	},
 };
 
+const topDomainModelFactory = createFactory(() => {
+	const topDomain = createDomain('top');
+
+	return { topDomain };
+});
+
 const domainNestedTestModelFactory = createFactory(() => {
-	const rootDomain = createDomain('root');
+	const { topDomain } = invoke(topDomainModelFactory);
+
+	const rootDomain = createDomain('root', { domain: topDomain });
 
 	const childDomain = createDomain('child', { domain: rootDomain });
 
@@ -125,7 +108,7 @@ const domainNestedTestModelFactory = createFactory(() => {
 
 export const DomainNested: GrapheneStory = {
 	args: {
-		units: [...Object.values(invoke(domainNestedTestModelFactory))],
+		factory: () => invoke(domainNestedTestModelFactory),
 	},
 };
 
@@ -139,13 +122,13 @@ const domainTestModelFactory = createFactory(() => {
 
 export const Domain: GrapheneStory = {
 	args: {
-		units: [...Object.values(invoke(domainTestModelFactory))],
+		factory: () => invoke(domainTestModelFactory),
 	},
 };
 
 const genericGrapheneMeta: GrapheneMeta = {
 	...grapheneStoryMeta,
-	title: 'Graphene/Generic',
+	title: 'Effector/Units',
 };
 
 export default genericGrapheneMeta;

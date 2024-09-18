@@ -1,4 +1,5 @@
-import { Effect, sample } from 'effector';
+import type { Effect } from 'effector';
+import { sample } from 'effector';
 
 interface EffectsPipeline {
 	<A, B, C>(effectA: Effect<A, B>, effectB: Effect<B, C>): void;
@@ -36,7 +37,7 @@ interface EffectsPipeline {
 }
 
 // Variadic pipeline function with strong types
-export const createEffectPipeline: EffectsPipeline = (...effects: Effect<any, any>[]): void => {
+export const createEffectPipeline: EffectsPipeline = (...effects: Array<Effect<any, any>>): void => {
 	let currentEffect: Effect<any, any> = effects[0];
 
 	// Loop through the effects and chain them using `sample`

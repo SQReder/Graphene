@@ -1,6 +1,6 @@
 import { createOwnershipEdge } from '../../../edge-factories';
-import { OwnershipEdge } from '../../../types';
-import { EdgeCreator } from '../types';
+import type { OwnershipEdge } from '../../../types';
+import type { EdgeCreator } from '../types';
 
 export const createTransitiveReinitEdge: EdgeCreator<OwnershipEdge> = (inbound, outbound, node): OwnershipEdge =>
 	createOwnershipEdge({

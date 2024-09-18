@@ -11,7 +11,6 @@ import {
 import type { GraphCleaner } from '../types';
 import { createTransitiveReactiveEdge } from './createTransitiveReactiveEdge';
 import { createTransitiveReinitEdge } from './createTransitiveReinitEdge';
-import type { ReactiveEdgeCleaner } from './types';
 import { type NamedReactiveEdgeCleaner } from './types';
 
 const makeTransitiveNodeReplacerForOpType = (opType: OpType | undefined, filter?: (node: EffectorNode) => boolean) =>
@@ -25,12 +24,7 @@ const params: readonly Params[] = [
 	[OpType.On, OpType.On, undefined],
 	[OpType.Map, OpType.Map, undefined],
 	[OpType.FilterMap, OpType.FilterMap, undefined],
-	[
-		'Factory',
-		undefined,
-		(node) =>
-			isRegularNode(node) && node.data.effector.meta.op === undefined && node.data.effector.meta.type === 'factory',
-	],
+	['Factory', undefined, (node) => isRegularNode(node) && node.data.effector.meta.isFactory],
 ];
 
 const transitiveNodeReplacers = params.map(

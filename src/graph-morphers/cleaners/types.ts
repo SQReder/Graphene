@@ -21,6 +21,7 @@ export interface EdgeCleaner<T extends MyEdge = MyEdge> {
 		edgesToAdd?: T[];
 	};
 }
+
 export type EdgeCreator<T extends MyEdge> = (
 	inbound: T,
 	outbound: T,

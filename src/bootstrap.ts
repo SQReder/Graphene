@@ -6,10 +6,11 @@ import type { NamedReactiveEdgeCleaner } from './graph-morphers/cleaners/edge-re
 import { graphCleaners } from './graph-morphers/cleaners/graph';
 import type { NamedGraphCleaner } from './graph-morphers/cleaners/types';
 import { Layouters } from './layouters';
-import { appModelFactory, grapheneModelFactory } from './model';
+import { appModelFactory, createDeclarationsStore, grapheneModelFactory } from './model';
 import { CleanerSelector } from './ui/CleanerSelector';
 
-const grapheneModel = invoke(grapheneModelFactory);
+const declarationsModel = invoke(createDeclarationsStore, {});
+const grapheneModel = invoke(grapheneModelFactory, { declarationsModel });
 const graphCleanerSelector = invoke(CleanerSelector.factory<NamedGraphCleaner>(), graphCleaners);
 const ownershipEdgeCleanerSelector = invoke(
 	CleanerSelector.factory<NamedOwnershipEdgeCleaner>(),

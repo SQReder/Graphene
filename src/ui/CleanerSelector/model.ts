@@ -4,7 +4,10 @@ import { readonly } from 'patronum';
 import type { Comparator } from '../../comparison';
 import type { NamedCleaner } from '../../graph-morphers/cleaners/types';
 
-const byPriority: Comparator<NamedCleaner<unknown>> = (a, b) => (a.priority ?? 0) - (b.priority ?? 0);
+const byPriority =
+	(origin: ReadonlyArray<NamedCleaner<unknown>>): Comparator<NamedCleaner<unknown>> =>
+	(a, b) =>
+		(a.priority ?? origin.indexOf(a)) - (b.priority ?? origin.indexOf(b));
 
 export const namedCleanerSelectorModelFactoryFactory = <T extends NamedCleaner<unknown>>() =>
 	createFactory((availableCleaners: readonly T[]) => {
@@ -13,18 +16,22 @@ export const namedCleanerSelectorModelFactoryFactory = <T extends NamedCleaner<u
 		const $selectedCleaners = readonly(
 			createStore<readonly T[]>(availableCleaners).on(
 				[selectedCleanersChanged, selectedCleanersResetted],
-				(_, cleaners) => [...cleaners].sort(byPriority),
+				(_, cleaners) => cleaners,
 			),
 		);
 
+		const $sortedCleaners = $selectedCleaners.map((selectedCleaners) =>
+			[...selectedCleaners].sort(byPriority(availableCleaners)),
+		);
+
 		return {
-			$selectedCleaners: $selectedCleaners,
+			$selectedCleaners: $sortedCleaners,
 			selectedCleanersResetted,
 			'@@ui': {
 				availableCleaners,
 				'@@unitShape': () => ({
 					selectedCleanersChanged,
-					selectedCleaners: $selectedCleaners,
+					selectedCleaners: $sortedCleaners,
 				}),
 			},
 		};
