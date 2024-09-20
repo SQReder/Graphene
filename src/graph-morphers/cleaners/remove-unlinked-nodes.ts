@@ -1,4 +1,3 @@
-import { isRegularNode } from '../../lib';
 import type { NamedGraphCleaner } from './types';
 
 export const removeUnlinkedNodes: NamedGraphCleaner = {
@@ -6,11 +5,9 @@ export const removeUnlinkedNodes: NamedGraphCleaner = {
 	apply: (graph) => {
 		const usedNodeIds = new Set(graph.edges.flatMap((edge) => [edge.source, edge.target]));
 
-		const factoryNodeIds = new Set(
-			graph.nodes.filter((node) => isRegularNode(node) && node.data.effector.isFactory).map((node) => node.id),
-		);
+		const factoriesUsedAsParent = new Set(graph.nodes.map((n) => n.parentId).filter((id) => id != null));
 
-		graph.nodes = graph.nodes.filter((node) => usedNodeIds.has(node.id) || factoryNodeIds.has(node.id));
+		graph.nodes = graph.nodes.filter((node) => usedNodeIds.has(node.id) || factoriesUsedAsParent.has(node.id));
 
 		return graph;
 	},

@@ -6,7 +6,16 @@ import type { NamedGraphCleaner } from './types';
 
 export type RootSelector = (node: EffectorNode) => boolean;
 
-type EdgeCreator<T extends MyEdge> = ({ id, edge, root }: { id: string; edge: T; root: EffectorNode }) => T;
+type EdgeCreator<T extends MyEdge> = ({
+	id,
+	edge,
+	root,
+}: {
+	id: string;
+	edge: T;
+	root: EffectorNode;
+	extras?: (edge: T) => void;
+}) => T;
 
 type EdgeFactories = {
 	inboundOwnership: EdgeCreator<OwnershipEdge>;
@@ -16,14 +25,14 @@ type EdgeFactories = {
 };
 
 const defaultEdgeFactories: EdgeFactories = {
-	inboundOwnership: ({ id, edge, root }) =>
-		createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root }),
-	inboundReactive: ({ id, edge, root }) =>
-		createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root }),
-	outboundOwnership: ({ id, edge, root }) =>
-		createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target }),
-	outboundReactive: ({ id, edge, root }) =>
-		createReactiveEdge({ id, source: root, target: edge.data.relatedNodes.target }),
+	inboundOwnership: ({ id, edge, root, extras }) =>
+		createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root, extras }),
+	inboundReactive: ({ id, edge, root, extras }) =>
+		createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root, extras }),
+	outboundOwnership: ({ id, edge, root, extras }) =>
+		createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target, extras }),
+	outboundReactive: ({ id, edge, root, extras }) =>
+		createReactiveEdge({ id, source: root, target: edge.data.relatedNodes.target, extras }),
 };
 
 export const foldByShape = (
@@ -95,6 +104,8 @@ export const foldByShape = (
 					return;
 				}
 
+				mainOwner.data.folded = true;
+
 				const relatedNodeIds = [mainOwner.id, ...internalNodes.map((node) => node.id)];
 
 				console.log(
@@ -121,7 +132,16 @@ export const foldByShape = (
 
 						if (!edgesToAdd.some((edge) => edge.id === id)) {
 							console.log('add', id, edge);
-							edgesToAdd.push(factories.inboundOwnership({ id, edge, root: mainOwner }));
+							edgesToAdd.push(
+								factories.inboundOwnership({
+									id,
+									edge,
+									root: mainOwner,
+									extras: (created) => {
+										created.label = edge.label;
+									},
+								}),
+							);
 						}
 					});
 
@@ -147,7 +167,16 @@ export const foldByShape = (
 
 						if (!edgesToAdd.some((edge) => edge.id === id)) {
 							console.log('add', id, edge);
-							edgesToAdd.push(factories.inboundReactive({ id, edge, root: mainOwner }));
+							edgesToAdd.push(
+								factories.inboundReactive({
+									id,
+									edge,
+									root: mainOwner,
+									extras: (created) => {
+										created.label = edge.label;
+									},
+								}),
+							);
 						}
 					});
 
@@ -176,7 +205,16 @@ export const foldByShape = (
 					externalOutboundEdgesOfOutputNode?.forEach((edge) => {
 						const id = `${mainOwner.id} owns ${edge.target} (out foldByShape)`;
 						if (!edgesToAdd.some((edge) => edge.id === id)) {
-							edgesToAdd.push(factories.outboundOwnership({ id, edge, root: mainOwner }));
+							edgesToAdd.push(
+								factories.outboundOwnership({
+									id,
+									edge,
+									root: mainOwner,
+									extras: (created) => {
+										created.label = edge.label;
+									},
+								}),
+							);
 						}
 					});
 
@@ -189,7 +227,16 @@ export const foldByShape = (
 					externalOutboundReactiveEdgesOfOutputNode?.forEach((edge) => {
 						const id = `${mainOwner.id} --> ${edge.target} (out foldByShape)`;
 						if (!edgesToAdd.some((edge) => edge.id === id)) {
-							edgesToAdd.push(factories.outboundReactive({ id, edge, root: mainOwner }));
+							edgesToAdd.push(
+								factories.outboundReactive({
+									id,
+									edge,
+									root: mainOwner,
+									extras: (created) => {
+										created.label = edge.label;
+									},
+								}),
+							);
 						}
 					});
 				}

@@ -1,7 +1,9 @@
 import { createFactory, invoke } from '@withease/factories';
-import type { Event } from 'effector';
+import { attach, type Event } from 'effector';
 import { createDomain, createEffect, createEvent, createStore, restore, sample } from 'effector';
-import { debug } from 'patronum';
+import { persist } from 'effector-storage/local';
+import { debug, readonly } from 'patronum';
+import { abortable, type WithAbortSignal } from '../abortable';
 import { createBooleanStore } from '../debounceStore';
 import { createTodoListApi } from '../examples/todo';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
@@ -134,6 +136,106 @@ export const TestFactories: GrapheneStory = {
 			const $boolean = createBooleanStore();
 			debug($boolean);
 			return { $boolean };
+		},
+	},
+};
+
+export const Abortable: GrapheneStory = {
+	args: {
+		factory: () => {
+			const effectFx = createEffect<WithAbortSignal, void>();
+
+			const abortableWrapper = abortable(effectFx);
+
+			return abortableWrapper;
+		},
+	},
+};
+
+export const UnitIsAttachSourceAndTarget: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $source = createStore(new AbortController());
+
+			const abortFx = attach({
+				source: $source,
+				effect(source) {
+					source.abort('Just aborted');
+				},
+			});
+
+			$source.on(abortFx.done, () => new AbortController());
+
+			return { $source };
+		},
+	},
+};
+
+export const AttachedEffectWithSourceShape: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $source = createStore(0);
+
+			const attachedFx = attach({
+				source: { $source },
+				effect: function () {
+					return;
+				},
+			});
+
+			return { attachedFx };
+		},
+	},
+};
+
+export const AttachedEffectWithSourceAndUpdateThroughSamlple: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $value = createStore(0);
+
+			const randomFx = attach({
+				source: { value: $value },
+				effect: ({ value }) => Math.random() * value,
+			});
+
+			$value.on(randomFx.doneData, (_, value) => value);
+
+			sample({
+				clock: randomFx.doneData,
+				source: { value: $value },
+				fn: ({ value }, random) => value * random,
+				targreet: $value,
+			});
+
+			return { attachedFx: randomFx };
+		},
+	},
+};
+
+export const ReadonlyAsSourceOfAttachedEffect: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $source = readonly(createStore(0));
+
+			const attachedFx = attach({
+				source: $source,
+				effect: function () {
+					return;
+				},
+			});
+
+			return { attachedFx };
+		},
+	},
+};
+
+export const Persist = {
+	args: {
+		factory: () => {
+			const $store = createStore(0);
+			persist({ store: $store });
+
+			return { $store };
 		},
 	},
 };

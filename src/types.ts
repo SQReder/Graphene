@@ -37,7 +37,7 @@ export const MetaType = {
 	Domain: 'domain',
 } as const;
 
-type MetaType = (typeof MetaType)[keyof typeof MetaType];
+export type MetaType = (typeof MetaType)[keyof typeof MetaType];
 
 export type EmptyMeta = {
 	op:
@@ -284,7 +284,12 @@ function getRegionId(region: Region | undefined): string | undefined {
 	}
 }
 
-export type RegularEffectorDetails = {
+type BaseNode = {
+	synthetic?: boolean;
+	folded?: boolean;
+};
+
+export type RegularEffectorDetails = BaseNode & {
 	label?: string;
 	nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain;
 	effector: EffectorNodeDetails;
@@ -297,13 +302,13 @@ export const CombinatorType = {
 
 export type CombinatorType = (typeof CombinatorType)[keyof typeof CombinatorType];
 
-export type CombinedNodeDetails = {
+export type CombinedNodeDetails = BaseNode & {
 	nodeType: typeof CombinatorType.Combine;
 	relatedNodes: EffectorNode[];
 	label?: string;
 };
 
-export type DeclarationEffectorDetails = {
+export type DeclarationEffectorDetails = BaseNode & {
 	label?: string;
 	nodeType: typeof NodeFamily.Declaration;
 	declaration: EffectorDeclarationDetails;

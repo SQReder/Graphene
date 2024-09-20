@@ -22,10 +22,14 @@ import type { appModelFactory } from './model';
 import { EdgesViewVariant } from './model';
 import { nodeTypes } from './nodeTypes';
 import type { EffectorNode, MyEdge } from './types';
+import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
 	width: 100%;
 	height: 100%;
+	min-height: 400px;
+
+	display: flex;
 
 	& * {
 		box-sizing: border-box;
@@ -127,7 +131,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					{/*<hr />*/}
 					{/*<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />*/}
 					{/*<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />*/}
-					{/*<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />*/}
+					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
 					<hr />
 					<Fieldset>
 						<legend>Visible edges</legend>
@@ -180,7 +184,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						</ul>
 					</Legend>
 				</Aside>
-				<div style={{ width: '100%', height: '100%', display: 'contents' }}>
+				<div style={{ flex: 1 }}>
 					<ReactFlow
 						snapGrid={[10, 10]}
 						snapToGrid
@@ -211,7 +215,7 @@ const Search: FC = () => {
 
 	function tryCenterNode() {
 		const found = nodes.find((node) => node.id === centerText);
-		if (found) setCenter(found.position.x, found.position.y);
+		if (found) setCenter(found.position.x, found.position.y, { zoom: 1 });
 	}
 
 	const handleEnter: KeyboardEventHandler<HTMLInputElement> = (e) => {

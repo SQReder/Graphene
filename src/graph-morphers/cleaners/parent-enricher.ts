@@ -1,3 +1,4 @@
+import { sortTreeNodesBFS } from '../../dfs';
 import { isRegularNode } from '../../lib';
 import { type MyEdge, OpType } from '../../types';
 import { makeGraphLookups } from './lib';
@@ -6,7 +7,7 @@ import type { NamedGraphCleaner } from './types';
 export const parentEnricher: NamedGraphCleaner = {
 	name: 'Parent Enricher',
 	apply: (graph) => {
-		console.group('ENRICHER');
+		console.groupCollapsed('parentEnricher');
 
 		const edgesToRemove: MyEdge[] = [];
 
@@ -60,8 +61,11 @@ export const parentEnricher: NamedGraphCleaner = {
 
 		console.groupEnd();
 
+		const sortedNodes = sortTreeNodesBFS(graph.nodes);
+		// buildHierarchyInPlaceWithCycleDetection(sortedNodes);
+
 		return {
-			nodes: graph.nodes,
+			nodes: sortedNodes,
 			edges: graph.edges.filter((edge) => !edgesToRemove.includes(edge)),
 		};
 	},

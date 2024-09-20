@@ -13,10 +13,12 @@ export const getElkLayouter = (): Layouter => {
 	// - https://www.eclipse.org/elk/reference/options.html
 	const elkOptions = {
 		'elk.algorithm': 'org.eclipse.elk.layered',
-		// 'elk.layered.spacing.nodeNodeBetweenLayers': '200',
+		'elk.layered.spacing.nodeNodeBetweenLayers': '40',
 		// 'org.eclipse.elk.edgeRouting': 'SPLINES',
-		// 'elk.spacing.nodeNode': '50',
+		'elk.spacing.nodeNode': '50',
 		// 'org.eclipse.elk.spacing.edgeNode': '50',
+		// 'org.eclipse.elk.layered.priority.straightness': '100',
+		// 'org.eclipse.elk.layered.priority.shortness': '10',
 		'elk.direction': 'DOWN',
 		'org.eclipse.elk.layered.directionCongruency': 'READING_DIRECTION',
 		'org.eclipse.elk.topdown.nodeType': 'PARALLEL_NODE',
@@ -42,7 +44,7 @@ export const getElkLayouter = (): Layouter => {
 				sourcePosition: isHorizontal ? 'right' : 'bottom',
 
 				// Hardcode a width and height for elk to use when layouting.
-				width: node.type === 'combineNode' ? 20 : 160,
+				width: 160, //node.type === 'combineNode' ? 20 : 160,
 				height: node.type === 'combineNode' ? 20 : 40,
 			})),
 			edges: edges as unknown as ElkExtendedEdge[],

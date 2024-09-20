@@ -1,3 +1,4 @@
+import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
 import { findNodesByOpTypeWithRelatedTypedEdges, getEdgesBy } from '../../lib';
 import {
 	CombinatorType,
@@ -7,11 +8,14 @@ import {
 	type MyEdge,
 	OpType,
 } from '../../types';
+import { makeGraphLookups } from './lib';
 import type { NamedGraphCleaner } from './types';
 
 export const mergeCombines: NamedGraphCleaner = {
 	name: 'Merge combines',
 	apply: (graph): EffectorGraph => {
+		const lookups = makeGraphLookups(graph);
+
 		const nodesAndStuff = findNodesByOpTypeWithRelatedTypedEdges(
 			OpType.Store,
 			{
@@ -30,8 +34,8 @@ export const mergeCombines: NamedGraphCleaner = {
 		const nodesToAdd: EffectorNode[] = [];
 		const nodesToRemove: EffectorNode[] = [];
 
-		for (const { node, incoming } of nodesAndStuff) {
-			console.log('process', node, incoming);
+		for (const { node: combinedStoreNode, incoming } of nodesAndStuff) {
+			console.log('process', combinedStoreNode, incoming);
 
 			const sources = {
 				ownership: incoming.ownership.map((edge) => edge.data.relatedNodes.source),
@@ -40,24 +44,77 @@ export const mergeCombines: NamedGraphCleaner = {
 
 			console.log('sources', sources);
 
-			const sourcedNodes = [...new Set([...sources.ownership, ...sources.reactive])];
+			const combineNodes = [...new Set(sources.reactive)];
 
-			const id = `⊕ [${[...sourcedNodes].map((node) => node.id).join(',')}]`;
+			edgesToRemove.push(
+				...incoming.ownership.filter((edge) => combineNodes.includes(edge.data.relatedNodes.source)),
+				...incoming.reactive,
+			);
 
-			console.log('add node', id);
+			const syntheticCombineNodeId = `⊕ [${[...new Set(sources.reactive)].map((node) => node.id).join(',')}]`;
 
-			nodesToAdd.push({
-				id: id,
+			console.log('add node', syntheticCombineNodeId);
+
+			const syntheticCombineNode = {
+				id: syntheticCombineNodeId,
 				data: {
 					nodeType: CombinatorType.Combine,
 					label: '...',
-					relatedNodes: sourcedNodes,
+					relatedNodes: combineNodes,
 				},
+				type: 'combineNode',
 				// @ts-expect-error bad types
 				label: '...',
 
 				position: { x: 0, y: 0 },
-			} satisfies CombinedNode);
+			} satisfies CombinedNode;
+
+			nodesToAdd.push(syntheticCombineNode);
+
+			edgesToAdd.push(
+				createOwnershipEdge({
+					id: `⊕ ${syntheticCombineNodeId} owns [${combinedStoreNode.id}]`,
+					source: syntheticCombineNode,
+					target: combinedStoreNode,
+				}),
+				createReactiveEdge({
+					id: `⊕ ${syntheticCombineNodeId} --> [${combinedStoreNode.id}]`,
+					source: syntheticCombineNode,
+					target: combinedStoreNode,
+				}),
+			);
+
+			combineNodes.forEach((combineNode) => {
+				const ownershipEdges = lookups.edgesByTarget.ownership.get(combineNode.id) ?? [];
+
+				const owners = ownershipEdges?.map((e) => e.data.relatedNodes.source);
+
+				owners?.forEach((owner) => {
+					edgesToAdd.push(
+						createOwnershipEdge({
+							id: `⊕ ${owner.id} owns ${combineNode.id}`,
+							source: owner,
+							target: syntheticCombineNode,
+						}),
+					);
+				});
+
+				const reactiveEdges = lookups.edgesByTarget.reactive.get(combineNode.id) ?? [];
+
+				const reactiveSourceNodes = reactiveEdges?.map((e) => e.data.relatedNodes.source);
+
+				reactiveSourceNodes?.forEach((reactiveSource) => {
+					edgesToAdd.push(
+						createReactiveEdge({
+							id: `⊕ ${reactiveSource.id} --> ${combineNode.id}`,
+							source: reactiveSource,
+							target: syntheticCombineNode,
+						}),
+					);
+				});
+
+				edgesToRemove.push(...ownershipEdges, ...reactiveEdges);
+			});
 		}
 
 		return {

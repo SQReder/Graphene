@@ -4,7 +4,7 @@ import type { NodeProps } from '@xyflow/react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { useLayouterContext } from './ConfigurationContext';
 import { assertIsRegularEffectorDetails, ensureDefined, getMetaIcon } from './lib';
-import type { EffectorNode, RegularEffectorNode } from './types';
+import { type EffectorNode, OpType, type RegularEffectorNode } from './types';
 
 const nodeWidth = css`
 	width: 100%;
@@ -22,10 +22,12 @@ const StoreNodeContainer = styled.div`
 	font-size: 1rem;
 
 	display: flex;
-	align-items: center;
+	align-items: start;
 	justify-content: center;
 
 	padding: 8px 4px;
+
+	border: 1px solid #303030;
 `;
 
 const Content = styled.div`
@@ -83,6 +85,8 @@ const EventNodeContainer = styled.div`
 	justify-content: center;
 
 	padding: 8px 4px;
+
+	border: 1px solid #303030;
 `;
 
 export const EventNode = (props: NodeProps<EffectorNode>) => {
@@ -121,6 +125,8 @@ const EffectNodeContainer = styled.div`
 	justify-content: center;
 
 	padding: 8px 4px;
+
+	border: 1px solid #303030;
 `;
 
 export const EffectNode = (props: NodeProps) => {
@@ -159,6 +165,8 @@ const SampleNodeContainer = styled.div`
 	justify-content: center;
 
 	padding: 8px 4px;
+
+	border: 1px solid #303030;
 `;
 
 export const SampleNode = (props: NodeProps) => {
@@ -196,6 +204,8 @@ const FactoryNodeContainer = styled.div`
 	justify-content: center;
 
 	padding: 8px 4px;
+
+	border: 1px solid #303030;
 `;
 
 export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
@@ -231,6 +241,7 @@ const CombineNodeContainer = styled.div`
 	${nodeCircleSize};
 
 	font-size: 1rem;
+	line-height: 1rem;
 
 	display: flex;
 	align-items: center;
@@ -244,6 +255,7 @@ const CombineNodeContainer = styled.div`
 const CombineNodeLabel = styled.div`
 	position: absolute;
 	left: calc(100% + 4px);
+	width: 60px;
 `;
 
 const CombineNodeId = styled.div`
@@ -253,24 +265,25 @@ const CombineNodeId = styled.div`
 	color: rgba(0, 0, 0, 0.5);
 
 	font-size: 0.75rem;
+	width: max-content;
+	min-width: 60px;
 `;
 
 export const CombineNode = (props: NodeProps<RegularEffectorNode>) => {
 	const { layoutDirection, showNodeIds } = useLayouterContext();
 
-	const meta = props.data.effector.meta.value;
-	const icon = getMetaIcon(meta);
+	const icon = getMetaIcon({ op: OpType.Combine });
 
 	return (
 		<CombineNodeContainer>
 			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
 			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-			{showNodeIds && <CombineNodeId>{props.id}</CombineNodeId>}
+			{/*{showNodeIds && <CombineNodeId>{props.id}</CombineNodeId>}*/}
 			<Content>
 				<Icon>{icon}</Icon>
 			</Content>
-			<CombineNodeLabel>combine</CombineNodeLabel>
+			{/*<CombineNodeLabel>combine</CombineNodeLabel>*/}
 		</CombineNodeContainer>
 	);
 };

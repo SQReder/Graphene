@@ -4,9 +4,12 @@ import { fork, is } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
 import { inspectGraph } from 'effector/inspect';
 import { useEffect } from 'react';
+import type { NamedGraphCleaner } from '../graph-morphers/cleaners/types';
+import { pipeline } from '../graph-morphers/pipeline';
 import { Graphene } from '../Graphene';
 import { Layouters } from '../layouters';
 import { appModelFactory, declarationsStoreModelFactory, grapheneModelFactory } from '../model';
+import { CleanerSelector } from '../ui/CleanerSelector';
 
 export type Params = { factory: () => Record<string, unknown> };
 
@@ -16,6 +19,7 @@ const grapheneModel = invoke(grapheneModelFactory, { declarationsModel });
 const appModel = invoke(appModelFactory, {
 	grapheneModel,
 	layouterFactory: Layouters.ELK,
+	graphCleanerSelector: invoke(CleanerSelector.factory<NamedGraphCleaner>(), { availableCleaners: pipeline }),
 });
 
 export type GrapheneMeta = Meta<Params>;
@@ -46,7 +50,7 @@ export const grapheneStoryMeta: GrapheneMeta = {
 
 			console.log('subscribed!!', id);
 
-			console.group('🫨 make units');
+			console.groupCollapsed('🫨 make units');
 			const model = factory();
 			const units = Object.values(model).filter(is.unit);
 

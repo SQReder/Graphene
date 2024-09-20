@@ -69,9 +69,9 @@ export const DebouncedStore = {
 			const $store = createStore(0);
 			const $debounced = debounceStore({ source: $store, defaultState: 0, timeoutMs: 100 });
 
-			$debounced.watch(console.log);
+			const $mapped = $debounced.map((x) => x);
 
-			return $debounced;
+			return $mapped;
 		},
 	},
 };

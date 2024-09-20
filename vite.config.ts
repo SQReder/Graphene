@@ -26,6 +26,8 @@ export default defineConfig({
 							'@withease/factories',
 							'patronum',
 							'./src/debounceStore',
+							'./src/abortable',
+							'effector-storage',
 						],
 					},
 				],

@@ -144,7 +144,7 @@ export const createStoreUpdatesWithNoChildrenCleaner =
 export const createReinitCleaner =
 	<T extends MyEdge>(selector: GraphTypedEdgesSelector<T>, edgeCreator: EdgeCreator<T>): EdgeCleaner<T> =>
 	(_, lookups) => {
-		console.group('reinit cleaner', selector);
+		console.groupCollapsed('reinit cleaner', selector);
 		const nodes = findNodesByOpTypeWithRelatedEdges(
 			OpType.Event,
 			{
@@ -159,7 +159,7 @@ export const createReinitCleaner =
 		const edgesToAdd: T[] = [];
 
 		for (const { node, incoming, outgoing } of nodes) {
-			console.group('node', node.data.label, node);
+			console.groupCollapsed('node', node.data.label, node);
 
 			const incomingNonFactoryEdges = incoming.filter((edge) => {
 				const source = edge.data.relatedNodes.source;

@@ -25,7 +25,7 @@ export function absurd(value: never): never {
 	throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
 }
 
-export const getMetaIcon = (meta: Meta): string => {
+export const getMetaIcon = (meta: { op: OpType | undefined; type?: MetaType; attached?: number }): string => {
 	switch (meta.op) {
 		case OpType.Watch:
 			return '👓';
@@ -236,8 +236,6 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 	};
 }
 
-const isDerived = (graphite: Graphite) => isUnitMeta(graphite.meta) && graphite.meta.derived;
-
 export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 	const nodeDetails = new EffectorNodeDetails(graphite);
 
@@ -265,8 +263,8 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 				: undefined,
 
 		style: {
-			border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
-			background: getBackground(graphite.family.type),
+			// border: isDerived(graphite) ? '1px dotted gray' : '1px solid black',
+			// background: getBackground(graphite.family.type),
 			...(graphite.meta.op === 'combine'
 				? {
 						width: '20px',
@@ -276,21 +274,6 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 				: {}),
 		},
 	};
-}
-
-function getBackground(linkType: NodeFamily) {
-	switch (linkType) {
-		case NodeFamily.Crosslink:
-			return '#f3f38f';
-		case NodeFamily.Regular:
-			return 'transparent';
-		case NodeFamily.Declaration:
-			return '#efefef';
-		case NodeFamily.Domain:
-			return '#8fe4f3';
-		default:
-			absurd(linkType);
-	}
 }
 
 export function isDeclarationNode(node: EffectorNode): node is DeclarationEffectorNode {

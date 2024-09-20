@@ -12,6 +12,7 @@ import {
 } from 'effector';
 import type { Gate } from 'effector-react';
 import { createGate } from 'effector-react';
+import { persist } from 'effector-storage/local';
 import type { Declaration } from 'effector/inspect';
 import { debug, readonly, reshape } from 'patronum';
 import type { WithAbortSignal } from './abortable';
@@ -19,7 +20,8 @@ import { abortable } from './abortable';
 import { debounceStore } from './debounceStore';
 import { sortTreeNodesBFS } from './dfs';
 import { createGraphCleaner } from './graph-morphers/cleaners/lib';
-import { dropPipeline, pipeline } from './graph-morphers/pipeline';
+import type { GraphCleaner, NamedGraphCleaner } from './graph-morphers/cleaners/types';
+import { pipeline } from './graph-morphers/pipeline';
 import type { Layouter } from './layouters/types';
 import {
 	absurd,
@@ -36,6 +38,7 @@ import {
 import { logEffectFail } from './logEffectFail';
 import type { DeclarationEffectorNode, EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from './types';
 import { EdgeType, EffectorDeclarationDetails } from './types';
+import type { NamedCleanerSelector } from './ui/CleanerSelector/model';
 
 export const declarationsStoreModelFactory = createFactory(() => {
 	const addDeclaration = createEvent<Declaration>();
@@ -172,7 +175,7 @@ export const EdgesViewVariant = {
 
 export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewVariant];
 
-// export type NamedCleanerSelectorModel = NamedCleanerSelector<GraphCleaner>;
+export type NamedCleanerSelectorModel = NamedCleanerSelector<GraphCleaner>;
 // export type NamedOwnerhipEdgesCleanerSelectorModel = NamedCleanerSelector<OwnershipEdgeCleaner>;
 // export type NamedReactiveEdgesCleanerSelectorModel = NamedCleanerSelector<ReactiveEdgeCleaner>;
 
@@ -182,7 +185,7 @@ const generatedGraphModelFactory = createFactory(
 		$edgesVariant,
 		layouterFactory,
 		Gate,
-		// graphCleanerSelector,
+		graphCleanerSelector,
 		// ownershipEdgeCleanerSelector,
 		// reactiveEdgeCleanerSelector,
 		$selectedGraphVariant,
@@ -191,7 +194,7 @@ const generatedGraphModelFactory = createFactory(
 		$edgesVariant: Store<Set<EdgeType>>;
 		layouterFactory: () => Layouter;
 		Gate: Gate<unknown>;
-		// graphCleanerSelector: NamedCleanerSelectorModel;
+		graphCleanerSelector: NamedCleanerSelectorModel;
 		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
 		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
 		$selectedGraphVariant: Store<GraphVariant>;
@@ -218,31 +221,32 @@ const generatedGraphModelFactory = createFactory(
 			},
 		);
 
-		// const ownershipEnricher = enrichGraph('ownership');
-		// const reactiveEnricher = enrichGraph('reactive');
+		persist({
+			pickup: Gate.open,
+			source: graphCleanerSelector.$selectedCleaners,
+			target: graphCleanerSelector.selectedCleanersResetted,
+			key: 'graphene',
+			serialize: (value: NamedGraphCleaner[]) => {
+				console.log('serialize', value);
+				return JSON.stringify(value.map((x) => x.name));
+			},
+			deserialize: (value) => {
+				console.log('deserialize', value);
+				return (JSON.parse(value) as string[]).map((name) => pipeline.find((x) => x.name === name));
+			},
+		});
 
 		const getGraphVariantGeneratorsFx = createEffect<
 			{
-				edgesVariant: Set<EdgeType>;
-				// graphCleaners: readonly NamedGraphCleaner[];
-				// ownershipEdgeCleaners: readonly NamedOwnershipEdgeCleaner[];
-				// reactiveEdgeCleaners: readonly NamedReactiveEdgeCleaner[];
+				graphCleaners: readonly NamedGraphCleaner[];
 			},
 			AsyncGraphVariantGenerators
-		>(({ edgesVariant }) => {
-			// const processingPipeline: GraphCleaner[] = [];
-			//
-			// if (edgesVariant.has('reactive')) {
-			// 	processingPipeline.push(cleanReactiveEdges(reactiveEdgeCleaners));
-			// 	processingPipeline.push(reactiveEnricher);
-			// }
-			//
-			// if (edgesVariant.has('ownership')) {
-			// 	processingPipeline.push(cleanOwnershipEdges(ownershipEdgeCleaners));
-			// 	processingPipeline.push(ownershipEnricher);
-			// }
+		>(({ graphCleaners }) => {
+			const cleaningPipeline = [...graphCleaners].sort(
+				(a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER),
+			);
 
-			return makeGraphVariants(createGraphCleaner(pipeline), createGraphCleaner(dropPipeline), layouterFactory);
+			return makeGraphVariants(createGraphCleaner(cleaningPipeline), (x) => x, layouterFactory);
 		});
 
 		logEffectFail(getGraphVariantGeneratorsFx);
@@ -251,13 +255,13 @@ const generatedGraphModelFactory = createFactory(
 			clock: [
 				Gate.open,
 				$edgesVariant,
-				// graphCleanerSelector.$selectedCleaners,
+				graphCleanerSelector.$selectedCleaners,
 				// ownershipEdgeCleanerSelector.$selectedCleaners,
 				// reactiveEdgeCleanerSelector.$selectedCleaners,
 			],
 			source: {
 				edgesVariant: $edgesVariant,
-				// graphCleaners: graphCleanerSelector.$selectedCleaners,
+				graphCleaners: graphCleanerSelector.$selectedCleaners,
 				// ownershipEdgeCleaners: ownershipEdgeCleanerSelector.$selectedCleaners,
 				// reactiveEdgeCleaners: reactiveEdgeCleanerSelector.$selectedCleaners,
 			},
@@ -286,8 +290,6 @@ const generatedGraphModelFactory = createFactory(
 
 					try {
 						result.nodes = sortTreeNodesBFS(result.nodes);
-						console.log('unsorted', result.nodes);
-						console.log('sorted', result.nodes);
 					} catch (e) {
 						console.error('Sorting failed', e);
 					}
@@ -329,13 +331,13 @@ export const appModelFactory = createFactory(
 	({
 		layouterFactory,
 		grapheneModel,
-	}: // graphCleanerSelector,
-	// ownershipEdgeCleanerSelector,
+		graphCleanerSelector,
+	}: // ownershipEdgeCleanerSelector,
 	// reactiveEdgeCleanerSelector,
 	{
 		layouterFactory: () => Layouter;
 		grapheneModel: GrapheneModel;
-		// graphCleanerSelector: NamedCleanerSelectorModel;
+		graphCleanerSelector: NamedCleanerSelectorModel;
 		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
 		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
 	}) => {
@@ -354,7 +356,7 @@ export const appModelFactory = createFactory(
 			$edgesVariant,
 			layouterFactory,
 			Gate,
-			// graphCleanerSelector,
+			graphCleanerSelector,
 			// ownershipEdgeCleanerSelector,
 			// reactiveEdgeCleanerSelector,
 			$selectedGraphVariant,
@@ -461,9 +463,7 @@ export const appModelFactory = createFactory(
 		return {
 			appendUnits: grapheneModel.appendUnits,
 			Gate,
-			// graphCleanerSelector: graphCleanerSelector['@@ui'],
-			// ownershipEdgeCleanerSelector: ownershipEdgeCleanerSelector['@@ui'],
-			// reactiveEdgeCleanerSelector: reactiveEdgeCleanerSelector['@@ui'],
+			graphCleanerSelector: graphCleanerSelector['@@ui'],
 			'@@unitShape': () => ({
 				edgesVariantChanged,
 				edgesVariant: $edgesVariant,

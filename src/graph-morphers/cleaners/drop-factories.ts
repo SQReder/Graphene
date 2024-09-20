@@ -14,7 +14,7 @@ export const dropFactories: NamedGraphCleaner = {
 					byTarget: lookups.edgesByTarget.ownership,
 					nodes: lookups.nodes,
 				},
-				(node) => node.data.effector.meta.isFactory,
+				(node) => node.data.effector.meta.isFactory && !node.data.folded,
 			);
 
 			return {

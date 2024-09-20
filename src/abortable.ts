@@ -1,5 +1,4 @@
-import type { Effect } from 'effector';
-import { attach, createEffect, createStore } from 'effector';
+import { attach, createEffect, createStore, type Effect } from 'effector';
 
 export type WithAbortSignal = {
 	signal: AbortSignal;
@@ -37,13 +36,16 @@ export function abortable<Params extends WithAbortSignal, Done, Fail = Error>(
 		name: `${effect.shortName}.abortable`,
 	});
 
-	const abortableFx = createEffect<OmitAbortSignal<Params>, Done, Fail>(async (params) => {
-		void abortFx();
-		return withCancelTokenAttachedFx(params);
+	const abortableFx = createEffect<OmitAbortSignal<Params>, Done, Fail>({
+		name: effect.shortName + ' (abortable)',
+		async handler(params) {
+			void abortFx();
+			return withCancelTokenAttachedFx(params);
+		},
 	});
 
 	return {
-		abortableFx,
-		abortFx,
+		abortableFx: abortableFx!,
+		abortFx: abortFx!,
 	};
 }
