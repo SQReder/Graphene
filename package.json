@@ -55,7 +55,7 @@
 		"@changesets/cli": "^2.26.0",
 		"@chromatic-com/storybook": "^2.0.2",
 		"@commitlint/cli": "^17.4.1",
-		"@commitlint/config-conventional": "^17.4.0",
+		"@commitlint/config-conventional": "^19.5.0",
 		"@effector/swc-plugin": "^0.5.0",
 		"@emotion/babel-plugin": "^11.10.5",
 		"@emotion/react": "^11.10.5",
