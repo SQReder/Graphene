@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import type { NodeProps } from '@xyflow/react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { useLayouterContext } from './ConfigurationContext';
-import { assertIsRegularEffectorDetails, ensureDefined, getMetaIcon } from './lib';
+import { assertIsRegularEffectorDetails, getMetaIcon } from './lib';
 import { type EffectorNode, OpType, type RegularEffectorNode } from './types';
 
 const nodeWidth = css`
@@ -94,8 +94,9 @@ export const EventNode = (props: NodeProps<EffectorNode>) => {
 
 	assertIsRegularEffectorDetails(props.data);
 
-	const name = props.data.effector.name;
-	const icon = getMetaIcon(props.data.effector.meta.value);
+	const effectorDetails = props.data.effector;
+	const name = effectorDetails.name;
+	const icon = effectorDetails.isMergeEvent ? '〰️' : getMetaIcon(props.data.effector.meta.value);
 
 	return (
 		<EventNodeContainer>
@@ -179,6 +180,22 @@ export const SampleNode = (props: NodeProps) => {
 	return (
 		<SampleNodeContainer>
 			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
+			{/*<Handle*/}
+			{/*	type="target"*/}
+			{/*	id={'clock'}*/}
+			{/*	position={layoutDirection === 'horizontal' ? Position.Left : Position.Top}*/}
+			{/*	style={{ left: '25%' }}*/}
+			{/*>*/}
+			{/*	Clock*/}
+			{/*</Handle>*/}
+			{/*<Handle*/}
+			{/*	type="target"*/}
+			{/*	id={'source'}*/}
+			{/*	position={layoutDirection === 'horizontal' ? Position.Left : Position.Top}*/}
+			{/*	style={{ left: '75%' }}*/}
+			{/*>*/}
+			{/*	Source*/}
+			{/*</Handle>*/}
 			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
 			{showNodeIds && <NodeId>{props.id}</NodeId>}
@@ -211,8 +228,8 @@ const FactoryNodeContainer = styled.div`
 export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
 	const { layoutDirection, showNodeIds } = useLayouterContext();
 
-	const meta = ensureDefined(props.data.effector.meta.asFactory);
-	const icon = getMetaIcon(meta);
+	const meta = props.data.effector.meta;
+	const icon = getMetaIcon(meta.value);
 
 	return (
 		<FactoryNodeContainer>
@@ -224,7 +241,7 @@ export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
 			<Content>
 				<Icon>{icon}</Icon>
 				<div>
-					<div>{meta.op === undefined ? `${meta.method}(${meta.name})` : '???'}</div>
+					<div>{meta.name}</div>
 				</div>
 			</Content>
 		</FactoryNodeContainer>
@@ -237,7 +254,7 @@ const nodeCircleSize = css`
 `;
 
 const CombineNodeContainer = styled.div`
-	background: #ffffffaa;
+	//background: #ffffffaa;
 	${nodeCircleSize};
 
 	font-size: 1rem;
@@ -250,23 +267,42 @@ const CombineNodeContainer = styled.div`
 	//padding: 8px 4px;
 	position: relative;
 	border-radius: 10px;
+
+	gap: 4px;
 `;
 
 const CombineNodeLabel = styled.div`
-	position: absolute;
-	left: calc(100% + 4px);
+	font-size: 0.75rem;
 	width: 60px;
+	flex: 1;
 `;
 
 const CombineNodeId = styled.div`
-	position: absolute;
-	right: calc(100% + 4px);
-
 	color: rgba(0, 0, 0, 0.5);
 
 	font-size: 0.75rem;
 	width: max-content;
 	min-width: 60px;
+
+	flex: 1;
+
+	text-align: right;
+`;
+
+const Circle = styled.div`
+	width: 20px;
+	height: 20px;
+	border-radius: 10px;
+	color: #303030;
+
+	background: #ffffffaa;
+	border: 1px solid #303030;
+
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	flex: none;
 `;
 
 export const CombineNode = (props: NodeProps<RegularEffectorNode>) => {
@@ -279,11 +315,11 @@ export const CombineNode = (props: NodeProps<RegularEffectorNode>) => {
 			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
 			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
-			{/*{showNodeIds && <CombineNodeId>{props.id}</CombineNodeId>}*/}
-			<Content>
+			{showNodeIds && <CombineNodeId>{props.id}</CombineNodeId>}
+			<Circle>
 				<Icon>{icon}</Icon>
-			</Content>
-			{/*<CombineNodeLabel>combine</CombineNodeLabel>*/}
+			</Circle>
+			<CombineNodeLabel>combine</CombineNodeLabel>
 		</CombineNodeContainer>
 	);
 };

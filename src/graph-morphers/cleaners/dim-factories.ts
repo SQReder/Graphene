@@ -11,8 +11,8 @@ export const dimFactories: NamedGraphCleaner = {
 			const factories = findNodesByOpTypeWithRelatedEdges(
 				undefined,
 				{
-					bySource: lookups.edgesBySource.ownership,
-					byTarget: lookups.edgesByTarget.ownership,
+					edgesBySource: lookups.edgesBySource.ownership,
+					edgesByTarget: lookups.edgesByTarget.ownership,
 					nodes: lookups.nodes,
 				},
 				(node) => node.data.effector.meta.isFactory,

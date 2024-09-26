@@ -1,4 +1,4 @@
-import { attach, createEffect, createStore, type Effect } from 'effector';
+import { attach, createEffect, createEvent, createStore, type Effect, type Event, sample } from 'effector';
 
 export type WithAbortSignal = {
 	signal: AbortSignal;
@@ -10,7 +10,7 @@ type OmitAbortSignal<Params extends WithAbortSignal> = keyof Omit<Params, 'signa
 
 export type AbortableFxModel<Params extends WithAbortSignal, Done, Fail = Error> = {
 	abortableFx: Effect<OmitAbortSignal<Params>, Done, Fail>;
-	abortFx: Effect<void, void>;
+	abort: Event<void>;
 };
 
 export function abortable<Params extends WithAbortSignal, Done, Fail = Error>(
@@ -18,34 +18,34 @@ export function abortable<Params extends WithAbortSignal, Done, Fail = Error>(
 ): AbortableFxModel<Params, Done, Fail> {
 	const $source = createStore(new AbortController());
 
+	const abort = createEvent();
+
 	const abortFx = attach({
 		source: $source,
-		effect(source) {
-			source.abort('Just aborted');
+		async effect(controller) {
+			console.log('🟢🟡🔴');
+			controller.abort(new Error('Just Aborted'));
+			return new AbortController();
 		},
 	});
 
-	$source.on(abortFx.done, () => new AbortController());
-
-	const withCancelTokenAttachedFx = attach({
-		effect: effect,
-		source: $source,
-		mapParams: (params: OmitAbortSignal<Params>, { signal }): Params =>
-			// @ts-expect-error false-positive type substitution error
-			({ ...params, signal: signal } as Params),
-		name: `${effect.shortName}.abortable`,
-	});
+	$source.on(abortFx.doneData, (_, controller) => controller);
 
 	const abortableFx = createEffect<OmitAbortSignal<Params>, Done, Fail>({
 		name: effect.shortName + ' (abortable)',
 		async handler(params) {
-			void abortFx();
-			return withCancelTokenAttachedFx(params);
+			const controller = await abortFx();
+			return effect({ ...params, signal: controller.signal } as unknown as Params);
 		},
 	});
 
+	sample({
+		clock: abort,
+		target: abortFx,
+	});
+
 	return {
-		abortableFx: abortableFx!,
-		abortFx: abortFx!,
+		abortableFx,
+		abort,
 	};
 }

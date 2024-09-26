@@ -12,8 +12,8 @@ const makeReverseOwnershipCleaner = (opType: OpType | undefined): NamedGraphClea
 			const edgesToRemove: OwnershipEdge[] = [];
 
 			findNodesByOpTypeWithRelatedEdges(opType, {
-				bySource: lookups.edgesBySource.ownership,
-				byTarget: lookups.edgesByTarget.ownership,
+				edgesBySource: lookups.edgesBySource.ownership,
+				edgesByTarget: lookups.edgesByTarget.ownership,
 				nodes: lookups.nodes,
 			}).forEach(({ outgoing }) => {
 				for (const outgoingEdge of outgoing) {

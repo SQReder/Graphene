@@ -2,7 +2,9 @@ import { createFactory, invoke } from '@withease/factories';
 import type { NamedGraphCleaner } from './graph-morphers/cleaners/types';
 import { pipeline } from './graph-morphers/pipeline';
 import { Layouters } from './layouters';
-import { appModelFactory, declarationsStoreModelFactory, grapheneModelFactory } from './model';
+import { appModelFactory } from './model/app';
+import { declarationsStoreModelFactory } from './model/declarationsStore';
+import { grapheneModelFactory } from './model/graphene';
 import { CleanerSelector } from './ui/CleanerSelector';
 
 export const fastStart = createFactory(() => {

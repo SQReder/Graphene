@@ -53,7 +53,7 @@ export function sortTreeNodesDFS<T extends Node>(nodes: T[]): T[] {
 	return sortedNodes;
 }
 
-export function sortTreeNodesBFS<T extends Node>(nodes: T[]): T[] {
+export function sortTreeNodesBFS<T extends Node>(nodes: T[], signal?: AbortSignal): T[] {
 	const nodeMap = new Map<string, T>();
 	const childrenMap = new Map<string, T[]>();
 	const parentCountMap = new Map<string, number>(); // To track how many parents a node has
@@ -62,6 +62,7 @@ export function sortTreeNodesBFS<T extends Node>(nodes: T[]): T[] {
 
 	// Step 1: Build the maps
 	nodes.forEach((node) => {
+		signal?.throwIfAborted();
 		nodeMap.set(node.id, node);
 		if (node.parentId) {
 			if (!childrenMap.has(node.parentId)) {
@@ -76,6 +77,7 @@ export function sortTreeNodesBFS<T extends Node>(nodes: T[]): T[] {
 
 	// Step 2: Initialize the queue with root nodes (nodes with no parents)
 	nodes.forEach((node) => {
+		signal?.throwIfAborted();
 		if (parentCountMap.get(node.id) === 0) {
 			queue.push(node);
 		}
@@ -83,6 +85,7 @@ export function sortTreeNodesBFS<T extends Node>(nodes: T[]): T[] {
 
 	// Step 3: Perform BFS traversal
 	while (queue.length > 0) {
+		signal?.throwIfAborted();
 		const currentNode = queue.shift()!;
 		sortedNodes.push(currentNode);
 

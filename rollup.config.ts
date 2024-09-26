@@ -2,31 +2,35 @@ import babel from '@rollup/plugin-babel';
 import commonjs from '@rollup/plugin-commonjs';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
 import del from 'rollup-plugin-delete';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
-import typescript from 'rollup-plugin-typescript2';
 import { visualizer } from 'rollup-plugin-visualizer';
-import pkg from './package.json';
 
 export default {
 	input: 'src/index.ts',
 	output: [
 		{
-			format: 'cjs',
-			dir: 'dist/cjs',
+			dir: 'dist',
 			preserveModules: true,
 			preserveModulesRoot: 'src',
+			sourcemap: true,
+			interop: 'auto',
+			format: 'cjs',
 			exports: 'named',
+			entryFileNames: '[name].cjs.js',
 		},
 		{
-			format: 'es',
-			dir: 'dist/esm',
+			dir: 'dist',
 			preserveModules: true,
 			preserveModulesRoot: 'src',
+			sourcemap: true,
+			interop: 'auto',
+			format: 'es',
 			exports: 'named',
+			entryFileNames: '[name].esm.js',
 		},
 	],
-	external: [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {}), './src'],
 	plugins: [
 		peerDepsExternal(),
 		typescript({

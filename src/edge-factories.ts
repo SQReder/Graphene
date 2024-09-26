@@ -1,7 +1,8 @@
+import { MarkerType } from '@xyflow/system';
 import type { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from './types';
 import { EdgeType } from './types';
 
-type EdgeFactory<T extends MyEdge> = (params: {
+export type EdgeFactory<T extends MyEdge> = (params: {
 	id: string;
 	source: EffectorNode;
 	target: EffectorNode;
@@ -21,6 +22,10 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 			},
 		},
 		animated: true,
+		markerEnd: {
+			type: MarkerType.ArrowClosed,
+			color: '#303030',
+		},
 		style: {
 			zIndex: 10,
 			stroke: '#303030',
@@ -43,6 +48,10 @@ export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, ta
 				source: source,
 				target: target,
 			},
+		},
+		markerEnd: {
+			type: MarkerType.ArrowClosed,
+			color: 'rgba(132,199,253,0.86)',
 		},
 		style: {
 			stroke: 'rgba(132,199,253,0.86)',

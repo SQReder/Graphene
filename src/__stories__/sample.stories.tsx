@@ -1,5 +1,5 @@
 import { createFactory, invoke } from '@withease/factories';
-import { createEvent, createStore, sample } from 'effector';
+import { createEffect, createEvent, createStore, sample } from 'effector';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
 const meta: GrapheneMeta = {
@@ -125,6 +125,29 @@ export const SourceStore_TargetEvent: GrapheneStory = {
 	},
 };
 
+export const SourceEvent_TargetEvent: GrapheneStory = {
+	args: {
+		factory: () => {
+			const sourceEvent = createEvent();
+			const targetEvent = createEvent();
+
+			sample({
+				source: sourceEvent,
+				target: targetEvent,
+			});
+
+			sample({
+				source: sourceEvent,
+				target: targetEvent,
+			});
+
+			return {
+				targetEvent,
+			};
+		},
+	},
+};
+
 export const SourceSingleStoreShape_TargetEvent: GrapheneStory = {
 	args: {
 		factory: () => {
@@ -153,6 +176,36 @@ export const SourceManyStoresShape_TargetEvent: GrapheneStory = {
 			sample({
 				source: { sourceStore1, sourceStore2 },
 				target: targetEvent,
+			});
+
+			return {
+				targetEvent,
+			};
+		},
+	},
+};
+
+export const Monstrous: GrapheneStory = {
+	args: {
+		factory: () => {
+			const clockEvent = createEvent();
+			const clockSource = createStore<any>(null);
+			const clockEffect = createEffect<any, any>();
+
+			const sourceStore1 = createStore<any>(null);
+			const sourceStore2 = createStore<any>(null);
+
+			const filterStore = createStore<any>(null);
+
+			const targetEvent = createEvent();
+			const targetStore = createStore<any>(null);
+			const targetEffect = createEffect<any, any>();
+
+			sample({
+				clock: [clockEvent, clockSource, clockEffect, clockEffect.doneData],
+				source: { sourceStore1, sourceStore2 },
+				filter: filterStore,
+				target: [targetEvent, targetStore, targetEffect],
 			});
 
 			return {

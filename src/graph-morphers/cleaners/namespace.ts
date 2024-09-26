@@ -13,3 +13,8 @@ export { storeUpdatesWithNoChildren } from './store-updates-with-no-children';
 export { transitiveNodeCleaners } from './transitiveNodeCleaners';
 export { parentEnricher } from './parent-enricher';
 export { attachedEffectEnricher } from './attached-effect-enricher';
+export { removeOwnershipWhereReactiveEdgePresent } from './remove-ownership-where-reactive-edge-present';
+export { dropDomains } from './drop-domains';
+export { combineNodeFold } from './combine-node-fold';
+export { foldMergeNode } from './fold-merge-node';
+export { locEnricher, dropNoLocNodes } from './loc-enricher';

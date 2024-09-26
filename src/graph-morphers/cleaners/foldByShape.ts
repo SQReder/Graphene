@@ -39,7 +39,7 @@ export const foldByShape = (
 	friendlyName: string,
 	rootSelector: RootSelector,
 	factories_: Partial<EdgeFactories> = {},
-	internalNodeNames: string[] = [],
+	getInternalNodeNames?: (node: EffectorNode) => string[],
 ): NamedGraphCleaner => {
 	const factories: EdgeFactories = {
 		...defaultEdgeFactories,
@@ -70,6 +70,8 @@ export const foldByShape = (
 				const ownershipEdges = lookups.edgesBySource.ownership.get(mainOwner.id);
 
 				console.log('ownershipEdges', ownershipEdges);
+
+				const internalNodeNames = getInternalNodeNames?.(mainOwner) ?? [];
 
 				const internalNodes = ownershipEdges
 					?.map((edge) => edge.data.relatedNodes.target)

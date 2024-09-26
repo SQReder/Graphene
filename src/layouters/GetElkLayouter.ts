@@ -13,8 +13,9 @@ export const getElkLayouter = (): Layouter => {
 	// - https://www.eclipse.org/elk/reference/options.html
 	const elkOptions = {
 		'elk.algorithm': 'org.eclipse.elk.layered',
-		'elk.layered.spacing.nodeNodeBetweenLayers': '40',
+		'elk.layered.spacing.nodeNodeBetweenLayers': '100',
 		// 'org.eclipse.elk.edgeRouting': 'SPLINES',
+		'org.eclipse.elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
 		'elk.spacing.nodeNode': '50',
 		// 'org.eclipse.elk.spacing.edgeNode': '50',
 		// 'org.eclipse.elk.layered.priority.straightness': '100',

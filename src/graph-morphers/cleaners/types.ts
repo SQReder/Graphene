@@ -8,7 +8,7 @@ export interface NamedCleaner<T> {
 }
 
 export interface GraphCleaner {
-	(graph: EffectorGraph): EffectorGraph;
+	(graph: EffectorGraph, signal?: AbortSignal): EffectorGraph;
 }
 
 export type NamedGraphCleaner = NamedCleaner<GraphCleaner>;

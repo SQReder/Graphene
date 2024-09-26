@@ -1,6 +1,7 @@
 import { invoke } from '@withease/factories';
 import { fastStart } from '../bootstrap';
-import { declarationsStoreModelFactory, grapheneModelFactory } from '../model';
+import { declarationsStoreModelFactory } from '../model/declarationsStore';
+import { grapheneModelFactory } from '../model/graphene';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
 const genericGrapheneMeta: GrapheneMeta = {
@@ -9,12 +10,6 @@ const genericGrapheneMeta: GrapheneMeta = {
 };
 
 export default genericGrapheneMeta;
-
-export const GrapheneWholesome: GrapheneStory = {
-	args: {
-		factory: () => invoke(fastStart),
-	},
-};
 
 export const DeclarationsStore: GrapheneStory = {
 	args: {
@@ -29,5 +24,11 @@ export const Graphene: GrapheneStory = {
 			const grapheneModel = invoke(grapheneModelFactory, { declarationsModel });
 			return grapheneModel;
 		},
+	},
+};
+
+export const GrapheneWholesome: GrapheneStory = {
+	args: {
+		factory: () => invoke(fastStart),
 	},
 };

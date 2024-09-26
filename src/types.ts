@@ -52,14 +52,20 @@ export type EmptyMeta = {
 export type SampleMeta = {
 	joint: number;
 	op: typeof OpType.Sample;
+	loc?: Location;
 };
 
 export type DomainMeta = BaseUnitMeta<typeof OpType.Domain>;
+
+type MetaConfig = {
+	loc?: Location;
+};
 
 export type BaseUnitMeta<T extends OpType> = {
 	op: T;
 	name: string;
 	derived: number;
+	config: MetaConfig;
 };
 
 export type EventMeta = BaseUnitMeta<typeof OpType.Event>;
@@ -84,6 +90,7 @@ type FactoryMeta = {
 	type: typeof MetaType.Factory | typeof MetaType.Domain;
 	name: string;
 	method: string;
+	loc?: Location;
 };
 
 export type Meta = EmptyMeta | UnitMeta | SampleMeta | FactoryMeta;
@@ -96,6 +103,7 @@ export interface Graphite {
 	scope: {
 		handler: (...args: unknown[]) => unknown | Effect<unknown, unknown, unknown>;
 		fn: (...args: unknown[]) => unknown;
+		key?: string;
 	};
 }
 
@@ -176,9 +184,13 @@ export class EffectorNodeDetails {
 	get isCombinedStore(): boolean {
 		return !!this.meta.asStore?.isCombine;
 	}
+
+	get isMergeEvent(): boolean {
+		return this._graphite.family.owners.length === 1 && this._graphite.family.owners[0].meta.op === OpType.Merge;
+	}
 }
 
-class MetaHelper {
+export class MetaHelper {
 	get value(): Meta {
 		return this._meta;
 	}
@@ -198,57 +210,102 @@ class MetaHelper {
 	}
 
 	get isStore(): boolean {
-		return this._meta.op === OpType.Store;
-	}
-
-	get isDomain(): boolean {
-		return this._meta.op === OpType.Domain;
+		return this.hasOpType(OpType.Store);
 	}
 
 	get asStore(): StoreMeta | undefined {
-		return this._meta.op === OpType.Store ? this._meta : undefined;
+		return this.isStore ? (this._meta as StoreMeta) : undefined;
+	}
+
+	get isFactory(): boolean {
+		return this._meta.op === undefined && this._meta.type === MetaType.Factory;
 	}
 
 	get asFactory(): FactoryMeta | undefined {
-		return this._meta.op === undefined && this._meta.type === MetaType.Factory ? this._meta : undefined;
+		return this.isFactory ? (this._meta as FactoryMeta) : undefined;
 	}
 
-	get asSample(): SampleMeta | undefined {
-		return this._meta.op === OpType.Sample ? this._meta : undefined;
+	get isEvent(): boolean {
+		return this.hasOpType(OpType.Event);
 	}
 
 	get asEvent(): EventMeta | undefined {
-		return this._meta.op === OpType.Event ? this._meta : undefined;
+		return this.isEvent ? (this._meta as EventMeta) : undefined;
+	}
+
+	get isDomain(): boolean {
+		return this.hasOpType(OpType.Domain);
 	}
 
 	get asDomain(): DomainMeta | undefined {
-		return this._meta.op === OpType.Domain ? this._meta : undefined;
+		return this.isDomain ? (this._meta as DomainMeta) : undefined;
+	}
+
+	get isUnit(): boolean {
+		return this.hasOpType(OpType.Store) || this.hasOpType(OpType.Event) || this.hasOpType(OpType.Effect);
+	}
+
+	get asUnit(): UnitMeta | undefined {
+		return this.isUnit ? (this._meta as UnitMeta) : undefined;
+	}
+
+	get isSample(): boolean {
+		return this.hasOpType(OpType.Sample);
+	}
+
+	get asSample(): SampleMeta | undefined {
+		return this.isSample ? (this._meta as SampleMeta) : undefined;
+	}
+
+	get isEffect(): boolean {
+		return this.hasOpType(OpType.Effect);
+	}
+
+	get asEffect(): EffectMeta | undefined {
+		return this.isEffect ? (this._meta as EffectMeta) : undefined;
 	}
 
 	get isDerived(): boolean {
-		if (this._meta.op === OpType.Store || this._meta.op === OpType.Event) {
-			return !!this._meta.derived;
+		if (this.isStore || this.isEvent || this.isDomain) {
+			return !!(this._meta as UnitMeta).derived;
 		} else {
 			return false;
 		}
 	}
 
+	get isCombinedStore(): boolean {
+		return this.asStore?.isCombine ?? false;
+	}
+
 	get name(): string | undefined {
-		if (this._meta.op === OpType.Store || this._meta.op === OpType.Event || this._meta.op === OpType.Effect) {
-			return this._meta.name;
-		} else if (this._meta.op === OpType.Sample) {
-			console.trace();
-			return this._meta.joint ? 'joint sample' : 'sample';
+		if (this.isStore || this.isEvent || this.isDomain || this.isEffect) {
+			const name = (this._meta as UnitMeta).name as NonNullable<unknown>;
+			if (typeof name !== 'string') {
+				console.warn(`Unexpected non-string name:`, name, this);
+				return String(name);
+			}
+			return name;
+		} else if (this.isSample) {
+			return this.asSample?.joint ? 'joint sample' : 'sample';
 		} else {
 			if (this._meta.op === undefined) {
-				this._meta.type;
+				return `${this._meta.method}(${this._meta.name})`;
 			}
 			return undefined;
 		}
 	}
-
-	get isFactory(): boolean {
-		return this._meta.op === undefined && this._meta.type === MetaType.Factory;
+	get loc(): string | undefined {
+		// loc present in unit, factory, or sample
+		if (!this.isUnit && !this.isFactory && !this.isSample) return undefined;
+		let loc: Location | undefined;
+		if (this.isUnit) {
+			loc = (this._meta as UnitMeta).config?.loc;
+		} else if (this.isFactory) {
+			loc = (this._meta as FactoryMeta).loc;
+		} else if (this.isSample) {
+			loc = (this._meta as SampleMeta).loc;
+		}
+		return loc ? `${loc.file}:${loc.line}:${loc.column}` : undefined;
 	}
 }
 
@@ -277,11 +334,7 @@ export class EffectorDeclarationDetails {
 }
 
 function getRegionId(region: Region | undefined): string | undefined {
-	if (!region) return;
-
-	if ('id' in region && typeof region.id === 'string') {
-		return region.id;
-	}
+	return region && 'id' in region && typeof region.id === 'string' ? region.id : undefined;
 }
 
 type BaseNode = {
@@ -294,6 +347,7 @@ export type RegularEffectorDetails = BaseNode & {
 	nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain;
 	effector: EffectorNodeDetails;
 	declaration?: EffectorDeclarationDetails;
+	noLoc?: boolean;
 };
 
 export const CombinatorType = {
@@ -320,3 +374,15 @@ export type CombinedNode = Node<CombinedNodeDetails>;
 
 export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
+export const EdgesViewVariant = {
+	Reactive: 'reactive',
+	Ownership: 'ownership',
+} as const;
+
+export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewVariant];
+
+export type Location = {
+	file: string;
+	line: number;
+	column: number;
+};

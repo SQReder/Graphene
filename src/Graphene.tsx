@@ -13,15 +13,14 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGate, useUnit } from 'effector-react';
-import type { FC, KeyboardEventHandler } from 'react';
+import type { ComponentType, FC, KeyboardEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
-import type { appModelFactory } from './model';
-import { EdgesViewVariant } from './model';
+import type { appModelFactory } from './model/app';
 import { nodeTypes } from './nodeTypes';
-import type { EffectorNode, MyEdge } from './types';
+import { EdgesViewVariant, type EffectorNode, type MyEdge } from './types';
 import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
@@ -36,7 +35,7 @@ const Wrapper = styled.div`
 	}
 `;
 
-const withReactFlowProvider = <P extends object>(Component: React.ComponentType<P>) => {
+const withReactFlowProvider = <P extends object>(Component: ComponentType<P>) => {
 	return function WithReactFlowProvider(props: P) {
 		return (
 			<ReactFlowProvider>
@@ -60,6 +59,8 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		edgesVariantChanged,
 		visibleEdgesChanged,
 		visibleEdges,
+		hideNodesWithNoLocationChanged,
+		hideNodesWithNoLocation,
 	} = useUnit(model);
 
 	const onNodesChange = useCallback<OnNodesChange<EffectorNode>>(
@@ -72,7 +73,6 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		[edges, edgesChanged],
 	);
 
-	const [replaceNodes, setReplaceNodes] = useState(true);
 	const [showNodeIds, setShowNodeIds] = useState(true);
 
 	const { isDarkMode } = useDarkMode({});
@@ -164,13 +164,17 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 
 					<Search />
 					<hr />
-					<label title={'Hack to save nodes positions when switching between views'}>
-						<input type="checkbox" checked={replaceNodes} onChange={(e) => setReplaceNodes(e.target.checked)} />
-						Replace nodes
-					</label>
 					<label title={'Show node ids in the graph'}>
 						<input type="checkbox" checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
 						Show node ids
+					</label>
+					<label title={'Hide nodes with no location'}>
+						<input
+							type="checkbox"
+							checked={hideNodesWithNoLocation}
+							onChange={(e) => hideNodesWithNoLocationChanged(e.target.checked)}
+						/>
+						Hide nodes with no location
 					</label>
 					<hr />
 					<Legend>

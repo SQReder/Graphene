@@ -9,49 +9,40 @@ export const parentEnricher: NamedGraphCleaner = {
 	apply: (graph) => {
 		console.groupCollapsed('parentEnricher');
 
-		const edgesToRemove: MyEdge[] = [];
+		const edgesToRemove: Set<MyEdge> = new Set();
+		const parentRelations: Map<string, string> = new Map();
 
 		const lookups = makeGraphLookups(graph);
 
 		for (const node of lookups.nodes.values()) {
 			if (isRegularNode(node)) {
 				const { effector, declaration } = node.data;
-				if (declaration) {
+				if (declaration?.parentId) {
 					console.log('Found parent', node.data.label, declaration.parentId);
-					node.parentId = declaration.parentId;
-					node.expandParent = true;
-				} else {
-					if (effector.meta.op === OpType.Domain) {
-						const owners = lookups.edgesByTarget.ownership
-							.get(node.id)
-							?.map((edge) => edge.data.relatedNodes.source)
-							?.filter(isRegularNode)
-							?.filter((node) => node.data.effector.meta.op !== OpType.Domain);
+					parentRelations.set(node.id, declaration.parentId);
+				} else if (effector.meta.op === OpType.Domain) {
+					const owners = lookups.edgesByTarget.ownership
+						.get(node.id)
+						?.map((edge) => edge.data.relatedNodes.source)
+						?.filter(isRegularNode)
+						?.filter((node) => node.data.effector.meta.op !== OpType.Domain);
 
-						if (!owners) {
-							console.log('No owners', node.data.label, node);
-							continue;
-						}
-
+					if (owners && owners.length > 0) {
 						const owner = owners[0];
-
-						if (!owner) {
-							console.log('No owner', node.data.label, node);
-							continue;
-						}
-
-						node.parentId = owner.id;
-						node.expandParent = true;
+						parentRelations.set(node.id, owner.id);
+					} else {
+						console.log('No owners', node.data.label, node);
 					}
 				}
 
-				if (node.parentId) {
+				const parentId = parentRelations.get(node.id);
+				if (parentId) {
 					const nodeToParentEdge = lookups.edgesByTarget.ownership
 						.get(node.id)
-						?.filter((edge) => edge.source === node.parentId);
+						?.filter((edge) => edge.source === parentId);
 
 					if (nodeToParentEdge?.length) {
-						edgesToRemove.push(...nodeToParentEdge);
+						nodeToParentEdge.forEach((edge) => edgesToRemove.add(edge));
 					}
 				}
 			} else {
@@ -61,12 +52,25 @@ export const parentEnricher: NamedGraphCleaner = {
 
 		console.groupEnd();
 
-		const sortedNodes = sortTreeNodesBFS(graph.nodes);
-		// buildHierarchyInPlaceWithCycleDetection(sortedNodes);
+		const updatedNodes = graph.nodes.map((node) => {
+			if (isRegularNode(node)) {
+				const parentId = parentRelations.get(node.id);
+				if (parentId) {
+					return {
+						...node,
+						parentId,
+						expandParent: true,
+					};
+				}
+			}
+			return node;
+		});
+
+		const sortedNodes = sortTreeNodesBFS(updatedNodes);
 
 		return {
 			nodes: sortedNodes,
-			edges: graph.edges.filter((edge) => !edgesToRemove.includes(edge)),
+			edges: graph.edges.filter((edge) => !edgesToRemove.has(edge)),
 		};
 	},
 };

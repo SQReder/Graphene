@@ -2,16 +2,17 @@ import { type Unit } from 'effector';
 import type { Comparator } from './comparison';
 import { combineComparators } from './comparison';
 import { createOwnershipEdge, createReactiveEdge } from './edge-factories';
-import type { GraphCleaner } from './graph-morphers/cleaners/types';
 import { layoutGraph } from './layouters';
 import type { Layouter } from './layouters/types';
 import type {
+	CombinedNode,
 	DeclarationEffectorNode,
 	EffectorGraph,
 	EffectorNode,
 	Graphite,
 	LinkEdge,
 	Meta,
+	MetaHelper,
 	MyEdge,
 	OwnershipEdge,
 	ReactiveEdge,
@@ -19,7 +20,7 @@ import type {
 	RegularEffectorNode,
 	UnitMeta,
 } from './types';
-import { EdgeType, EffectorNodeDetails, MetaType, NodeFamily, OpType } from './types';
+import { CombinatorType, EdgeType, EffectorNodeDetails, MetaType, NodeFamily, OpType } from './types';
 
 export function absurd(value: never): never {
 	throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
@@ -117,13 +118,11 @@ export function traverseEffectorGraph(units: ReadonlyArray<Unit<unknown>>): Grap
 
 	function traverse(graphite: Graphite) {
 		if (visited.has(graphite.id)) {
-			console.debug('already known graphite', graphite.id);
 			return;
-		} else {
-			console.debug('add graphite', graphite.id);
-			result.push(graphite);
-			visited.add(graphite.id);
 		}
+
+		result.push(graphite);
+		visited.add(graphite.id);
 
 		if (graphite.family) {
 			graphite.family.owners.forEach(traverse);
@@ -223,7 +222,8 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 		});
 	}
 
-	Array.from(nodesMap.values())
+	nodesMap
+		.values()
 		.filter(isRegularNode)
 		.forEach(({ data }) => {
 			traverseForGood(data.effector.graphite);
@@ -276,12 +276,20 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 	};
 }
 
+export function isCombinedStoreNode(node: EffectorNode): node is CombinedNode {
+	return node.data.nodeType === CombinatorType.Combine;
+}
+
 export function isDeclarationNode(node: EffectorNode): node is DeclarationEffectorNode {
 	return node.data.nodeType === NodeFamily.Declaration;
 }
 
 export function isRegularNode(node: EffectorNode): node is RegularEffectorNode {
-	return node.data.nodeType === NodeFamily.Regular || node.data.nodeType === NodeFamily.Crosslink;
+	return (
+		node.data.nodeType === NodeFamily.Regular ||
+		node.data.nodeType === NodeFamily.Crosslink ||
+		node.data.nodeType === NodeFamily.Domain
+	);
 }
 
 export function assertIsRegularEffectorDetails(details: unknown): asserts details is RegularEffectorDetails {
@@ -430,7 +438,7 @@ export type Lookups = {
 	edgesByTarget: GraphTypedEdges;
 };
 
-type NodeWithRelatedEdges<T extends MyEdge> = {
+export type NodeWithRelatedTypedEdges<T extends MyEdge> = {
 	incoming: T[];
 	outgoing: T[];
 	node: EffectorNode;
@@ -441,33 +449,34 @@ type TypedEdgeList = {
 	reactive: ReactiveEdge[];
 };
 
-type NodeWithRelatedTypedEdges = {
+export type NodeWithRelatedEdges = {
 	incoming: TypedEdgeList;
 	outgoing: TypedEdgeList;
-	node: EffectorNode;
+	node: RegularEffectorNode;
+};
+
+export type LookupsTyped<T extends MyEdge> = {
+	edgesByTarget: Map<string, T[]>;
+	edgesBySource: Map<string, T[]>;
+	nodes: Map<string, EffectorNode>;
 };
 
 export function findNodesByOpTypeWithRelatedEdges<T extends MyEdge>(
 	opType: OpType | undefined,
-	lookups: {
-		byTarget: Map<string, T[]>;
-		bySource: Map<string, T[]>;
-		nodes: Map<string, EffectorNode>;
-	},
+	lookups: LookupsTyped<T>,
 	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
-): Array<NodeWithRelatedEdges<T>> {
-	const result: Array<NodeWithRelatedEdges<T>> = [];
+): Array<NodeWithRelatedTypedEdges<T>> {
+	const result: Array<NodeWithRelatedTypedEdges<T>> = [];
 
-	Array.from(lookups.nodes.values()).forEach((node) => {
+	for (const node of lookups.nodes.values()) {
 		if (isRegularNode(node) && node.data.effector.meta.hasOpType(opType) && extraFilter(node)) {
 			result.push({
 				node,
-				incoming: lookups.byTarget.get(node.id) || [],
-				outgoing: lookups.bySource.get(node.id) || [],
+				incoming: lookups.edgesByTarget.get(node.id) || [],
+				outgoing: lookups.edgesBySource.get(node.id) || [],
 			});
 		}
-	});
-
+	}
 	return result;
 }
 
@@ -475,10 +484,10 @@ export function findNodesByOpTypeWithRelatedTypedEdges(
 	opType: OpType | undefined,
 	lookups: Lookups,
 	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
-): NodeWithRelatedTypedEdges[] {
-	const result: NodeWithRelatedTypedEdges[] = [];
+): NodeWithRelatedEdges[] {
+	const result: NodeWithRelatedEdges[] = [];
 
-	Array.from(lookups.nodes.values()).forEach((node) => {
+	for (const node of lookups.nodes.values()) {
 		if (isRegularNode(node) && node.data.effector.meta.hasOpType(opType) && extraFilter(node)) {
 			result.push({
 				node,
@@ -492,7 +501,7 @@ export function findNodesByOpTypeWithRelatedTypedEdges(
 				},
 			});
 		}
-	});
+	}
 
 	return result;
 }
@@ -522,7 +531,7 @@ export function assertDefined<T>(value: T, variableName?: string): asserts value
 }
 
 export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, U> {
-	return new Map(Array.from(map.entries()).map(([k, v]) => [k, fn(v)]));
+	return new Map(map.entries().map(([k, v]) => [k, fn(v)]));
 }
 
 export function createEffectorNodesLookup(units: ReadonlyArray<Unit<unknown>>): RegularEffectorNode[] {
@@ -539,7 +548,8 @@ export const GraphVariant = {
 
 export type GraphVariant = (typeof GraphVariant)[keyof typeof GraphVariant];
 
-export type AsyncGraphVariantGenerators = Record<GraphVariant, (graph: EffectorGraph) => Promise<EffectorGraph>>;
+export type AsyncGraphCleaner = (graph: EffectorGraph, signal: AbortSignal) => Promise<EffectorGraph>;
+export type AsyncGraphVariantGenerators = Record<GraphVariant, AsyncGraphCleaner>;
 
 function jsonStringifyRecursive(obj) {
 	const cache = new Set();
@@ -579,15 +589,31 @@ export function memoize<T extends (...args: any[]) => any>(fn: T): T {
 }
 
 export function makeGraphVariants(
-	cleaningPipeline: GraphCleaner,
-	dropNodes: GraphCleaner,
+	cleaningPipeline: AsyncGraphCleaner,
+	dropNodes: AsyncGraphCleaner,
 	layouterFactory: () => Layouter,
 ): AsyncGraphVariantGenerators {
-	const raw = (graph: EffectorGraph) => layoutGraph(graph, layouterFactory);
-	const cleaned = async (graph: EffectorGraph) => cleaningPipeline(await raw(graph));
-	const cleanedNoNodes = async (graph: EffectorGraph) => dropNodes(await cleaned(graph));
-	const cleanedNoNodesLayouted = async (graph: EffectorGraph) =>
-		await layoutGraph(await cleanedNoNodes(graph), layouterFactory);
+	const raw: AsyncGraphCleaner = async (graph) => layoutGraph(graph, layouterFactory);
+	const cleaned: AsyncGraphCleaner = async (graph, signal) => cleaningPipeline(await raw(graph, signal), signal);
+	const cleanedNoNodes: AsyncGraphCleaner = async (graph, signal) => dropNodes(await cleaned(graph, signal), signal);
+	const cleanedNoNodesLayouted: AsyncGraphCleaner = async (graph, signal) => {
+		const cleanedGraph = await cleaningPipeline(graph, signal);
+
+		const { graph: noOwnershipGraph, restoreEdges } = extractEdges(cleanedGraph, (edge) => {
+			const regularNode = maybeRegularNode(edge.data.relatedNodes.source);
+			if (!regularNode) return false;
+			if (regularNode.data.folded) return false;
+
+			const meta = getMeta(regularNode);
+			if (!meta) return false;
+
+			return meta.isFactory || meta.isDomain;
+		});
+
+		const layoutedGraph = await layoutGraph(noOwnershipGraph, layouterFactory);
+		return restoreEdges(layoutedGraph);
+	};
+
 	return {
 		raw,
 		cleaned,
@@ -595,3 +621,36 @@ export function makeGraphVariants(
 		cleanedNoNodesLayouted,
 	};
 }
+
+const maybeRegularNode = (node: EffectorNode): RegularEffectorNode | undefined =>
+	isRegularNode(node) ? (node as RegularEffectorNode) : undefined;
+
+const getMeta = (node: EffectorNode): MetaHelper | undefined =>
+	isRegularNode(node) ? (node as RegularEffectorNode).data.effector.meta : undefined;
+
+export const extractEdges = (
+	graph: EffectorGraph,
+	shouldEdgeBeRemoved: (edge: MyEdge) => boolean,
+): {
+	graph: EffectorGraph;
+	edges: MyEdge[];
+	restoreEdges: (graph: EffectorGraph) => EffectorGraph;
+} => {
+	const filteredEdges = graph.edges.filter(shouldEdgeBeRemoved);
+
+	const restoreEdges = (graph: EffectorGraph) => {
+		return {
+			nodes: graph.nodes,
+			edges: graph.edges.concat(...filteredEdges),
+		};
+	};
+
+	return {
+		graph: {
+			nodes: graph.nodes,
+			edges: graph.edges.filter((edge) => !filteredEdges.includes(edge)),
+		},
+		edges: filteredEdges,
+		restoreEdges,
+	};
+};

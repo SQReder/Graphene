@@ -1,10 +1,9 @@
 import { createFactory, invoke } from '@withease/factories';
-import { attach, type Event } from 'effector';
-import { createDomain, createEffect, createEvent, createStore, restore, sample } from 'effector';
+import { attach, createDomain, createEffect, createEvent, createStore, type Event, restore, sample } from 'effector';
 import { persist } from 'effector-storage/local';
 import { debug, readonly } from 'patronum';
 import { abortable, type WithAbortSignal } from '../abortable';
-import { createBooleanStore } from '../debounceStore';
+import { createBooleanStore, debounceStore } from '../debounceStore';
 import { createTodoListApi } from '../examples/todo';
 import { type GrapheneMeta, type GrapheneStory, grapheneStoryMeta } from './meta-factored';
 
@@ -204,7 +203,7 @@ export const AttachedEffectWithSourceAndUpdateThroughSamlple: GrapheneStory = {
 				clock: randomFx.doneData,
 				source: { value: $value },
 				fn: ({ value }, random) => value * random,
-				targreet: $value,
+				target: $value,
 			});
 
 			return { attachedFx: randomFx };
@@ -236,6 +235,44 @@ export const Persist = {
 			persist({ store: $store });
 
 			return { $store };
+		},
+	},
+};
+
+export const DebouncedStore = {
+	args: {
+		factory: () => {
+			const $store = createStore(0);
+			const $debounced = debounceStore({ source: $store, defaultState: 0, timeoutMs: 100 });
+
+			const $mapped = $debounced.map((x) => x);
+
+			return $mapped;
+		},
+	},
+};
+
+export const readonlyOwnershipDemoInlined = {
+	args: {
+		factory: () => {
+			const debouncedStoreValueChanged = createEvent<number>();
+			const $inlined = readonly(restore(debouncedStoreValueChanged, 0));
+
+			const $fooed = $inlined.map(Boolean);
+			return $fooed;
+		},
+	},
+};
+
+export const readonlyOwnershipDemoSepearted = {
+	args: {
+		factory: () => {
+			const debouncedStoreValueChanged = createEvent<number>();
+			const $separate = restore(debouncedStoreValueChanged, 0);
+			const $separated = readonly($separate);
+			const $fooed = $separated.map(Boolean);
+
+			return $fooed;
 		},
 	},
 };

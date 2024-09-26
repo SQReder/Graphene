@@ -1,6 +1,6 @@
 import { createOwnershipEdge } from '../../edge-factories';
 import { ensureDefined, isRegularNode } from '../../lib';
-import type { EffectorNode, MyEdge, RegularEffectorNode } from '../../types';
+import type { MyEdge, RegularEffectorNode } from '../../types';
 import { makeGraphLookups } from './lib';
 import type { NamedGraphCleaner } from './types';
 
@@ -29,21 +29,24 @@ const isRegionRoot = (node: RegularEffectorNode) => {
 export const regionOwnershipReflow: NamedGraphCleaner = {
 	name: 'Region Ownership Reflow',
 	apply: (graph) => {
+		console.groupCollapsed('Region Ownership Reflow');
 		const lookups = makeGraphLookups(graph);
 
 		const edgesToRemove: MyEdge[] = [];
 		const edgesToAdd: MyEdge[] = [];
 
 		for (const regionNode of lookups.nodes.values()) {
-			if (!isRegularNode(regionNode)) continue;
-			if (!isRegionRoot(regionNode)) continue;
+			if (!isRegularNode(regionNode) || !isRegionRoot(regionNode)) {
+				continue;
+			}
+
+			console.groupCollapsed(`Processing node: ${regionNode.id}`);
 
 			const regionOwnershipEdges = lookups.edgesBySource.ownership.get(regionNode.id);
 
 			const restricted = regionOwnershipEdges
 				?.filter((edge) => {
 					const edgesWithSameTarget = lookups.edgesByTarget.ownership.get(edge.target);
-					console.log('edgesWithSameTarget', edge.target, edgesWithSameTarget);
 					return edgesWithSameTarget && edgesWithSameTarget?.length > 1;
 				})
 				.filter((edge) => {
@@ -103,7 +106,12 @@ export const regionOwnershipReflow: NamedGraphCleaner = {
 					edgesToAdd.push(...reflowed);
 				}
 			}
+			console.groupEnd();
 		}
+
+		console.log('Edges to remove:', edgesToRemove);
+		console.log('Edges to add:', edgesToAdd);
+		console.groupEnd();
 
 		return {
 			nodes: graph.nodes,

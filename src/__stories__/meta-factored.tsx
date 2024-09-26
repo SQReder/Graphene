@@ -8,7 +8,9 @@ import type { NamedGraphCleaner } from '../graph-morphers/cleaners/types';
 import { pipeline } from '../graph-morphers/pipeline';
 import { Graphene } from '../Graphene';
 import { Layouters } from '../layouters';
-import { appModelFactory, declarationsStoreModelFactory, grapheneModelFactory } from '../model';
+import { appModelFactory } from '../model/app';
+import { declarationsStoreModelFactory } from '../model/declarationsStore';
+import { grapheneModelFactory } from '../model/graphene';
 import { CleanerSelector } from '../ui/CleanerSelector';
 
 export type Params = { factory: () => Record<string, unknown> };

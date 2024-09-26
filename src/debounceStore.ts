@@ -1,4 +1,4 @@
-import { createStore, restore, type Store } from 'effector';
+import { createStore, restore, type Store, withRegion } from 'effector';
 import { debounce, readonly } from 'patronum';
 
 export const debounceStore = <T>({
@@ -9,6 +9,14 @@ export const debounceStore = <T>({
 	source: Store<T>;
 	defaultState: T;
 	timeoutMs: number;
-}): Store<T> => readonly(restore(debounce(source, timeoutMs), defaultState));
+}): Store<T> => {
+	let $debouncedStore: Store<T>;
+
+	withRegion(source, () => {
+		$debouncedStore = readonly(restore(debounce(source, timeoutMs), defaultState));
+	});
+
+	return $debouncedStore!;
+};
 
 export const createBooleanStore = () => createStore(true);

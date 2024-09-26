@@ -5,5 +5,8 @@ export * as Layouters from './namespace';
 
 export async function layoutGraph(graph: EffectorGraph, layouterFactory: () => Layouter) {
 	const layouter = layouterFactory();
-	return layouter.getLayoutedElements(graph.nodes, graph.edges);
+	console.log('starting layouter');
+	const layouted = layouter.getLayoutedElements(graph.nodes, graph.edges);
+	console.log('layouter finished');
+	return layouted;
 }

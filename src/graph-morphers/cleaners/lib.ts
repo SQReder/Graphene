@@ -1,4 +1,5 @@
 import {
+	type AsyncGraphCleaner,
 	findNodesByOpTypeWithRelatedEdges,
 	getEdgesBy,
 	type GraphTypedEdgesSelector,
@@ -46,8 +47,8 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 		const edgesToAdd: T[] = [];
 
 		const nodesAndStuff = findNodesByOpTypeWithRelatedEdges(transitiveOpType, {
-			byTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
-			bySource: lookups.edgesBySource[selector] as Map<string, T[]>,
+			edgesByTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
+			edgesBySource: lookups.edgesBySource[selector] as Map<string, T[]>,
 			nodes: lookups.nodes,
 		});
 
@@ -125,8 +126,8 @@ export const createStoreUpdatesWithNoChildrenCleaner =
 		const nodes = findNodesByOpTypeWithRelatedEdges<T>(
 			OpType.Event,
 			{
-				bySource: lookups.edgesBySource[selector] as Map<string, T[]>,
-				byTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
+				edgesBySource: lookups.edgesBySource[selector] as Map<string, T[]>,
+				edgesByTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
 				nodes: lookups.nodes,
 			},
 			(node) => node.data.effector.name === 'updates' && node.data.effector.isDerived,
@@ -148,8 +149,8 @@ export const createReinitCleaner =
 		const nodes = findNodesByOpTypeWithRelatedEdges(
 			OpType.Event,
 			{
-				bySource: lookups.edgesBySource[selector] as Map<string, T[]>,
-				byTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
+				edgesBySource: lookups.edgesBySource[selector] as Map<string, T[]>,
+				edgesByTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
 				nodes: lookups.nodes,
 			},
 			(node) => node.data.effector.name === 'reinit',
@@ -276,8 +277,8 @@ export const dropEdgesOfNode =
 		const factories = findNodesByOpTypeWithRelatedEdges(
 			opType,
 			{
-				bySource: lookups.edgesBySource[selector] as Map<string, T[]>,
-				byTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
+				edgesBySource: lookups.edgesBySource[selector] as Map<string, T[]>,
+				edgesByTarget: lookups.edgesByTarget[selector] as Map<string, T[]>,
 				nodes: lookups.nodes,
 			},
 			filter,
@@ -293,9 +294,17 @@ export const dropEdgesOfNode =
 	};
 
 export const createGraphCleaner =
-	(cleaners: readonly NamedGraphCleaner[]): GraphCleaner =>
-	(graph) => {
-		return cleaners.reduce((graph, namedCleaner) => namedCleaner.apply(graph), shallowCopyGraph(graph));
+	(cleaners: readonly NamedGraphCleaner[]): AsyncGraphCleaner =>
+	async (graph, signal) => {
+		let currentGraph = shallowCopyGraph(graph);
+
+		for await (const namedCleaner of cleaners) {
+			if (signal.aborted) {
+				throw new Error('⛔ Aborted at ' + namedCleaner.name);
+			}
+			currentGraph = await namedCleaner.apply(currentGraph);
+		}
+		return currentGraph;
 	};
 
 export function withOrder(order: number, ...cleaners: NamedGraphCleaner[]): NamedGraphCleaner[] {
