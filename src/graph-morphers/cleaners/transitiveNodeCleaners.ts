@@ -1,7 +1,7 @@
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
-import { type GraphTypedEdgesSelector, isOwnershipEdge, isReactiveEdge, isRegularNode } from '../../lib';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
+import { type GraphTypedEdgesSelector, isReactiveEdge, isRegularNode, isSourceEdge } from '../../lib';
 import { pipe } from '../../tiny-fp/pipe';
-import { type EffectorNode, type MyEdge, NodeFamily, OpType, type OwnershipEdge } from '../../types';
+import { type EffectorNode, type MyEdge, NodeFamily, OpType, type SourceEdge } from '../../types';
 import { edgeCleanerToGraphCleaner, makeTransitiveNodeReplacer } from './lib';
 import type { EdgeCreator, GraphCleaner, NamedGraphCleaner } from './types';
 
@@ -18,9 +18,9 @@ const makeTransitiveNodeReplacerFactory =
 		});
 
 const makeTransitiveNodeOwnershipReplacerForOpType = makeTransitiveNodeReplacerFactory(
-	'ownership',
-	(owner: OwnershipEdge, child: OwnershipEdge, node: EffectorNode, transitiveOpType: OpType | undefined) => {
-		return createOwnershipEdge({
+	'source',
+	(owner: SourceEdge, child: SourceEdge, node: EffectorNode, transitiveOpType: OpType | undefined) => {
+		return createSourceEdge({
 			id: `${owner.source} owns ${child.target} [[${node.id}]]`,
 			source: owner.data.relatedNodes.source,
 			target: child.data.relatedNodes.target,
@@ -30,7 +30,7 @@ const makeTransitiveNodeOwnershipReplacerForOpType = makeTransitiveNodeReplacerF
 			},
 		});
 	},
-	isOwnershipEdge,
+	isSourceEdge,
 );
 
 const makeTransitiveNodeReactiveReplacerForOpType = makeTransitiveNodeReplacerFactory(

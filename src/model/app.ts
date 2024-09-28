@@ -9,13 +9,23 @@ import {
 	GraphVariant,
 	isCombinedStoreNode,
 	isDeclarationNode,
-	isOwnershipEdge,
+	isParentToChildEdge,
 	isReactiveEdge,
 	isRegularNode,
+	isSourceEdge,
 } from '../lib';
-import { EdgeType, type EffectorNode, type MyEdge } from '../types';
+import type { EdgeType } from '../types';
+import { type EffectorNode, type MyEdge } from '../types';
 import { generatedGraphModelFactory, type NamedCleanerSelectorModel } from './generatedGraph';
 import type { GrapheneModel } from './graphene';
+
+export type VisibleEdgesVariant =
+	| `${typeof EdgeType.Reactive}`
+	| `${typeof EdgeType.Source}`
+	| `${typeof EdgeType.ParentToChild}`
+	| `${typeof EdgeType.Reactive}+${typeof EdgeType.Source}`
+	| `${typeof EdgeType.Reactive}+${typeof EdgeType.ParentToChild}`
+	| `${typeof EdgeType.Reactive}+${typeof EdgeType.Source}+${typeof EdgeType.ParentToChild}`;
 
 export const appModelFactory = createFactory(
 	({
@@ -33,17 +43,10 @@ export const appModelFactory = createFactory(
 	}) => {
 		const Gate = createGate<void>();
 
-		const edgesVariantChanged = createEvent<EdgeType[]>();
-		const $edgesVariant = restore(
-			edgesVariantChanged.map((items) => new Set(items)),
-			new Set([EdgeType.Reactive, EdgeType.Ownership]),
-		);
-
 		const graphVariantChanged = createEvent<GraphVariant>();
 		const $selectedGraphVariant = restore(graphVariantChanged, GraphVariant.cleanedNoNodesLayouted);
 		const { graphGenerated } = invoke(generatedGraphModelFactory, {
 			grapheneModel,
-			$edgesVariant,
 			layouterFactory,
 			pickupStoredPipeline: Gate.open,
 			graphCleanerSelector,
@@ -52,7 +55,7 @@ export const appModelFactory = createFactory(
 			$selectedGraphVariant,
 		});
 		const hideNodesWithNoLocationChanged = createEvent<boolean>();
-		const $hideNodesWithNoLocation = readonly(restore(hideNodesWithNoLocationChanged, true));
+		const $hideNodesWithNoLocation = readonly(restore(hideNodesWithNoLocationChanged, false));
 
 		const edgesChanged = createEvent<MyEdge[]>();
 		const $edges = readonly(
@@ -73,18 +76,18 @@ export const appModelFactory = createFactory(
 
 				if (!isRegular || !hideNodesWithNoLocation) return { ...node, hidden: false };
 
-				const hasMetaLoc = node.data.effector.meta.loc != null;
-				const region = node.data.declaration?.declaration?.region;
-				const hasDeclarationRegionLoc = region && 'loc' in region && region.loc != null;
-				const isCombined = node.data.effector.meta.isCombinedStore;
+				// const hasMetaLoc = node.data.effector.meta.loc != null;
+				// const region = node.data.declaration?.declaration?.region;
+				// const hasDeclarationRegionLoc = region && 'loc' in region && region.loc != null;
+				// const isCombined = node.data.effector.meta.isCombinedStore;
 
-				const hasFactoryLoc = node.data.effector.graphite.family.owners.some(
-					(owner) => owner.meta.op === undefined && owner.meta.loc != null,
-				);
+				// const hasFactoryLoc = node.data.effector.graphite.family.owners.some(
+				// 	(owner) => owner.meta.op === undefined && owner.meta.loc != null,
+				// );
 
 				return {
 					...node,
-					hidden: !(hasMetaLoc || hasDeclarationRegionLoc || isCombined || hasFactoryLoc),
+					hidden: node.data.noLoc || !node.data.effector.loc,
 				};
 			}),
 		);
@@ -174,19 +177,25 @@ export const appModelFactory = createFactory(
 			target: dumpEdgeInfo,
 		});
 
-		const visibleEdgesChanged = createEvent<'reactive' | 'ownership' | 'reactive+ownership'>();
-		const $visibleEdges = restore(visibleEdgesChanged, 'reactive+ownership');
+		const visibleEdgesChanged = createEvent<VisibleEdgesVariant>();
+		const $visibleEdges = restore<VisibleEdgesVariant>(visibleEdgesChanged, 'reactive+source');
 
 		const $filteredEdges = combine($edges, $visibleEdges, (edges, visibleEdges) => {
 			switch (visibleEdges) {
 				case 'reactive':
 					return edges.filter(isReactiveEdge);
-				case 'ownership':
-					return edges.filter(isOwnershipEdge);
-				case 'reactive+ownership':
+				case 'source':
+					return edges.filter(isSourceEdge);
+				case 'parent-to-child':
+					return edges.filter(isParentToChildEdge);
+				case 'reactive+parent-to-child':
+					return edges.filter((edge) => isReactiveEdge(edge) || isParentToChildEdge(edge));
+				case 'reactive+source':
+					return edges.filter((edge) => isReactiveEdge(edge) || isSourceEdge(edge));
+				case 'reactive+source+parent-to-child':
 					return edges;
 				default:
-					absurd(visibleEdges);
+					throw new RangeError(`Unexpected visibleEdges: ${visibleEdges}`);
 			}
 		});
 
@@ -197,9 +206,6 @@ export const appModelFactory = createFactory(
 			'@@unitShape': () => ({
 				hideNodesWithNoLocationChanged,
 				hideNodesWithNoLocation: $hideNodesWithNoLocation,
-
-				edgesVariantChanged,
-				edgesVariant: $edgesVariant,
 
 				graphVariantChanged,
 				selectedGraphVariant: $selectedGraphVariant,

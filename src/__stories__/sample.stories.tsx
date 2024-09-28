@@ -185,6 +185,43 @@ export const SourceManyStoresShape_TargetEvent: GrapheneStory = {
 	},
 };
 
+export const SourceManyStoresArray_TargetEvent: GrapheneStory = {
+	args: {
+		factory: () => {
+			const sourceStore1 = createStore(0);
+			const sourceStore2 = createStore(0);
+			const targetEvent = createEvent();
+
+			sample({
+				source: [sourceStore1, sourceStore2],
+				target: targetEvent,
+			});
+
+			return {
+				targetEvent,
+			};
+		},
+	},
+};
+export const ClockManyStores_TargetEvent: GrapheneStory = {
+	args: {
+		factory: () => {
+			const sourceStore1 = createStore(0);
+			const sourceStore2 = createStore(0);
+			const targetEvent = createEvent();
+
+			sample({
+				clock: [sourceStore1, sourceStore2],
+				target: targetEvent,
+			});
+
+			return {
+				targetEvent,
+			};
+		},
+	},
+};
+
 export const Monstrous: GrapheneStory = {
 	args: {
 		factory: () => {

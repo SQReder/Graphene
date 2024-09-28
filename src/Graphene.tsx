@@ -13,14 +13,14 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGate, useUnit } from 'effector-react';
-import type { ComponentType, FC, KeyboardEventHandler } from 'react';
+import type { ComponentType, FC, KeyboardEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
-import type { appModelFactory } from './model/app';
+import type { appModelFactory, VisibleEdgesVariant } from './model/app';
 import { nodeTypes } from './nodeTypes';
-import { EdgesViewVariant, type EffectorNode, type MyEdge } from './types';
+import { EdgeType, type EffectorNode, type MyEdge } from './types';
 import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
@@ -45,6 +45,18 @@ const withReactFlowProvider = <P extends object>(Component: ComponentType<P>) =>
 	};
 };
 
+const Label: FC<{
+	variant: VisibleEdgesVariant;
+	value: VisibleEdgesVariant;
+	onChange: (value: VisibleEdgesVariant) => void;
+	children: ReactNode;
+}> = ({ variant, value, onChange, children }) => (
+	<label>
+		<input type="radio" checked={value === variant} onChange={() => onChange(variant)} />
+		{children}
+	</label>
+);
+
 export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withReactFlowProvider(({ model }) => {
 	useGate(model.Gate);
 
@@ -56,7 +68,6 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		nodeClicked,
 		edgeClicked,
 		graphVariantChanged,
-		edgesVariantChanged,
 		visibleEdgesChanged,
 		visibleEdges,
 		hideNodesWithNoLocationChanged,
@@ -77,25 +88,10 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 
 	const { isDarkMode } = useDarkMode({});
 
-	const setGraph = useCallback(
-		(edges: EdgesViewVariant[], stage: GraphVariant) => {
-			edgesVariantChanged(edges);
-			graphVariantChanged(stage);
-		},
-		[edgesVariantChanged, graphVariantChanged],
-	);
-
 	return (
 		<Wrapper>
 			<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
 				<Aside>
-					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive])}>Reactive</button>
-					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Ownership])}>Ownership</button>
-					<button onClick={() => edgesVariantChanged([EdgesViewVariant.Reactive, EdgesViewVariant.Ownership])}>
-						Reactive + Ownership
-					</button>
-					<hr />
-
 					<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
 					<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
 					<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodes)}>CleanedNoNodes</button>
@@ -104,61 +100,28 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 					</button>
 					<hr />
 
-					<details style={{ display: 'contents' }}>
-						<summary>Reactive</summary>
-						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.raw)}>Raw</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleaned)}>Cleaned</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodes)}>
-							CleanedNoNodes
-						</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Reactive], GraphVariant.cleanedNoNodesLayouted)}>
-							CleanedNoNodesLayouted
-						</button>
-					</details>
-
-					<details style={{ display: 'contents' }}>
-						<summary>Ownership</summary>
-						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.raw)}>Raw</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleaned)}>Cleaned</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodes)}>
-							CleanedNoNodes
-						</button>
-						<button onClick={() => setGraph([EdgesViewVariant.Ownership], GraphVariant.cleanedNoNodesLayouted)}>
-							CleanedNoNodes Layouted
-						</button>
-					</details>
-
-					{/*<hr />*/}
-					{/*<CleanerSelector.View model={model.reactiveEdgeCleanerSelector} placeholder={'Reactive edge cleaners'} />*/}
-					{/*<CleanerSelector.View model={model.ownershipEdgeCleanerSelector} placeholder={'Ownership edge cleaners'} />*/}
 					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
 					<hr />
 					<Fieldset>
 						<legend>Visible edges</legend>
-						<label>
-							<input
-								type="radio"
-								checked={visibleEdges === 'reactive'}
-								onChange={() => visibleEdgesChanged('reactive')}
-							/>
+						<Label variant={'reactive'} value={visibleEdges} onChange={visibleEdgesChanged}>
 							Reactive
-						</label>
-						<label>
-							<input
-								type="radio"
-								checked={visibleEdges === 'ownership'}
-								onChange={() => visibleEdgesChanged('ownership')}
-							/>
+						</Label>
+						<Label variant={'source'} value={visibleEdges} onChange={visibleEdgesChanged}>
+							Source
+						</Label>
+						<Label variant={'parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
 							Ownership
-						</label>
-						<label>
-							<input
-								type="radio"
-								checked={visibleEdges === 'reactive+ownership'}
-								onChange={() => visibleEdgesChanged('reactive+ownership')}
-							/>
+						</Label>
+						<Label variant={'reactive+source'} value={visibleEdges} onChange={visibleEdgesChanged}>
+							Reactive + Source
+						</Label>
+						<Label variant={'reactive+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
 							Reactive + Ownership
-						</label>
+						</Label>
+						<Label variant={'reactive+source+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
+							All
+						</Label>
 					</Fieldset>
 					<hr />
 

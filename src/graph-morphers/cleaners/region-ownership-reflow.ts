@@ -1,4 +1,4 @@
-import { createOwnershipEdge } from '../../edge-factories';
+import { createSourceEdge } from '../../edge-factories';
 import { ensureDefined, isRegularNode } from '../../lib';
 import type { MyEdge, RegularEffectorNode } from '../../types';
 import { makeGraphLookups } from './lib';
@@ -42,11 +42,11 @@ export const regionOwnershipReflow: NamedGraphCleaner = {
 
 			console.groupCollapsed(`Processing node: ${regionNode.id}`);
 
-			const regionOwnershipEdges = lookups.edgesBySource.ownership.get(regionNode.id);
+			const regionOwnershipEdges = lookups.edgesBySource.source.get(regionNode.id);
 
 			const restricted = regionOwnershipEdges
 				?.filter((edge) => {
-					const edgesWithSameTarget = lookups.edgesByTarget.ownership.get(edge.target);
+					const edgesWithSameTarget = lookups.edgesByTarget.source.get(edge.target);
 					return edgesWithSameTarget && edgesWithSameTarget?.length > 1;
 				})
 				.filter((edge) => {
@@ -75,7 +75,7 @@ export const regionOwnershipReflow: NamedGraphCleaner = {
 			if (restricted) {
 				edgesToRemove.push(...restricted);
 
-				const factoryOwnerId = lookups.edgesByTarget.ownership
+				const factoryOwnerId = lookups.edgesByTarget.source
 					.get(regionNode.id)
 					?.find(
 						(edge) =>
@@ -85,14 +85,14 @@ export const regionOwnershipReflow: NamedGraphCleaner = {
 					const map = restricted.map((edge) => {
 						const id = edge.id + ' reflowed from ' + regionNode.id + ' to ' + factoryOwnerId;
 						console.log('id', id);
-						return createOwnershipEdge({
+						return createSourceEdge({
 							id: id,
 							source: ensureDefined(lookups.nodes.get(factoryOwnerId)),
 							target: edge.data.relatedNodes.target,
 						});
 					});
 					const reflowed = map.filter((edge) => {
-						const ownershipEdgedFromFactory = lookups.edgesBySource.ownership.get(factoryOwnerId);
+						const ownershipEdgedFromFactory = lookups.edgesBySource.source.get(factoryOwnerId);
 						const ownershipEdgedFromFactoryToTarget = ownershipEdgedFromFactory?.find(
 							(fromFactory) => fromFactory.target === edge.target,
 						);

@@ -1,6 +1,6 @@
 import { is } from 'effector';
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
-import { findNodesByOpType, isOwnershipEdge, isReactiveEdge } from '../../lib';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
+import { findNodesByOpType, isReactiveEdge, isSourceEdge } from '../../lib';
 import { pipe } from '../../tiny-fp/pipe';
 import { EdgeType, type Graphite, type MyEdge, OpType } from '../../types';
 import { makeGraphLookups } from './lib';
@@ -12,8 +12,8 @@ const makeAttachedEffectEnricher =
 		const fxNodes = findNodesByOpType(OpType.Effect, graph.nodes);
 
 		const filter: (edge: MyEdge) => edge is MyEdge =
-			edgesType === EdgeType.Ownership
-				? isOwnershipEdge
+			edgesType === EdgeType.Source
+				? isSourceEdge
 				: edgesType === EdgeType.Reactive
 				? isReactiveEdge
 				: (edge: MyEdge): edge is never => {
@@ -59,16 +59,16 @@ const makeAttachedEffectEnricher =
 				continue;
 			}
 
-			const edgesFromFx = lookups.edgesBySource.ownership.get(fxNode.id);
+			const edgesFromFx = lookups.edgesBySource.source.get(fxNode.id);
 
 			console.debug('edgesFromFx', edgesFromFx);
 
-			console.debug(edgesType, edgesType === EdgeType.Ownership);
-			if (!edgesFromFx?.some((edge) => edge.target === targetId) && edgesType === EdgeType.Ownership) {
+			console.debug(edgesType, edgesType === EdgeType.Source);
+			if (!edgesFromFx?.some((edge) => edge.target === targetId) && edgesType === EdgeType.Source) {
 				const id = `${fxNode.id} owns ${target.id}`;
 
 				edgesToAdd.push(
-					createOwnershipEdge({
+					createSourceEdge({
 						id,
 						source: fxNode,
 						target: target,
@@ -104,7 +104,7 @@ export const attachedEffectEnricher: NamedGraphCleaner = {
 	name: 'Enrich attached effects',
 	apply: (graph) => {
 		const reactive = makeAttachedEffectEnricher(EdgeType.Reactive);
-		const ownership = makeAttachedEffectEnricher(EdgeType.Ownership);
+		const ownership = makeAttachedEffectEnricher(EdgeType.Source);
 
 		return pipe(graph, reactive, ownership);
 	},

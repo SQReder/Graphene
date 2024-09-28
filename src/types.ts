@@ -16,17 +16,24 @@ interface Family {
 	owners: Graphite[];
 }
 
-export const OpType = {
-	Watch: 'watch',
-	Store: 'store',
-	Event: 'event',
+export const OpTypeWithCycles = {
 	Map: 'map',
 	On: 'on',
 	Sample: 'sample',
 	FilterMap: 'filterMap',
-	Effect: 'effect',
 	Combine: 'combine',
 	Merge: 'merge',
+	Empty: undefined,
+} as const;
+
+export type OpTypeWithCycles = (typeof OpTypeWithCycles)[keyof typeof OpTypeWithCycles];
+
+export const OpType = {
+	...OpTypeWithCycles,
+	Watch: 'watch',
+	Store: 'store',
+	Event: 'event',
+	Effect: 'effect',
 	Domain: 'domain',
 } as const;
 
@@ -109,8 +116,8 @@ export interface Graphite {
 
 export const EdgeType = {
 	Reactive: 'reactive',
-	Ownership: 'ownership',
-	Link: 'link',
+	Source: 'source',
+	ParentToChild: 'parent-to-child',
 	Unknown: 'unknown',
 } as const;
 
@@ -133,11 +140,11 @@ export interface BaseEdge<T extends EdgeType> extends Edge {
 export type ReactiveEdge = BaseEdge<typeof EdgeType.Reactive> & {
 	animated: true;
 };
-export type OwnershipEdge = BaseEdge<typeof EdgeType.Ownership>;
-export type LinkEdge = BaseEdge<typeof EdgeType.Link>;
+export type SourceEdge = BaseEdge<typeof EdgeType.Source>;
+export type ParentToChildEdge = BaseEdge<typeof EdgeType.ParentToChild>;
 export type UnknownEdge = BaseEdge<typeof EdgeType.Unknown>;
 
-export type MyEdge = ReactiveEdge | OwnershipEdge | LinkEdge | UnknownEdge;
+export type MyEdge = ReactiveEdge | SourceEdge | ParentToChildEdge | UnknownEdge;
 
 export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
 	nodes: NodeType[];
@@ -165,6 +172,16 @@ export class EffectorNodeDetails {
 		return type;
 	}
 
+	private _syntheticLocation?: string;
+
+	set syntheticLocation(loc: string) {
+		this._syntheticLocation = loc;
+	}
+
+	get loc(): string | undefined {
+		return this._syntheticLocation ?? this.meta.loc;
+	}
+
 	get meta(): MetaHelper {
 		return new MetaHelper(this.graphite.meta);
 	}
@@ -185,8 +202,44 @@ export class EffectorNodeDetails {
 		return !!this.meta.asStore?.isCombine;
 	}
 
+	private _isMergeEvent = false;
+
 	get isMergeEvent(): boolean {
-		return this._graphite.family.owners.length === 1 && this._graphite.family.owners[0].meta.op === OpType.Merge;
+		return this._isMergeEvent;
+	}
+
+	set isMergeEvent(value: boolean) {
+		this._isMergeEvent = value;
+	}
+
+	// get isMergeEvent(): boolean {
+	// 	return this.isMergeEvent;
+	//
+	// 	// const notFactoryOrDomain = this._graphite.family.owners.filter(
+	// 	// 	(owner) => owner.meta.op !== undefined && owner.meta.op !== OpType.Domain,
+	// 	// );
+	// 	//
+	// 	// if (notFactoryOrDomain.length !== 1) return false;
+	// 	//
+	// 	// const owner = notFactoryOrDomain[0];
+	// 	//
+	// 	// if (!owner) return false;
+	// 	//
+	// 	// return owner.meta && owner.meta.op === OpType.Merge;
+	// }
+}
+
+export function formatLocation(loc: Location | undefined): string | undefined {
+	return loc ? `${loc.file}:${loc.line}:${loc.column}` : undefined;
+}
+
+export function hasOpType<T extends OpType>(meta: Meta, opType: T): meta is Meta & { op: T } {
+	return this._meta.op === opType;
+}
+
+export function assertOpType<T extends OpType>(meta: Meta, opType: T): asserts meta is Meta & { op: T } {
+	if (this._meta.op !== opType) {
+		throw new Error('Assertion failed');
 	}
 }
 
@@ -205,7 +258,7 @@ export class MetaHelper {
 		return this._meta.op;
 	}
 
-	hasOpType(opType: OpType | undefined): boolean {
+	hasOpType<T extends OpType>(opType: T): this is MetaHelper & { op: T } {
 		return this._meta.op === opType;
 	}
 
@@ -305,7 +358,7 @@ export class MetaHelper {
 		} else if (this.isSample) {
 			loc = (this._meta as SampleMeta).loc;
 		}
-		return loc ? `${loc.file}:${loc.line}:${loc.column}` : undefined;
+		return loc ? formatLocation(loc) : undefined;
 	}
 }
 
@@ -337,17 +390,21 @@ function getRegionId(region: Region | undefined): string | undefined {
 	return region && 'id' in region && typeof region.id === 'string' ? region.id : undefined;
 }
 
-type BaseNode = {
+type BaseNode<T> = {
+	id: string;
+	nodeType: T;
 	synthetic?: boolean;
 	folded?: boolean;
+	shadowClone?: true;
+	label?: string;
+	noLoc?: boolean;
 };
 
-export type RegularEffectorDetails = BaseNode & {
-	label?: string;
-	nodeType: typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain;
+export type RegularEffectorDetails = BaseNode<
+	typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain
+> & {
 	effector: EffectorNodeDetails;
 	declaration?: EffectorDeclarationDetails;
-	noLoc?: boolean;
 };
 
 export const CombinatorType = {
@@ -356,15 +413,15 @@ export const CombinatorType = {
 
 export type CombinatorType = (typeof CombinatorType)[keyof typeof CombinatorType];
 
-export type CombinedNodeDetails = BaseNode & {
-	nodeType: typeof CombinatorType.Combine;
+export type CombinedNodeDetails = BaseNode<typeof CombinatorType.Combine> & {
+	effector?: undefined;
+	declaration?: undefined;
+
 	relatedNodes: EffectorNode[];
-	label?: string;
 };
 
-export type DeclarationEffectorDetails = BaseNode & {
-	label?: string;
-	nodeType: typeof NodeFamily.Declaration;
+export type DeclarationEffectorDetails = BaseNode<typeof NodeFamily.Declaration> & {
+	effector?: undefined;
 	declaration: EffectorDeclarationDetails;
 };
 
@@ -374,12 +431,6 @@ export type CombinedNode = Node<CombinedNodeDetails>;
 
 export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
-export const EdgesViewVariant = {
-	Reactive: 'reactive',
-	Ownership: 'ownership',
-} as const;
-
-export type EdgesViewVariant = (typeof EdgesViewVariant)[keyof typeof EdgesViewVariant];
 
 export type Location = {
 	file: string;

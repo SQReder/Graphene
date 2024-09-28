@@ -18,3 +18,5 @@ export { dropDomains } from './drop-domains';
 export { combineNodeFold } from './combine-node-fold';
 export { foldMergeNode } from './fold-merge-node';
 export { locEnricher, dropNoLocNodes } from './loc-enricher';
+export { ShadowClones } from './shadow-clones';
+export { foldSample } from './fold-sample';

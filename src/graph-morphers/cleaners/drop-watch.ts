@@ -1,4 +1,4 @@
-import { isOwnershipEdge, isReactiveEdge } from '../../lib';
+import { isReactiveEdge, isSourceEdge } from '../../lib';
 import { pipe } from '../../tiny-fp/pipe';
 import { OpType } from '../../types';
 import { dropEdgesOfNode, edgeCleanerToGraphCleaner } from './lib';
@@ -12,8 +12,8 @@ export const dropWatch: NamedGraphCleaner = {
 			cleaner: dropEdgesOfNode(OpType.Watch, 'incoming', 'reactive'),
 		});
 		const ownershipCleaner = edgeCleanerToGraphCleaner({
-			edgeFilter: isOwnershipEdge,
-			cleaner: dropEdgesOfNode(OpType.Watch, 'incoming', 'ownership'),
+			edgeFilter: isSourceEdge,
+			cleaner: dropEdgesOfNode(OpType.Watch, 'incoming', 'source'),
 		});
 
 		return pipe(graph, reactiveCleaner, ownershipCleaner);

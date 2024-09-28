@@ -25,7 +25,7 @@ export const reinit = {
 				continue;
 			}
 
-			edgesToRemove.push(...incoming.ownership, ...incoming.reactive, ...outgoing.ownership, ...outgoing.reactive);
+			edgesToRemove.push(...incoming.source, ...incoming.reactive, ...outgoing.source, ...outgoing.reactive);
 		}
 
 		console.groupEnd();

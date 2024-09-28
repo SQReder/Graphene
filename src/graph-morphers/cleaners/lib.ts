@@ -96,6 +96,11 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 
 			const owner = nonFactoryOwners[0];
 
+			if (!owner) {
+				console.warn('owner is not defined', owner);
+				return;
+			}
+
 			if (regularChildren.length === 0) {
 				console.warn('transitive node has no regular children', node);
 				return;
@@ -107,6 +112,11 @@ export const makeTransitiveNodeReplacer = <T extends MyEdge>(
 			}
 
 			const child = regularChildren[0];
+
+			if (!child) {
+				console.warn('child is not defined', child);
+				return;
+			}
 
 			edgesToAdd.push(edgeCreator(owner, child, node, transitiveOpType));
 
@@ -190,6 +200,12 @@ export const createReinitCleaner =
 			}
 
 			const singleOutgoingEdge = outgoing[0];
+
+			if (!singleOutgoingEdge) {
+				console.warn('no outgoing edge for reinit event', outgoing);
+				console.groupEnd();
+				continue;
+			}
 
 			for (const incomingEdge of incoming) {
 				console.debug('incoming edge', incomingEdge);
@@ -302,16 +318,18 @@ export const createGraphCleaner =
 			if (signal.aborted) {
 				throw new Error('⛔ Aborted at ' + namedCleaner.name);
 			}
+			console.groupCollapsed('Run cleaner', namedCleaner.name);
 			currentGraph = await namedCleaner.apply(currentGraph);
+			console.groupEnd();
 		}
+
 		return currentGraph;
 	};
 
-export function withOrder(order: number, ...cleaners: NamedGraphCleaner[]): NamedGraphCleaner[] {
+export function withOrder<T extends { order?: number }>(order: number, ...cleaners: T[]): T[] {
 	return cleaners.map(
-		(cleaner): NamedGraphCleaner => ({
-			name: cleaner.name,
-			apply: cleaner.apply,
+		(cleaner): T => ({
+			...cleaner,
 			order,
 		}),
 	);

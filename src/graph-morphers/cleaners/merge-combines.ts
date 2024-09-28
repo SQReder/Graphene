@@ -1,4 +1,4 @@
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
 import { findNodesByOpTypeWithRelatedTypedEdges, getEdgesBy } from '../../lib';
 import {
 	CombinatorType,
@@ -38,7 +38,7 @@ export const mergeCombines: NamedGraphCleaner = {
 			console.log('process', combinedStoreNode, incoming);
 
 			const sources = {
-				ownership: incoming.ownership.map((edge) => edge.data.relatedNodes.source),
+				ownership: incoming.source.map((edge) => edge.data.relatedNodes.source),
 				reactive: incoming.reactive.map((edge) => edge.data.relatedNodes.source),
 			};
 
@@ -47,7 +47,7 @@ export const mergeCombines: NamedGraphCleaner = {
 			const combineNodes = [...new Set(sources.reactive)];
 
 			edgesToRemove.push(
-				...incoming.ownership.filter((edge) => combineNodes.includes(edge.data.relatedNodes.source)),
+				...incoming.source.filter((edge) => combineNodes.includes(edge.data.relatedNodes.source)),
 				...incoming.reactive,
 			);
 
@@ -58,6 +58,7 @@ export const mergeCombines: NamedGraphCleaner = {
 			const syntheticCombineNode = {
 				id: syntheticCombineNodeId,
 				data: {
+					id: syntheticCombineNodeId,
 					nodeType: CombinatorType.Combine,
 					label: '...',
 					relatedNodes: combineNodes,
@@ -72,7 +73,7 @@ export const mergeCombines: NamedGraphCleaner = {
 			nodesToAdd.push(syntheticCombineNode);
 
 			edgesToAdd.push(
-				createOwnershipEdge({
+				createSourceEdge({
 					id: `⊕ ${syntheticCombineNodeId} owns [${combinedStoreNode.id}]`,
 					source: syntheticCombineNode,
 					target: combinedStoreNode,
@@ -85,13 +86,13 @@ export const mergeCombines: NamedGraphCleaner = {
 			);
 
 			combineNodes.forEach((combineNode) => {
-				const ownershipEdges = lookups.edgesByTarget.ownership.get(combineNode.id) ?? [];
+				const ownershipEdges = lookups.edgesByTarget.source.get(combineNode.id) ?? [];
 
 				const owners = ownershipEdges?.map((e) => e.data.relatedNodes.source);
 
 				owners?.forEach((owner) => {
 					edgesToAdd.push(
-						createOwnershipEdge({
+						createSourceEdge({
 							id: `⊕ ${owner.id} owns ${combineNode.id}`,
 							source: owner,
 							target: syntheticCombineNode,

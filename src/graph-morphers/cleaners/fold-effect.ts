@@ -1,4 +1,4 @@
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
 import { isRegularNode } from '../../lib';
 import { EdgeType, type EffectorNode, OpType, type RegularEffectorNode } from '../../types';
 import { foldByShape, type RootSelector } from './foldByShape';
@@ -10,13 +10,13 @@ export const foldEffect = foldByShape(
 	effectSelector,
 	{
 		outboundOwnership: ({ id, edge, root }) =>
-			createOwnershipEdge({
+			createSourceEdge({
 				id,
 				source: root,
 				target: edge.data.relatedNodes.target,
 				extras: (ownershipEdge) => {
 					const source = edge.data.relatedNodes.source as RegularEffectorNode;
-					ownershipEdge.style!.stroke = getEffectEdgeColor(source, EdgeType.Ownership);
+					ownershipEdge.style!.stroke = getEffectEdgeColor(source, EdgeType.Source);
 					const meta = source.data.effector.meta;
 					ownershipEdge.label = meta.name ?? '??';
 				},
@@ -59,7 +59,7 @@ const getEffectEdgeColor = (node: EffectorNode, kind: EdgeType): string | undefi
 
 	if (meta) {
 		const name = meta.name;
-		if (name.startsWith('done')) return kind === 'ownership' ? 'lightgreen' : 'green';
-		if (name.startsWith('fail')) return kind === 'ownership' ? 'lightcoral' : 'red';
+		if (name.startsWith('done')) return kind === EdgeType.Source ? 'lightgreen' : 'green';
+		if (name.startsWith('fail')) return kind === EdgeType.Source ? 'lightcoral' : 'red';
 	}
 };

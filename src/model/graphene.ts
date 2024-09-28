@@ -1,14 +1,10 @@
 import { createFactory } from '@withease/factories';
 import { combine, createEvent, createStore, type Unit } from 'effector';
-import { readonly, reshape } from 'patronum';
+import { readonly } from 'patronum';
 import { debounceStore } from '../debounceStore';
-import { createEffectorNodesLookup, makeEdgesFromNodes } from '../lib';
-import {
-	type DeclarationEffectorNode,
-	EffectorDeclarationDetails,
-	type EffectorNode,
-	type RegularEffectorNode,
-} from '../types';
+import { cleanupEdges, generateEdges } from '../edges-generator';
+import { createEffectorNodesLookup } from '../lib';
+import { type DeclarationEffectorNode, EffectorDeclarationDetails, type EffectorNode } from '../types';
 import type { DeclarationsStoreModel } from './declarationsStore';
 
 export const grapheneModelFactory = createFactory(
@@ -26,91 +22,67 @@ export const grapheneModelFactory = createFactory(
 		});
 		const $regularNodes = $debouncedUnits.map((units) => (units.length > 0 ? createEffectorNodesLookup(units) : []));
 
+		const $edges = $regularNodes.map((nodes) => {
+			const edges = generateEdges(nodes);
+			return cleanupEdges(edges, nodes);
+		});
+
 		const $debouncedDeclarations = debounceStore({
 			source: declarationsModel.$declarations,
 			defaultState: [],
 			timeoutMs: 100,
 		});
 
-		const $effectorNodesLookup = combine(
-			$regularNodes,
-			$debouncedDeclarations,
-			(effectorNodesById, declarations): Map<string, EffectorNode> => {
-				if (effectorNodesById.length === 0) {
-					console.log('skip graph computing');
-					return new Map();
-				}
+		const $nodes = combine($regularNodes, $debouncedDeclarations, (effectorNodesById, declarations): EffectorNode[] => {
+			if (effectorNodesById.length === 0) {
+				console.log('skip graph computing');
+				return [];
+			}
 
-				console.log('Nodes:', effectorNodesById);
-				console.log('Declarations:', declarations);
+			console.log('Nodes:', effectorNodesById);
+			console.log('Declarations:', declarations);
 
-				const regularNodeIds = new Set(effectorNodesById.map((node) => node.id));
+			const regularNodeIds = new Set(effectorNodesById.map((node) => node.id));
 
-				const nonUnitNodes: Array<[string, DeclarationEffectorNode]> = [];
-				console.groupCollapsed('matching declarations');
-				for (const declaration of declarations) {
-					const declarationDetails = new EffectorDeclarationDetails(declaration);
+			const nonUnitNodes: DeclarationEffectorNode[] = [];
+			console.groupCollapsed('matching declarations');
+			for (const declaration of declarations) {
+				const declarationDetails = new EffectorDeclarationDetails(declaration);
 
-					if (!regularNodeIds.has(declaration.id)) {
-						if (declaration.type !== 'unit') {
-							nonUnitNodes.push([
-								declaration.id,
-								{
-									id: declaration.id,
-									data: {
-										nodeType: 'declaration',
-										declaration: declarationDetails,
-										label: declaration.name,
-									},
-									position: { x: 0, y: 0 },
-								},
-							]);
-						}
-					} else {
-						console.groupCollapsed(`Declaration ${declaration.id} matched with regular unit`);
-						console.log('Declaration:', declaration);
-						const foundRegularUnit = effectorNodesById.find((node) => node.id === declaration.id);
-						console.log('Regular unit:', foundRegularUnit);
-
-						if (foundRegularUnit) {
-							foundRegularUnit.data.declaration = declarationDetails;
-						}
-						console.groupEnd();
+				if (!regularNodeIds.has(declaration.id)) {
+					if (declaration.type !== 'unit') {
+						nonUnitNodes.push({
+							id: declaration.id,
+							data: {
+								id: declaration.id,
+								nodeType: 'declaration',
+								declaration: declarationDetails,
+								label: declaration.name,
+							},
+							position: { x: 0, y: 0 },
+						});
 					}
-				}
-				console.groupEnd();
+				} else {
+					console.groupCollapsed(`Declaration ${declaration.id} matched with regular unit`);
+					console.log('Declaration:', declaration);
+					const foundRegularUnit = effectorNodesById.find((node) => node.id === declaration.id);
+					console.log('Regular unit:', foundRegularUnit);
 
-				const regularNodeEntries: Array<[string, RegularEffectorNode]> = effectorNodesById.map((node) => [
-					node.id,
-					node,
-				]);
-				return new Map<string, EffectorNode>([...regularNodeEntries, ...nonUnitNodes]);
-			},
-		);
-
-		const edges = reshape({
-			source: $effectorNodesLookup.map((map) => {
-				try {
-					return makeEdgesFromNodes(map);
-				} catch (e) {
-					console.error(e);
-					return { linkingEdges: [], ownerhipEdges: [], reactiveEdges: [] } satisfies ReturnType<
-						typeof makeEdgesFromNodes
-					>;
+					if (foundRegularUnit) {
+						foundRegularUnit.data.declaration = declarationDetails;
+					}
+					console.groupEnd();
 				}
-			}),
-			shape: {
-				$reactive: (edges) => edges.reactiveEdges,
-				$ownership: (edges) => edges.ownerhipEdges,
-				$linking: (edges) => edges.linkingEdges,
-			},
+			}
+			console.groupEnd();
+
+			return [...effectorNodesById, ...nonUnitNodes];
 		});
-
-		const $nodes = $effectorNodesLookup.map((nodes) => [...nodes.values()]);
+		const $effectorNodesLookup = $nodes.map((nodes) => new Map(nodes.map((node) => [node.id, node])));
 
 		return {
 			$effectorNodesLookup,
-			...edges,
+			$edges,
 			$nodes,
 			appendUnits,
 		};

@@ -1,5 +1,16 @@
 import { createFactory, invoke } from '@withease/factories';
-import { attach, createDomain, createEffect, createEvent, createStore, type Event, restore, sample } from 'effector';
+import {
+	attach,
+	combine,
+	createDomain,
+	createEffect,
+	createEvent,
+	createStore,
+	type Event,
+	restore,
+	sample,
+	type Store,
+} from 'effector';
 import { persist } from 'effector-storage/local';
 import { debug, readonly } from 'patronum';
 import { abortable, type WithAbortSignal } from '../abortable';
@@ -271,6 +282,23 @@ export const readonlyOwnershipDemoSepearted = {
 			const $separate = restore(debouncedStoreValueChanged, 0);
 			const $separated = readonly($separate);
 			const $fooed = $separated.map(Boolean);
+
+			return $fooed;
+		},
+	},
+};
+
+export const TooManyChildren = {
+	args: {
+		factory: () => {
+			const $store = createStore(0);
+
+			const combined: Array<Store<number>> = [];
+			for (let i = 0; i < 15; i++) {
+				combined.push($store.map((x) => x * i));
+			}
+
+			const $fooed = combine(...combined);
 
 			return $fooed;
 		},

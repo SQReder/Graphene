@@ -1,4 +1,4 @@
-import { isOwnershipEdge, isReactiveEdge } from '../../lib';
+import { isReactiveEdge, isSourceEdge } from '../../lib';
 import { pipe } from '../../tiny-fp/pipe';
 import { createStoreUpdatesWithNoChildrenCleaner, edgeCleanerToGraphCleaner } from './lib';
 import type { NamedGraphCleaner } from './types';
@@ -11,8 +11,8 @@ export const storeUpdatesWithNoChildren: NamedGraphCleaner = {
 			cleaner: createStoreUpdatesWithNoChildrenCleaner('reactive'),
 		});
 		const ownershipCleaner = edgeCleanerToGraphCleaner({
-			edgeFilter: isOwnershipEdge,
-			cleaner: createStoreUpdatesWithNoChildrenCleaner('ownership'),
+			edgeFilter: isSourceEdge,
+			cleaner: createStoreUpdatesWithNoChildrenCleaner('source'),
 		});
 
 		return pipe(graph, reactiveCleaner, ownershipCleaner);

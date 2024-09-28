@@ -1,7 +1,7 @@
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
 import type { Lookups } from '../../lib';
 import { getEdgesBy, isRegularNode } from '../../lib';
-import type { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from '../../types';
+import type { EffectorNode, MyEdge, ReactiveEdge, SourceEdge } from '../../types';
 import type { NamedGraphCleaner } from './types';
 
 export type RootSelector = (node: EffectorNode) => boolean;
@@ -18,19 +18,19 @@ type EdgeCreator<T extends MyEdge> = ({
 }) => T;
 
 type EdgeFactories = {
-	inboundOwnership: EdgeCreator<OwnershipEdge>;
+	inboundOwnership: EdgeCreator<SourceEdge>;
 	inboundReactive: EdgeCreator<ReactiveEdge>;
-	outboundOwnership: EdgeCreator<OwnershipEdge>;
+	outboundOwnership: EdgeCreator<SourceEdge>;
 	outboundReactive: EdgeCreator<ReactiveEdge>;
 };
 
 const defaultEdgeFactories: EdgeFactories = {
 	inboundOwnership: ({ id, edge, root, extras }) =>
-		createOwnershipEdge({ id, source: edge.data.relatedNodes.source, target: root, extras }),
+		createSourceEdge({ id, source: edge.data.relatedNodes.source, target: root, extras }),
 	inboundReactive: ({ id, edge, root, extras }) =>
 		createReactiveEdge({ id, source: edge.data.relatedNodes.source, target: root, extras }),
 	outboundOwnership: ({ id, edge, root, extras }) =>
-		createOwnershipEdge({ id, source: root, target: edge.data.relatedNodes.target, extras }),
+		createSourceEdge({ id, source: root, target: edge.data.relatedNodes.target, extras }),
 	outboundReactive: ({ id, edge, root, extras }) =>
 		createReactiveEdge({ id, source: root, target: edge.data.relatedNodes.target, extras }),
 };
@@ -67,7 +67,10 @@ export const foldByShape = (
 			mainOwners.forEach((mainOwner) => {
 				console.groupCollapsed(`🌳 [${mainOwner.id}] ${mainOwner.data.label}`);
 
-				const ownershipEdges = lookups.edgesBySource.ownership.get(mainOwner.id);
+				const ownershipEdges = lookups.edgesBySource.source.get(mainOwner.id);
+				const reactiveEdges = lookups.edgesBySource.reactive.get(mainOwner.id);
+
+				edgesToRemove.push(...(ownershipEdges ?? []), ...(reactiveEdges ?? []));
 
 				console.log('ownershipEdges', ownershipEdges);
 
@@ -88,8 +91,8 @@ export const foldByShape = (
 				}
 
 				internalNodes.forEach((internalNode) => {
-					lookups.edgesBySource.ownership.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
-					lookups.edgesByTarget.ownership.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
+					lookups.edgesBySource.source.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
+					lookups.edgesByTarget.source.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
 					lookups.edgesBySource.reactive.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
 					lookups.edgesByTarget.reactive.get(internalNode.id)?.forEach((edge) => edgesToRemove.push(edge));
 				});
@@ -121,7 +124,7 @@ export const foldByShape = (
 					console.group(`[${internalNode.id}] ${internalNode.data.label}`);
 					console.group('ownership');
 
-					const externalInboundOwnershipEdgesOfInputNode = lookups.edgesByTarget.ownership
+					const externalInboundOwnershipEdgesOfInputNode = lookups.edgesByTarget.source
 						.get(internalNode.id)
 						?.filter((edge) => !relatedNodeIds.includes(edge.source));
 
@@ -198,7 +201,7 @@ export const foldByShape = (
 
 				console.group('output nodes');
 				for (const outputNode of new Set(outputNodes)) {
-					const externalOutboundEdgesOfOutputNode = lookups.edgesBySource.ownership
+					const externalOutboundEdgesOfOutputNode = lookups.edgesBySource.source
 						.get(outputNode.id)
 						?.filter((edge) => !relatedNodeIds.includes(edge.target));
 

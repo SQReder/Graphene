@@ -1,5 +1,5 @@
-import { isOwnershipEdge, isReactiveEdge } from '../../lib';
-import type { MyEdge, OwnershipEdge } from '../../types';
+import { isReactiveEdge, isSourceEdge } from '../../lib';
+import type { MyEdge, SourceEdge } from '../../types';
 import type { NamedGraphCleaner } from './types';
 
 const getEdgeKey = (edge: MyEdge): string => `${edge.source}-${edge.target}`;
@@ -10,12 +10,12 @@ export const removeOwnershipWhereReactiveEdgePresent: NamedGraphCleaner = {
 		const edgesToRemove: MyEdge[] = [];
 
 		const reactiveEdgeKeys = new Set<string>();
-		const ownershipEdges: OwnershipEdge[] = [];
+		const ownershipEdges: SourceEdge[] = [];
 
 		for (const edge of graph.edges) {
 			if (isReactiveEdge(edge)) {
 				reactiveEdgeKeys.add(getEdgeKey(edge));
-			} else if (isOwnershipEdge(edge)) {
+			} else if (isSourceEdge(edge)) {
 				ownershipEdges.push(edge);
 			} else {
 				throw new Error(`Unexpected edge type: ${edge.data.edgeType}`);

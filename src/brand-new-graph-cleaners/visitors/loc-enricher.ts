@@ -1,6 +1,6 @@
 import { isRegularNode } from '../../lib';
 import { formatLocation, type RegularEffectorNode } from '../../types';
-import type { NamedGraphCleaner } from './types';
+import type { NamedGraphVisitor } from '../types';
 
 function tryFindLoc(node: RegularEffectorNode): string | undefined {
 	const metaLoc = node.data.effector.meta.loc;
@@ -20,9 +20,9 @@ function tryFindLoc(node: RegularEffectorNode): string | undefined {
 	return formatLocation(factoryLoc);
 }
 
-export const locEnricher: NamedGraphCleaner = {
+export const locEnricher: NamedGraphVisitor = {
 	name: 'Loc Enricher',
-	apply: (graph) => {
+	visit: (graph) => {
 		for (const node of graph.nodes) {
 			if (!isRegularNode(node)) continue;
 
@@ -36,18 +36,5 @@ export const locEnricher: NamedGraphCleaner = {
 		}
 
 		return graph;
-	},
-};
-
-export const dropNoLocNodes: NamedGraphCleaner = {
-	name: 'Drop noLoc nodes',
-	apply: (graph) => {
-		const nodes = graph.nodes
-			.filter((node) => (isRegularNode(node) ? !node.data.noLoc || node.data.effector.loc : true))
-			.map((x) => x.id);
-		return {
-			nodes: graph.nodes,
-			edges: graph.edges.filter((edge) => nodes.includes(edge.source) && nodes.includes(edge.target)),
-		};
 	},
 };

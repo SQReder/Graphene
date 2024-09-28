@@ -1,28 +1,28 @@
-import { createOwnershipEdge } from '../../edge-factories';
-import { findNodesByOpTypeWithRelatedEdges, isOwnershipEdge } from '../../lib';
+import { createSourceEdge } from '../../edge-factories';
+import { findNodesByOpTypeWithRelatedEdges, isSourceEdge } from '../../lib';
 import { edgeCleanerToGraphCleaner } from './lib';
 import type { NamedGraphCleaner } from './types';
 
 export const dimFactories: NamedGraphCleaner = {
 	name: 'Dim Factories',
 	apply: edgeCleanerToGraphCleaner({
-		edgeFilter: isOwnershipEdge,
+		edgeFilter: isSourceEdge,
 		cleaner: (_, lookups) => {
 			const factories = findNodesByOpTypeWithRelatedEdges(
 				undefined,
 				{
-					edgesBySource: lookups.edgesBySource.ownership,
-					edgesByTarget: lookups.edgesByTarget.ownership,
+					edgesBySource: lookups.edgesBySource.source,
+					edgesByTarget: lookups.edgesByTarget.source,
 					nodes: lookups.nodes,
 				},
 				(node) => node.data.effector.meta.isFactory,
 			);
 
-			const outgoing = factories.flatMap(({ outgoing }) => outgoing).filter(isOwnershipEdge);
+			const outgoing = factories.flatMap(({ outgoing }) => outgoing).filter(isSourceEdge);
 			return {
 				edgesToRemove: outgoing,
 				edgesToAdd: outgoing.map((edge) =>
-					createOwnershipEdge({
+					createSourceEdge({
 						id: edge.id + ' (dimmed)',
 						source: edge.data.relatedNodes.source,
 						target: edge.data.relatedNodes.target,

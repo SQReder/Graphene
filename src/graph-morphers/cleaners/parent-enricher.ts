@@ -21,7 +21,7 @@ export const parentEnricher: NamedGraphCleaner = {
 					console.log('Found parent', node.data.label, declaration.parentId);
 					parentRelations.set(node.id, declaration.parentId);
 				} else if (effector.meta.op === OpType.Domain) {
-					const owners = lookups.edgesByTarget.ownership
+					const owners = lookups.edgesByTarget.source
 						.get(node.id)
 						?.map((edge) => edge.data.relatedNodes.source)
 						?.filter(isRegularNode)
@@ -29,6 +29,11 @@ export const parentEnricher: NamedGraphCleaner = {
 
 					if (owners && owners.length > 0) {
 						const owner = owners[0];
+						if (!owner) {
+							console.log('No owner', node.data.label, node);
+							continue;
+						}
+
 						parentRelations.set(node.id, owner.id);
 					} else {
 						console.log('No owners', node.data.label, node);
@@ -37,7 +42,7 @@ export const parentEnricher: NamedGraphCleaner = {
 
 				const parentId = parentRelations.get(node.id);
 				if (parentId) {
-					const nodeToParentEdge = lookups.edgesByTarget.ownership
+					const nodeToParentEdge = lookups.edgesByTarget.source
 						.get(node.id)
 						?.filter((edge) => edge.source === parentId);
 

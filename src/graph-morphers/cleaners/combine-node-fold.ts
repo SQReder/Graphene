@@ -1,4 +1,4 @@
-import { createOwnershipEdge, createReactiveEdge } from '../../edge-factories';
+import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
 import { findNodesByOpTypeWithRelatedTypedEdges } from '../../lib';
 import { type MyEdge, OpType } from '../../types';
 import { makeGraphLookups } from './lib';
@@ -23,6 +23,11 @@ export const combineNodeFold: NamedGraphCleaner = {
 			const inReactiveEdge = incoming.reactive[0];
 			const outReactiveEdge = outgoing.reactive[0];
 
+			if (!inReactiveEdge || !outReactiveEdge) {
+				console.warn('Combine node has no incoming or outgoing edges', combineNode);
+				continue;
+			}
+
 			const sourceNode = inReactiveEdge.data.relatedNodes.source;
 			const targetNode = outReactiveEdge.data.relatedNodes.target;
 
@@ -46,7 +51,7 @@ export const combineNodeFold: NamedGraphCleaner = {
 			edgesToRemove.push(...outgoing.reactive);
 
 			newEdges.push(
-				createOwnershipEdge({
+				createSourceEdge({
 					id: `${inReactiveEdge.source} owns ${outReactiveEdge.target}`,
 					source: sourceNode,
 					target: targetNode,
@@ -61,8 +66,8 @@ export const combineNodeFold: NamedGraphCleaner = {
 				}),
 			);
 
-			edgesToRemove.push(...incoming.ownership);
-			edgesToRemove.push(...outgoing.ownership);
+			edgesToRemove.push(...incoming.source);
+			edgesToRemove.push(...outgoing.source);
 		}
 
 		// debug logs

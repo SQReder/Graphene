@@ -1,7 +1,7 @@
 import { type Unit } from 'effector';
 import type { Comparator } from './comparison';
 import { combineComparators } from './comparison';
-import { createOwnershipEdge, createReactiveEdge } from './edge-factories';
+import { createReactiveEdge, createSourceEdge } from './edge-factories';
 import { layoutGraph } from './layouters';
 import type { Layouter } from './layouters/types';
 import type {
@@ -10,14 +10,14 @@ import type {
 	EffectorGraph,
 	EffectorNode,
 	Graphite,
-	LinkEdge,
 	Meta,
 	MetaHelper,
 	MyEdge,
-	OwnershipEdge,
+	ParentToChildEdge,
 	ReactiveEdge,
 	RegularEffectorDetails,
 	RegularEffectorNode,
+	SourceEdge,
 	UnitMeta,
 } from './types';
 import { CombinatorType, EdgeType, EffectorNodeDetails, MetaType, NodeFamily, OpType } from './types';
@@ -146,13 +146,13 @@ export function traverseEffectorGraph(units: ReadonlyArray<Unit<unknown>>): Grap
 }
 
 export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
-	linkingEdges: LinkEdge[];
-	ownerhipEdges: OwnershipEdge[];
+	linkingEdges: ParentToChildEdge[];
+	ownerhipEdges: SourceEdge[];
 	reactiveEdges: ReactiveEdge[];
 } {
 	const reactiveEdges: ReactiveEdge[] = [];
-	const ownershipEdges: OwnershipEdge[] = [];
-	const linkingEdges: LinkEdge[] = [];
+	const sourceEdges: SourceEdge[] = [];
+	const linkingEdges: ParentToChildEdge[] = [];
 
 	const visited = new Set<string>();
 
@@ -178,7 +178,7 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 				source: current.id,
 				target: link.id,
 				data: {
-					edgeType: EdgeType.Link,
+					edgeType: EdgeType.ParentToChild,
 					relatedNodes: {
 						source: ensureDefined(nodesMap.get(current.id)),
 						target: ensureDefined(nodesMap.get(link.id)),
@@ -209,8 +209,8 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 			try {
 				const id = `${owner.id} owns ${current.id}`;
 
-				ownershipEdges.push(
-					createOwnershipEdge({
+				sourceEdges.push(
+					createSourceEdge({
 						id,
 						source: ensureDefined(nodesMap.get(owner.id)),
 						target: ensureDefined(nodesMap.get(current.id)),
@@ -231,7 +231,7 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 
 	return {
 		reactiveEdges,
-		ownerhipEdges: ownershipEdges,
+		ownerhipEdges: sourceEdges,
 		linkingEdges,
 	};
 }
@@ -243,6 +243,7 @@ export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
 		id: graphite.id,
 		position: { x: 0, y: 0 },
 		data: {
+			id: graphite.id,
 			label: formatMeta(graphite.id, graphite.meta),
 			effector: nodeDetails,
 			nodeType: nodeDetails.type,
@@ -338,7 +339,7 @@ export function getEdgeRelatedGraphite(edge: MyEdge, relation: 'source' | 'targe
 
 export function hasOpType<Op extends OpType>(
 	graphite: Graphite,
-	opType: Op | undefined,
+	opType: Op,
 ): graphite is Graphite & { meta: { op: Op } } {
 	return graphite.meta.op === opType;
 }
@@ -356,13 +357,17 @@ export function isReactiveEdge(edge: MyEdge): edge is ReactiveEdge {
 	return edge.data.edgeType === EdgeType.Reactive;
 }
 
-export function isOwnershipEdge(edge: MyEdge): edge is OwnershipEdge {
-	return edge.data.edgeType === EdgeType.Ownership;
+export function isSourceEdge(edge: MyEdge): edge is SourceEdge {
+	return edge.data.edgeType === EdgeType.Source;
+}
+
+export function isParentToChildEdge(edge: MyEdge): edge is ParentToChildEdge {
+	return edge.data.edgeType === EdgeType.ParentToChild;
 }
 
 export type GraphTypedEdges = {
-	ownership: Map<string, OwnershipEdge[]>;
-	reactive: Map<string, ReactiveEdge[]>;
+	source: Map<string, readonly SourceEdge[]>;
+	reactive: Map<string, readonly ReactiveEdge[]>;
 };
 
 export type GraphTypedEdgesSelector<T extends MyEdge> = T['data']['edgeType'] & keyof GraphTypedEdges;
@@ -377,8 +382,8 @@ export function getEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Graph
 				} else {
 					map.set(edge[variant], [edge]);
 				}
-			} else if (isOwnershipEdge(edge)) {
-				const map = maps.ownership;
+			} else if (isSourceEdge(edge)) {
+				const map = maps.source;
 				if (map.has(edge[variant])) {
 					map.get(edge[variant])!.push(edge);
 				} else {
@@ -392,14 +397,14 @@ export function getEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Graph
 		},
 		{
 			reactive: new Map<string, ReactiveEdge[]>(),
-			ownership: new Map<string, OwnershipEdge[]>(),
+			source: new Map<string, SourceEdge[]>(),
 		},
 	);
 }
 
-export function getOwnershipEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, OwnershipEdge[]> {
+export function getOwnershipEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, SourceEdge[]> {
 	return edges.reduce((map, edge) => {
-		if (isOwnershipEdge(edge)) {
+		if (isSourceEdge(edge)) {
 			if (map.has(edge[variant])) {
 				map.get(edge[variant])!.push(edge);
 			} else {
@@ -408,7 +413,7 @@ export function getOwnershipEdgesBy(edges: MyEdge[], variant: 'source' | 'target
 		}
 
 		return map;
-	}, new Map<string, OwnershipEdge[]>());
+	}, new Map<string, SourceEdge[]>());
 }
 
 export function getReactiveEdgesBy(edges: MyEdge[], variant: 'source' | 'target'): Map<string, ReactiveEdge[]> {
@@ -439,14 +444,14 @@ export type Lookups = {
 };
 
 export type NodeWithRelatedTypedEdges<T extends MyEdge> = {
-	incoming: T[];
-	outgoing: T[];
+	incoming: readonly T[];
+	outgoing: readonly T[];
 	node: EffectorNode;
 };
 
 type TypedEdgeList = {
-	ownership: OwnershipEdge[];
-	reactive: ReactiveEdge[];
+	source: readonly SourceEdge[];
+	reactive: readonly ReactiveEdge[];
 };
 
 export type NodeWithRelatedEdges = {
@@ -456,8 +461,8 @@ export type NodeWithRelatedEdges = {
 };
 
 export type LookupsTyped<T extends MyEdge> = {
-	edgesByTarget: Map<string, T[]>;
-	edgesBySource: Map<string, T[]>;
+	edgesByTarget: Map<string, readonly T[]>;
+	edgesBySource: Map<string, readonly T[]>;
 	nodes: Map<string, EffectorNode>;
 };
 
@@ -492,11 +497,11 @@ export function findNodesByOpTypeWithRelatedTypedEdges(
 			result.push({
 				node,
 				incoming: {
-					ownership: lookups.edgesByTarget.ownership.get(node.id) ?? [],
+					source: lookups.edgesByTarget.source.get(node.id) ?? [],
 					reactive: lookups.edgesByTarget.reactive.get(node.id) ?? [],
 				},
 				outgoing: {
-					ownership: lookups.edgesBySource.ownership.get(node.id) ?? [],
+					source: lookups.edgesBySource.source.get(node.id) ?? [],
 					reactive: lookups.edgesBySource.reactive.get(node.id) ?? [],
 				},
 			});
@@ -504,6 +509,28 @@ export function findNodesByOpTypeWithRelatedTypedEdges(
 	}
 
 	return result;
+}
+
+export function* findNodesByOpTypeWithRelatedTypedEdgesGenerator(
+	opType: OpType | undefined,
+	lookups: Lookups,
+	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
+): Generator<NodeWithRelatedEdges> {
+	for (const node of lookups.nodes.values()) {
+		if (isRegularNode(node) && node.data.effector.meta.hasOpType(opType) && extraFilter(node)) {
+			yield {
+				node,
+				incoming: {
+					source: lookups.edgesByTarget.source.get(node.id) ?? [],
+					reactive: lookups.edgesByTarget.reactive.get(node.id) ?? [],
+				},
+				outgoing: {
+					source: lookups.edgesBySource.source.get(node.id) ?? [],
+					reactive: lookups.edgesBySource.reactive.get(node.id) ?? [],
+				},
+			};
+		}
+	}
 }
 
 export function findNodesByOpType(
@@ -599,7 +626,7 @@ export function makeGraphVariants(
 	const cleanedNoNodesLayouted: AsyncGraphCleaner = async (graph, signal) => {
 		const cleanedGraph = await cleaningPipeline(graph, signal);
 
-		const { graph: noOwnershipGraph, restoreEdges } = extractEdges(cleanedGraph, (edge) => {
+		const { graph: noSourceGraph, restoreEdges } = extractEdges(cleanedGraph, (edge) => {
 			const regularNode = maybeRegularNode(edge.data.relatedNodes.source);
 			if (!regularNode) return false;
 			if (regularNode.data.folded) return false;
@@ -610,7 +637,7 @@ export function makeGraphVariants(
 			return meta.isFactory || meta.isDomain;
 		});
 
-		const layoutedGraph = await layoutGraph(noOwnershipGraph, layouterFactory);
+		const layoutedGraph = await layoutGraph(noSourceGraph, layouterFactory);
 		return restoreEdges(layoutedGraph);
 	};
 

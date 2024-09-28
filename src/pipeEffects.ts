@@ -37,11 +37,14 @@ interface EffectsPipeline {
 }
 
 // Variadic pipeline function with strong types
-export const createEffectPipeline: EffectsPipeline = (...effects: Array<Effect<any, any>>): void => {
-	let currentEffect: Effect<any, any> = effects[0];
+export const createEffectPipeline: EffectsPipeline = (
+	effect: Effect<any, any>,
+	...effects: Array<Effect<any, any>>
+): void => {
+	let currentEffect: Effect<any, any> = effect;
 
 	// Loop through the effects and chain them using `sample`
-	for (let i = 1; i < effects.length; i++) {
+	for (let i = 0; i < effects.length; i++) {
 		const nextEffect = effects[i] as Effect<any, any>;
 
 		sample({

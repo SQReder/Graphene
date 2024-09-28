@@ -1,5 +1,5 @@
 import { MarkerType } from '@xyflow/system';
-import type { EffectorNode, MyEdge, OwnershipEdge, ReactiveEdge } from './types';
+import type { EffectorNode, MyEdge, ParentToChildEdge, ReactiveEdge, SourceEdge } from './types';
 import { EdgeType } from './types';
 
 export type EdgeFactory<T extends MyEdge> = (params: {
@@ -10,6 +10,7 @@ export type EdgeFactory<T extends MyEdge> = (params: {
 }) => T;
 
 export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, target, extras = (x) => x }) => {
+	const color = '#505050';
 	const result = {
 		id: id,
 		source: source.id,
@@ -24,11 +25,11 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 		animated: true,
 		markerEnd: {
 			type: MarkerType.ArrowClosed,
-			color: '#303030',
+			color: color,
 		},
 		style: {
 			zIndex: 10,
-			stroke: '#303030',
+			stroke: color,
 		},
 	} satisfies ReactiveEdge;
 
@@ -37,13 +38,13 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 	return result;
 };
 
-export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, target, extras = (x) => x }) => {
+export const createSourceEdge: EdgeFactory<SourceEdge> = ({ id, source, target, extras = (x) => x }) => {
 	const result = {
 		id: id,
 		source: source.id,
 		target: target.id,
 		data: {
-			edgeType: EdgeType.Ownership,
+			edgeType: EdgeType.Source,
 			relatedNodes: {
 				source: source,
 				target: target,
@@ -56,7 +57,33 @@ export const createOwnershipEdge: EdgeFactory<OwnershipEdge> = ({ id, source, ta
 		style: {
 			stroke: 'rgba(132,199,253,0.86)',
 		},
-	} satisfies OwnershipEdge;
+	} satisfies SourceEdge;
+
+	extras(result);
+
+	return result;
+};
+
+export const createLinkEdge: EdgeFactory<ParentToChildEdge> = ({ id, source, target, extras = (x) => x }) => {
+	const result = {
+		id: id,
+		source: source.id,
+		target: target.id,
+		data: {
+			edgeType: EdgeType.ParentToChild,
+			relatedNodes: {
+				source: source,
+				target: target,
+			},
+		},
+		markerStart: {
+			type: MarkerType.ArrowClosed,
+			color: 'rgba(198, 177, 250, 0.86)',
+		},
+		style: {
+			stroke: 'rgba(198, 177, 250, 0.86)',
+		},
+	} satisfies ParentToChildEdge;
 
 	extras(result);
 

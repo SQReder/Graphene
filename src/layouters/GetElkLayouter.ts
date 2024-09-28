@@ -23,6 +23,8 @@ export const getElkLayouter = (): Layouter => {
 		'elk.direction': 'DOWN',
 		'org.eclipse.elk.layered.directionCongruency': 'READING_DIRECTION',
 		'org.eclipse.elk.topdown.nodeType': 'PARALLEL_NODE',
+		'org.eclipse.elk.alignment': 'RIGHT',
+		'org.eclipse.elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
 	} satisfies LayoutOptions;
 
 	const getLayoutedElements = (

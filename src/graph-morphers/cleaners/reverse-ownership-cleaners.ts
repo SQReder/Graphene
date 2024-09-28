@@ -1,29 +1,28 @@
-import { findNodesByOpTypeWithRelatedEdges, isOwnershipEdge } from '../../lib';
-import type { OwnershipEdge } from '../../types';
-import { OpType } from '../../types';
+import { findNodesByOpTypeWithRelatedEdges, isSourceEdge } from '../../lib';
+import { OpTypeWithCycles, type SourceEdge } from '../../types';
 import { edgeCleanerToGraphCleaner } from './lib';
 import type { NamedGraphCleaner } from './types';
 
-const makeReverseOwnershipCleaner = (opType: OpType | undefined): NamedGraphCleaner => ({
+const makeReverseOwnershipCleaner = (opType: OpTypeWithCycles): NamedGraphCleaner => ({
 	name: `Reverse ownership cleaner for [${opType}]`,
 	apply: edgeCleanerToGraphCleaner({
-		edgeFilter: isOwnershipEdge,
+		edgeFilter: isSourceEdge,
 		cleaner: (_, lookups) => {
-			const edgesToRemove: OwnershipEdge[] = [];
+			const edgesToRemove: SourceEdge[] = [];
 
 			findNodesByOpTypeWithRelatedEdges(opType, {
-				edgesBySource: lookups.edgesBySource.ownership,
-				edgesByTarget: lookups.edgesByTarget.ownership,
+				edgesBySource: lookups.edgesBySource.source,
+				edgesByTarget: lookups.edgesByTarget.source,
 				nodes: lookups.nodes,
 			}).forEach(({ outgoing }) => {
 				for (const outgoingEdge of outgoing) {
-					const edgesFromTarget = lookups.edgesBySource.ownership.get(outgoingEdge.target);
+					const edgesFromTarget = lookups.edgesBySource.source.get(outgoingEdge.target);
 					const looped = edgesFromTarget?.filter((edgeFromTarget) => edgeFromTarget.target === outgoingEdge.source);
 
 					if (looped?.length) {
 						if (looped.length > 1) console.error('more than one looped edges', looped);
 						else {
-							edgesToRemove.push(looped[0]);
+							edgesToRemove.push(looped[0]!);
 						}
 					}
 				}
@@ -35,11 +34,11 @@ const makeReverseOwnershipCleaner = (opType: OpType | undefined): NamedGraphClea
 });
 
 export const reverseOwnershipCleaners: NamedGraphCleaner[] = [
-	OpType.On,
-	OpType.Map,
-	OpType.FilterMap,
-	OpType.Sample,
-	OpType.Combine,
-	OpType.Merge,
-	undefined, // ToDo add filter?
+	OpTypeWithCycles.On,
+	OpTypeWithCycles.Map,
+	OpTypeWithCycles.FilterMap,
+	OpTypeWithCycles.Sample,
+	OpTypeWithCycles.Combine,
+	OpTypeWithCycles.Merge,
+	OpTypeWithCycles.Empty,
 ].map(makeReverseOwnershipCleaner);
