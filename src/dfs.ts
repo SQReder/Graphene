@@ -13,9 +13,9 @@ export function sortTreeNodesDFS<T extends Node>(nodes: T[]): T[] {
 	nodes.forEach((node) => {
 		nodeMap.set(node.id, node);
 		if (node.parentId) {
-			if (!nodeMap.has(node.parentId)) {
-				throw new Error(`Orphan node detected: parentId ${node.parentId} does not exist.`);
-			}
+			// if (!nodeMap.has(node.parentId)) {
+			// 	throw new Error(`Orphan node detected: parentId ${node.parentId} does not exist.`);
+			// }
 			if (!childrenMap.has(node.parentId)) {
 				childrenMap.set(node.parentId, []);
 			}

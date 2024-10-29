@@ -1,13 +1,12 @@
 import { createLinkEdge, createReactiveEdge, createSourceEdge } from './edge-factories';
+import { unique } from './lib';
 import { type EffectorNode, type MyEdge, type OpType, OpTypeWithCycles } from './types';
 
 type NodeId = string;
 
-const unique = <T>(arr: T[]): T[] => [...new Set(arr)];
-
 // Placeholder function types to retrieve node IDs
 function getLinkedNodes(node: EffectorNode): NodeId[] {
-	return node.data.effector?.graphite.family.links.map((x) => x.id) ?? [];
+	return unique(node.data.effector?.graphite.family.links.map((x) => x.id) ?? []);
 }
 
 function getOwnersNodes(node: EffectorNode): NodeId[] {
@@ -44,10 +43,9 @@ function createEdgesWithTracking(
 		}
 
 		// Generate suffix for duplicates
-		const suffix = targetNodeCount[targetId] > 1 ? `[${targetNodeCount[targetId] - 1}]` : '';
+		const suffix = targetNodeCount[targetId] > 1 ? `[d${targetNodeCount[targetId] - 1}]` : '';
 		const uniqueId = idTemplate(node.id, targetId, suffix); // Create a unique ID
 
-		console.log(uniqueId); // Log the unique ID
 		const targetNode = findNodeById(targetId, nodes);
 		if (targetNode) {
 			// Handle reversed direction for edges if needed
@@ -100,11 +98,7 @@ export function generateEdges(nodes: EffectorNode[]): MyEdge[] {
 			false, // Normal direction for ReactiveEdges
 		);
 		edges.push(...reactiveEdges);
-
-		console.log(node.id, linkedNodeIds, ownerNodeIds, nextNodeIds); // Log node details
 	}
-
-	console.log('edges', edges); // Log all generated edges
 
 	return edges;
 }

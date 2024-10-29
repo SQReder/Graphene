@@ -31,6 +31,19 @@ export const Sample: GrapheneStory = {
 	},
 };
 
+export const NoTarget: GrapheneStory = {
+	args: {
+		factory: () => {
+			const numberEmitted = createEvent<number>();
+			const evenNumberEmitted = sample({
+				clock: numberEmitted,
+				filter: (n) => n % 2 === 0,
+			});
+			return { evenNumberEmitted };
+		},
+	},
+};
+
 export const OneClockEvent_OneTargetEvent: GrapheneStory = {
 	args: {
 		factory: () => {
@@ -136,13 +149,42 @@ export const SourceEvent_TargetEvent: GrapheneStory = {
 				target: targetEvent,
 			});
 
+			return {
+				targetEvent,
+			};
+		},
+	},
+};
+
+export const SourceEvent_TargetEvent_Twisted: GrapheneStory = {
+	args: {
+		factory: () => {
+			const oneSourceEvent = createEvent();
+			const otherSourceEvent = createEvent();
+			const oneTargetEvent = createEvent();
+			const otherTargetEvent = createEvent();
+
 			sample({
-				source: sourceEvent,
-				target: targetEvent,
+				source: oneSourceEvent,
+				target: oneTargetEvent,
+			});
+
+			sample({
+				source: oneSourceEvent,
+				target: otherTargetEvent,
+			});
+
+			sample({
+				source: otherSourceEvent,
+				target: oneTargetEvent,
+			});
+			sample({
+				source: otherSourceEvent,
+				target: otherTargetEvent,
 			});
 
 			return {
-				targetEvent,
+				oneSourceEvent,
 			};
 		},
 	},
@@ -248,6 +290,36 @@ export const Monstrous: GrapheneStory = {
 			return {
 				targetEvent,
 			};
+		},
+	},
+};
+
+export const WithFilterFn: GrapheneStory = {
+	args: {
+		factory: () => {
+			const emitNumber = createEvent<number>();
+
+			const emitEven = sample({
+				clock: emitNumber,
+				filter: (n) => n % 2 === 0,
+			});
+
+			return { emitEven };
+		},
+	},
+};
+export const WithFilterStore: GrapheneStory = {
+	args: {
+		factory: () => {
+			const emitNumber = createEvent<number>();
+			const $allow = createStore(false);
+
+			const emitEven = sample({
+				clock: emitNumber,
+				filter: $allow,
+			});
+
+			return { emitEven, $allow };
 		},
 	},
 };

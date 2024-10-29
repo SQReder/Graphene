@@ -9,6 +9,7 @@ import type {
 	DeclarationEffectorNode,
 	EffectorGraph,
 	EffectorNode,
+	FactoryOwnershipEdge,
 	Graphite,
 	Meta,
 	MetaHelper,
@@ -26,40 +27,6 @@ export function absurd(value: never): never {
 	throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
 }
 
-export const getMetaIcon = (meta: { op: OpType | undefined; type?: MetaType; attached?: number }): string => {
-	switch (meta.op) {
-		case OpType.Watch:
-			return '👓';
-		case OpType.On:
-			return '🔛';
-		case OpType.Map:
-			return '➡️';
-		case OpType.FilterMap:
-			return '📝';
-		case OpType.Combine:
-			return '⊕';
-		case OpType.Store:
-			return '📦';
-		case OpType.Event:
-			return '🔔';
-		case OpType.Sample:
-			return '🔁';
-		case OpType.Effect:
-			return meta.attached ? '⚡️~⚡️' : '⚡️';
-		case OpType.Merge:
-			return '🔀';
-		case OpType.Domain:
-			return '🌐';
-		default:
-			switch (meta.type) {
-				case MetaType.Factory:
-					return '🏭';
-				default:
-					return '❓';
-			}
-	}
-};
-
 export function formatMeta(id: string, meta: Meta) {
 	const id_ = `[${id}]`;
 	switch (meta.op) {
@@ -71,6 +38,10 @@ export function formatMeta(id: string, meta: Meta) {
 			return `${id_} .map`;
 		case OpType.FilterMap:
 			return `${id_} .filterMap`;
+		case OpType.Filter:
+			return `${id_} .filter`;
+		case OpType.Prepend:
+			return `${id_} prepend`;
 		case OpType.Combine:
 			return `${id_} combine`;
 		case OpType.Store:
@@ -78,26 +49,32 @@ export function formatMeta(id: string, meta: Meta) {
 		case OpType.Event:
 			return `🔔 ${id_} ${meta.name}${meta.derived ? ' (derived)' : ''}`;
 		case OpType.Sample:
-			return `${id_} 📊➕🔄 ` + meta.joint;
+			return `${id_} ` + (meta.joint ? '📊➕🔄' : '📊🔄');
 		case OpType.Effect:
 			return `${meta.attached ? '⚡️~⚡️' : '⚡️'}  ${id_}` + meta.name;
 		case OpType.Merge:
 			return `${id_} merge`;
 		case OpType.Domain:
 			return `🌐 ${meta.name}${meta.derived ? ' (derived)' : ''}`;
+		case OpType.Split:
+			return `🔢 ${id_} split`;
 		default:
-			switch (meta.type) {
-				case MetaType.Factory:
-					return `🏭 ${meta.method}(${meta.name})`;
-				case MetaType.Domain:
-					return '🫠 domain ' + meta.name;
-				default:
-					try {
-						absurd(meta.type);
-					} catch {
-						console.warn('Unexpected node - returning unknown', id, meta);
-					}
-					return `${id} unknown`;
+			if (meta.op === undefined) {
+				switch (meta.type) {
+					case MetaType.Factory:
+						return `🏭 ${meta.method}(${meta.name})`;
+					case MetaType.Domain:
+						return '🫠 domain ' + meta.name;
+					default:
+						try {
+							absurd(meta.type);
+						} catch {
+							console.warn('Unexpected node - returning unknown', id, meta);
+						}
+						return `${id} unknown`;
+				}
+			} else {
+				absurd(meta);
 			}
 	}
 }
@@ -126,7 +103,7 @@ export function traverseEffectorGraph(units: ReadonlyArray<Unit<unknown>>): Grap
 
 		if (graphite.family) {
 			graphite.family.owners.forEach(traverse);
-			graphite.family.links.forEach(traverse);
+			unique(graphite.family.links).forEach(traverse);
 			graphite.next.filter(traverse);
 		}
 	}
@@ -363,6 +340,10 @@ export function isSourceEdge(edge: MyEdge): edge is SourceEdge {
 
 export function isParentToChildEdge(edge: MyEdge): edge is ParentToChildEdge {
 	return edge.data.edgeType === EdgeType.ParentToChild;
+}
+
+export function isFactoryOwnershipEdge(edge: MyEdge): edge is FactoryOwnershipEdge {
+	return edge.data.edgeType === EdgeType.FactoryOwnership;
 }
 
 export type GraphTypedEdges = {
@@ -681,3 +662,13 @@ export const extractEdges = (
 		restoreEdges,
 	};
 };
+export const unique = <T>(arr: T[]): T[] => [...new Set(arr)];
+
+export function withOrder<T extends { order?: number }>(order: number, ...cleaners: T[]): T[] {
+	return cleaners.map(
+		(cleaner): T => ({
+			...cleaner,
+			order,
+		}),
+	);
+}

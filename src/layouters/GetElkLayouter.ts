@@ -12,19 +12,22 @@ export const getElkLayouter = (): Layouter => {
 	// - https://www.eclipse.org/elk/reference/algorithms.html
 	// - https://www.eclipse.org/elk/reference/options.html
 	const elkOptions = {
-		'elk.algorithm': 'org.eclipse.elk.layered',
-		'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+		'org.eclipse.elk.algorithm': 'org.eclipse.elk.layered',
+		'org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers': '50',
 		// 'org.eclipse.elk.edgeRouting': 'SPLINES',
 		'org.eclipse.elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-		'elk.spacing.nodeNode': '50',
+		'org.eclipse.elk.spacing.nodeNode': '50',
 		// 'org.eclipse.elk.spacing.edgeNode': '50',
 		// 'org.eclipse.elk.layered.priority.straightness': '100',
 		// 'org.eclipse.elk.layered.priority.shortness': '10',
-		'elk.direction': 'DOWN',
-		'org.eclipse.elk.layered.directionCongruency': 'READING_DIRECTION',
-		'org.eclipse.elk.topdown.nodeType': 'PARALLEL_NODE',
-		'org.eclipse.elk.alignment': 'RIGHT',
-		'org.eclipse.elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+		'org.eclipse.elk.direction': 'DOWN',
+		// 'org.eclipse.elk.layered.directionCongruency': 'READING_DIRECTION',
+		// 'org.eclipse.elk.topdown.nodeType': 'PARALLEL_NODE',
+		// 'org.eclipse.elk.alignment': 'RIGHT',
+		// 'org.eclipse.elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+		// 'org.eclipse.elk.debugMode': 'true',
+		'org.eclipse.elk.layered.highDegreeNodes.treeHeight': '30',
+		'org.eclipse.elk.partitioning.activate': 'true',
 	} satisfies LayoutOptions;
 
 	const getLayoutedElements = (
@@ -55,17 +58,20 @@ export const getElkLayouter = (): Layouter => {
 
 		// @ts-expect-error supressed
 		return elk
-			.layout(graph)
-			.then((layoutedGraph) => ({
-				nodes: layoutedGraph.children?.map((node) => ({
-					...node,
-					// React Flow expects a position property on the node instead of `x`
-					// and `y` fields.
-					position: { x: node.x, y: node.y },
-				})),
+			.layout(graph, { layoutOptions: options, logging: true, measureExecutionTime: true })
+			.then((layoutedGraph) => {
+				console.log('layout', layoutedGraph);
+				return {
+					nodes: layoutedGraph.children?.map((node) => ({
+						...node,
+						// React Flow expects a position property on the node instead of `x`
+						// and `y` fields.
+						position: { x: node.x, y: node.y },
+					})),
 
-				edges: layoutedGraph.edges,
-			}))
+					edges: layoutedGraph.edges,
+				};
+			})
 			.catch(console.error);
 	};
 

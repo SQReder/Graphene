@@ -1,7 +1,7 @@
 import { createFactory, invoke } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample } from 'effector';
 import { createGate } from 'effector-react';
-import { readonly } from 'patronum';
+import { debug, readonly } from 'patronum';
 import type { Layouter } from '../layouters/types';
 import {
 	absurd,
@@ -9,6 +9,7 @@ import {
 	GraphVariant,
 	isCombinedStoreNode,
 	isDeclarationNode,
+	isFactoryOwnershipEdge,
 	isParentToChildEdge,
 	isReactiveEdge,
 	isRegularNode,
@@ -16,13 +17,14 @@ import {
 } from '../lib';
 import type { EdgeType } from '../types';
 import { type EffectorNode, type MyEdge } from '../types';
-import { generatedGraphModelFactory, type NamedCleanerSelectorModel } from './generatedGraph';
+import { generatedGraphModelFactory } from './generatedGraph';
 import type { GrapheneModel } from './graphene';
 
 export type VisibleEdgesVariant =
 	| `${typeof EdgeType.Reactive}`
 	| `${typeof EdgeType.Source}`
 	| `${typeof EdgeType.ParentToChild}`
+	| `${typeof EdgeType.FactoryOwnership}`
 	| `${typeof EdgeType.Reactive}+${typeof EdgeType.Source}`
 	| `${typeof EdgeType.Reactive}+${typeof EdgeType.ParentToChild}`
 	| `${typeof EdgeType.Reactive}+${typeof EdgeType.Source}+${typeof EdgeType.ParentToChild}`;
@@ -31,13 +33,11 @@ export const appModelFactory = createFactory(
 	({
 		layouterFactory,
 		grapheneModel,
-		graphCleanerSelector,
 	}: // ownershipEdgeCleanerSelector,
 	// reactiveEdgeCleanerSelector,
 	{
 		layouterFactory: () => Layouter;
 		grapheneModel: GrapheneModel;
-		graphCleanerSelector: NamedCleanerSelectorModel;
 		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
 		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
 	}) => {
@@ -45,15 +45,38 @@ export const appModelFactory = createFactory(
 
 		const graphVariantChanged = createEvent<GraphVariant>();
 		const $selectedGraphVariant = restore(graphVariantChanged, GraphVariant.cleanedNoNodesLayouted);
-		const { graphGenerated } = invoke(generatedGraphModelFactory, {
+
+		const excludeOwnershipFromLayoutingChanged = createEvent<boolean>();
+		const $excludeOwnershipFromLayouting = readonly(restore(excludeOwnershipFromLayoutingChanged, true));
+
+		const toggleNode = createEvent<string>();
+		const $unfoldedNodes = createStore<Set<string>>(new Set()).on(toggleNode, (state, id) => {
+			const newState = new Set(state);
+			if (newState.has(id)) {
+				newState.delete(id);
+			} else {
+				newState.add(id);
+			}
+			return newState;
+		});
+
+		debug($unfoldedNodes, toggleNode);
+
+		const { graphGenerated, pickupStoredPipeline, graphCleanerSelector } = invoke(generatedGraphModelFactory, {
 			grapheneModel,
 			layouterFactory,
-			pickupStoredPipeline: Gate.open,
-			graphCleanerSelector,
+			$excludeOwnershipFromLayouting,
 			// ownershipEdgeCleanerSelector,
 			// reactiveEdgeCleanerSelector,
 			$selectedGraphVariant,
+			$unfoldedNodes,
 		});
+
+		sample({
+			clock: Gate.open,
+			target: pickupStoredPipeline,
+		});
+
 		const hideNodesWithNoLocationChanged = createEvent<boolean>();
 		const $hideNodesWithNoLocation = readonly(restore(hideNodesWithNoLocationChanged, false));
 
@@ -112,9 +135,6 @@ export const appModelFactory = createFactory(
 					console.warn('original node not found', node.id);
 				}
 
-				const relatedIncomingEdges = graph.edges.filter((edge) => edge.target === node.id);
-				const relatedOutcomingEdges = graph.edges.filter((edge) => edge.source === node.id);
-
 				console.log('node', original);
 
 				if (isRegularNode(node)) {
@@ -128,6 +148,7 @@ export const appModelFactory = createFactory(
 					absurd(node);
 				}
 
+				const relatedIncomingEdges = graph.edges.filter((edge) => edge.target === node.id);
 				if (relatedIncomingEdges.length) {
 					console.group('Incoming edges');
 
@@ -138,7 +159,8 @@ export const appModelFactory = createFactory(
 					console.groupEnd();
 				}
 
-				if (relatedIncomingEdges.length) {
+				const relatedOutcomingEdges = graph.edges.filter((edge) => edge.source === node.id);
+				if (relatedOutcomingEdges.length) {
 					console.group('Outcoming edges');
 
 					for (const relatedOutcomingEdge of relatedOutcomingEdges) {
@@ -188,6 +210,8 @@ export const appModelFactory = createFactory(
 					return edges.filter(isSourceEdge);
 				case 'parent-to-child':
 					return edges.filter(isParentToChildEdge);
+				case 'factory-ownership':
+					return edges.filter(isFactoryOwnershipEdge);
 				case 'reactive+parent-to-child':
 					return edges.filter((edge) => isReactiveEdge(edge) || isParentToChildEdge(edge));
 				case 'reactive+source':
@@ -210,6 +234,9 @@ export const appModelFactory = createFactory(
 				graphVariantChanged,
 				selectedGraphVariant: $selectedGraphVariant,
 
+				excludeOwnershipFromLayoutingChanged,
+				excludeOwnershipFromLayouting: $excludeOwnershipFromLayouting,
+
 				edgesChanged,
 				edges: $filteredEdges,
 
@@ -221,6 +248,9 @@ export const appModelFactory = createFactory(
 
 				nodeClicked,
 				edgeClicked,
+
+				toggleFactoryNode: toggleNode,
+				unfoldedFactoryNodes: $unfoldedNodes,
 			}),
 		};
 	},

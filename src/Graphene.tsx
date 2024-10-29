@@ -20,7 +20,7 @@ import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
 import type { appModelFactory, VisibleEdgesVariant } from './model/app';
 import { nodeTypes } from './nodeTypes';
-import { EdgeType, type EffectorNode, type MyEdge } from './types';
+import { type EffectorNode, type MyEdge } from './types';
 import { CleanerSelector } from './ui/CleanerSelector';
 
 const Wrapper = styled.div`
@@ -72,6 +72,10 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		visibleEdges,
 		hideNodesWithNoLocationChanged,
 		hideNodesWithNoLocation,
+		excludeOwnershipFromLayouting,
+		excludeOwnershipFromLayoutingChanged,
+		toggleFactoryNode,
+		unfoldedFactoryNodes,
 	} = useUnit(model);
 
 	const onNodesChange = useCallback<OnNodesChange<EffectorNode>>(
@@ -90,7 +94,14 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 
 	return (
 		<Wrapper>
-			<ConfigurationContext.Provider value={{ layoutDirection: 'vertical', showNodeIds }}>
+			<ConfigurationContext.Provider
+				value={{
+					layoutDirection: 'vertical',
+					showNodeIds,
+					toggleFactoryNode: toggleFactoryNode,
+					unfoldedFactories: unfoldedFactoryNodes,
+				}}
+			>
 				<Aside>
 					<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
 					<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
@@ -112,6 +123,9 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						</Label>
 						<Label variant={'parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
 							Ownership
+						</Label>
+						<Label variant={'factory-ownership'} value={visibleEdges} onChange={visibleEdgesChanged}>
+							Factory Ownership
 						</Label>
 						<Label variant={'reactive+source'} value={visibleEdges} onChange={visibleEdgesChanged}>
 							Reactive + Source
@@ -139,6 +153,14 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						/>
 						Hide nodes with no location
 					</label>
+					<label title={'Exclude ownership from layouting'}>
+						<input
+							type="checkbox"
+							checked={excludeOwnershipFromLayouting}
+							onChange={(e) => excludeOwnershipFromLayoutingChanged(e.target.checked)}
+						/>
+						Exclude ownership from layouting
+					</label>
 					<hr />
 					<Legend>
 						<summary>Legend</summary>
@@ -161,6 +183,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						edges={edges}
 						onEdgesChange={onEdgesChange}
 						onEdgeClick={(_, edge) => edgeClicked(edge)}
+						onNodeDoubleClick={(_, { id }) => toggleFactoryNode(id)}
 						fitView
 						nodeTypes={nodeTypes}
 						minZoom={0.1}

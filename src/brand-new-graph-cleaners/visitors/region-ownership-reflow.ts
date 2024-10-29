@@ -1,7 +1,7 @@
 import { createLinkEdge } from '../../edge-factories';
 import type { BufferedGraph } from '../../graph-manager';
-import { ensureDefined, isParentToChildEdge, isRegularNode, isSourceEdge } from '../../lib';
-import { EdgeType, type MyEdge, type RegularEffectorNode } from '../../types';
+import { isParentToChildEdge, isRegularNode, isSourceEdge } from '../../lib';
+import { type MyEdge, type RegularEffectorNode } from '../../types';
 import type { NamedGraphVisitor } from '../types';
 import { getKey } from './get-key';
 
@@ -40,7 +40,7 @@ function groupByKey<T extends MyEdge>(links: T[]) {
 export const regionOwnershipReflow: NamedGraphVisitor = {
 	name: 'Region Ownership Reflow',
 
-	visit: (graph: BufferedGraph) => {
+	visit: async (graph: BufferedGraph) => {
 		const regionRoots = graph.nodes.filter((node) => isRegularNode(node)).filter((node) => isRegionRoot(node));
 
 		for (const regionRoot of regionRoots) {

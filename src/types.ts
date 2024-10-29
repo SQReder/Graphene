@@ -11,9 +11,9 @@ export const NodeFamily = {
 export type NodeFamily = (typeof NodeFamily)[keyof typeof NodeFamily];
 
 interface Family {
-	type: NodeFamily;
-	links: Graphite[];
-	owners: Graphite[];
+	readonly type: NodeFamily;
+	readonly links: Graphite[];
+	readonly owners: Graphite[];
 }
 
 export const OpTypeWithCycles = {
@@ -23,6 +23,7 @@ export const OpTypeWithCycles = {
 	FilterMap: 'filterMap',
 	Combine: 'combine',
 	Merge: 'merge',
+	Prepend: 'prepend',
 	Empty: undefined,
 } as const;
 
@@ -35,6 +36,8 @@ export const OpType = {
 	Event: 'event',
 	Effect: 'effect',
 	Domain: 'domain',
+	Filter: 'filter',
+	Split: 'split',
 } as const;
 
 export type OpType = (typeof OpType)[keyof typeof OpType];
@@ -53,7 +56,10 @@ export type EmptyMeta = {
 		| typeof OpType.Map
 		| typeof OpType.FilterMap
 		| typeof OpType.Combine
-		| typeof OpType.Merge;
+		| typeof OpType.Merge
+		| typeof OpType.Prepend
+		| typeof OpType.Filter
+		| typeof OpType.Split;
 };
 
 export type SampleMeta = {
@@ -92,7 +98,7 @@ export type CombineMeta = BaseUnitMeta<typeof OpType.Combine>;
 
 export type UnitMeta = StoreMeta | EventMeta | EffectMeta | DomainMeta;
 
-type FactoryMeta = {
+type NoOpMeta = {
 	op: undefined;
 	type: typeof MetaType.Factory | typeof MetaType.Domain;
 	name: string;
@@ -100,17 +106,23 @@ type FactoryMeta = {
 	loc?: Location;
 };
 
-export type Meta = EmptyMeta | UnitMeta | SampleMeta | FactoryMeta;
+export type Meta = EmptyMeta | UnitMeta | SampleMeta | NoOpMeta;
 
 export interface Graphite {
-	id: string;
-	family: Family;
-	meta: Meta;
-	next: Graphite[];
-	scope: {
-		handler: (...args: unknown[]) => unknown | Effect<unknown, unknown, unknown>;
-		fn: (...args: unknown[]) => unknown;
-		key?: string;
+	readonly id: string;
+	readonly family: Family;
+	readonly meta: Meta;
+	readonly next: Graphite[];
+	readonly scope: {
+		readonly handler: (...args: unknown[]) => unknown | Effect<unknown, unknown, unknown>;
+		readonly runner: {
+			readonly scope: {
+				readonly handler: Effect<unknown, unknown, unknown> | (() => unknown);
+			};
+		};
+
+		readonly fn: (...args: unknown[]) => unknown;
+		readonly key?: string;
 	};
 }
 
@@ -118,6 +130,7 @@ export const EdgeType = {
 	Reactive: 'reactive',
 	Source: 'source',
 	ParentToChild: 'parent-to-child',
+	FactoryOwnership: 'factory-ownership',
 	Unknown: 'unknown',
 } as const;
 
@@ -143,8 +156,9 @@ export type ReactiveEdge = BaseEdge<typeof EdgeType.Reactive> & {
 export type SourceEdge = BaseEdge<typeof EdgeType.Source>;
 export type ParentToChildEdge = BaseEdge<typeof EdgeType.ParentToChild>;
 export type UnknownEdge = BaseEdge<typeof EdgeType.Unknown>;
+export type FactoryOwnershipEdge = BaseEdge<typeof EdgeType.FactoryOwnership>;
 
-export type MyEdge = ReactiveEdge | SourceEdge | ParentToChildEdge | UnknownEdge;
+export type MyEdge = ReactiveEdge | SourceEdge | ParentToChildEdge | FactoryOwnershipEdge | UnknownEdge;
 
 export interface Graph<NodeType extends Node = Node, EdgeType extends Edge = Edge> {
 	nodes: NodeType[];
@@ -274,8 +288,8 @@ export class MetaHelper {
 		return this._meta.op === undefined && this._meta.type === MetaType.Factory;
 	}
 
-	get asFactory(): FactoryMeta | undefined {
-		return this.isFactory ? (this._meta as FactoryMeta) : undefined;
+	get asFactory(): NoOpMeta | undefined {
+		return this.isFactory ? (this._meta as NoOpMeta) : undefined;
 	}
 
 	get isEvent(): boolean {
@@ -347,6 +361,7 @@ export class MetaHelper {
 			return undefined;
 		}
 	}
+
 	get loc(): string | undefined {
 		// loc present in unit, factory, or sample
 		if (!this.isUnit && !this.isFactory && !this.isSample) return undefined;
@@ -354,7 +369,7 @@ export class MetaHelper {
 		if (this.isUnit) {
 			loc = (this._meta as UnitMeta).config?.loc;
 		} else if (this.isFactory) {
-			loc = (this._meta as FactoryMeta).loc;
+			loc = (this._meta as NoOpMeta).loc;
 		} else if (this.isSample) {
 			loc = (this._meta as SampleMeta).loc;
 		}

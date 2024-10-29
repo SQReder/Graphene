@@ -1,7 +1,8 @@
-import { createFactory } from '@withease/factories';
+import { createFactory, invoke } from '@withease/factories';
 import { combine, createEvent, createStore, type Unit } from 'effector';
+import type { Declaration } from 'effector/inspect';
 import { readonly } from 'patronum';
-import { debounceStore } from '../debounceStore';
+import { debounceStore, debounceStoreFactory } from '../debounceStore';
 import { cleanupEdges, generateEdges } from '../edges-generator';
 import { createEffectorNodesLookup } from '../lib';
 import { type DeclarationEffectorNode, EffectorDeclarationDetails, type EffectorNode } from '../types';
@@ -27,61 +28,62 @@ export const grapheneModelFactory = createFactory(
 			return cleanupEdges(edges, nodes);
 		});
 
-		const $debouncedDeclarations = debounceStore({
+		const $debouncedDeclarations = invoke(debounceStoreFactory<readonly Declaration[]>, {
 			source: declarationsModel.$declarations,
 			defaultState: [],
 			timeoutMs: 100,
 		});
 
-		const $nodes = combine($regularNodes, $debouncedDeclarations, (effectorNodesById, declarations): EffectorNode[] => {
-			if (effectorNodesById.length === 0) {
-				console.log('skip graph computing');
-				return [];
-			}
-
-			console.log('Nodes:', effectorNodesById);
-			console.log('Declarations:', declarations);
-
-			const regularNodeIds = new Set(effectorNodesById.map((node) => node.id));
-
-			const nonUnitNodes: DeclarationEffectorNode[] = [];
-			console.groupCollapsed('matching declarations');
-			for (const declaration of declarations) {
-				const declarationDetails = new EffectorDeclarationDetails(declaration);
-
-				if (!regularNodeIds.has(declaration.id)) {
-					if (declaration.type !== 'unit') {
-						nonUnitNodes.push({
-							id: declaration.id,
-							data: {
-								id: declaration.id,
-								nodeType: 'declaration',
-								declaration: declarationDetails,
-								label: declaration.name,
-							},
-							position: { x: 0, y: 0 },
-						});
-					}
-				} else {
-					console.groupCollapsed(`Declaration ${declaration.id} matched with regular unit`);
-					console.log('Declaration:', declaration);
-					const foundRegularUnit = effectorNodesById.find((node) => node.id === declaration.id);
-					console.log('Regular unit:', foundRegularUnit);
-
-					if (foundRegularUnit) {
-						foundRegularUnit.data.declaration = declarationDetails;
-					}
-					console.groupEnd();
+		const $nodes = combine(
+			{ effectorNodesById: $regularNodes, declarations: $debouncedDeclarations },
+			({ effectorNodesById, declarations }): EffectorNode[] => {
+				if (effectorNodesById.length === 0) {
+					console.log('skip graph computing');
+					return [];
 				}
-			}
-			console.groupEnd();
 
-			return [...effectorNodesById, ...nonUnitNodes];
-		});
-		const $effectorNodesLookup = $nodes.map((nodes) => new Map(nodes.map((node) => [node.id, node])));
+				console.log('Nodes:', effectorNodesById);
+				console.log('Declarations:', declarations);
+
+				const regularNodeIds = new Set(effectorNodesById.map((node) => node.id));
+
+				const nonUnitNodes: DeclarationEffectorNode[] = [];
+				console.groupCollapsed('matching declarations');
+				for (const declaration of declarations) {
+					const declarationDetails = new EffectorDeclarationDetails(declaration);
+
+					if (!regularNodeIds.has(declaration.id)) {
+						if (declaration.type !== 'unit') {
+							nonUnitNodes.push({
+								id: declaration.id,
+								data: {
+									id: declaration.id,
+									nodeType: 'declaration',
+									declaration: declarationDetails,
+									label: declaration.name,
+								},
+								position: { x: 0, y: 0 },
+							});
+						}
+					} else {
+						console.groupCollapsed(`Declaration ${declaration.id} matched with regular unit`);
+						console.log('Declaration:', declaration);
+						const foundRegularUnit = effectorNodesById.find((node) => node.id === declaration.id);
+						console.log('Regular unit:', foundRegularUnit);
+
+						if (foundRegularUnit) {
+							foundRegularUnit.data.declaration = declarationDetails;
+						}
+						console.groupEnd();
+					}
+				}
+				console.groupEnd();
+
+				return [...effectorNodesById, ...nonUnitNodes];
+			},
+		);
 
 		return {
-			$effectorNodesLookup,
 			$edges,
 			$nodes,
 			appendUnits,

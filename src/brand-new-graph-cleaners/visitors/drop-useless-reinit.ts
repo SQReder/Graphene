@@ -3,7 +3,7 @@ import type { NamedGraphVisitor } from '../types';
 
 export const dropUselessReinit: NamedGraphVisitor = {
 	name: 'Drop useless reinit',
-	visit: (graph) => {
+	visit: async (graph) => {
 		graph.nodes
 			.filter(isRegularNode)
 			.filter((node) => node.data.effector.meta.asEvent?.name === 'reinit')

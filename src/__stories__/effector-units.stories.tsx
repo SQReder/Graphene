@@ -98,19 +98,23 @@ export const NestedFactories = {
 const topDomainModelFactory = createFactory(() => {
 	const topDomain = createDomain('top');
 
-	return { topDomain };
+	const topEvent = createEvent({ domain: topDomain });
+
+	return { topDomain, topEvent };
 });
 
 const domainNestedTestModelFactory = createFactory(() => {
-	const { topDomain } = invoke(topDomainModelFactory);
+	const { topDomain, topEvent } = invoke(topDomainModelFactory);
 
 	const rootDomain = createDomain('root', { domain: topDomain });
 
+	const rootEvent = createEvent({ domain: rootDomain });
+
 	const childDomain = createDomain('child', { domain: rootDomain });
 
-	const someEvent = createEvent({ domain: childDomain });
+	const childEvent = createEvent({ domain: childDomain });
 
-	return { someEvent };
+	return { topEvent, rootEvent, childEvent };
 });
 
 export const DomainNested: GrapheneStory = {
@@ -194,6 +198,29 @@ export const AttachedEffectWithSourceShape: GrapheneStory = {
 			});
 
 			return { attachedFx };
+		},
+	},
+};
+
+export const AttachedEffectWithRealEffect: GrapheneStory = {
+	args: {
+		factory: () => {
+			const $source = createStore(0);
+
+			const originalEffect = createEffect<{ source: number }, void>();
+
+			const attachedFx = attach({
+				source: { source: $source },
+				effect: originalEffect,
+			});
+
+			sample({
+				clock: $source,
+				fn: (source) => ({ source }),
+				target: originalEffect,
+			});
+
+			return { $source, attachedFx, originalEffect };
 		},
 	},
 };
@@ -301,6 +328,35 @@ export const TooManyChildren = {
 			const $fooed = combine(...combined);
 
 			return $fooed;
+		},
+	},
+};
+
+export const Prepend = {
+	args: {
+		factory: () => {
+			const event = createEvent<number>();
+			const prepend = event.prepend(() => 1);
+			return { event, prepend };
+		},
+	},
+};
+
+export const GhostedJointSample = {
+	args: {
+		factory: () => {
+			const attachedFx = createEffect({
+				handler: (...args) => void console.log(args),
+			});
+
+			const emit = createEvent();
+
+			sample({
+				clock: [sample(attachedFx, attachedFx.done)],
+				target: emit,
+			});
+
+			return { emit };
 		},
 	},
 };

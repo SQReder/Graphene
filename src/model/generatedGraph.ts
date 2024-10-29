@@ -1,28 +1,35 @@
-import { createFactory } from '@withease/factories';
-import { combine, createEffect, createEvent, sample, type Store } from 'effector';
+import { createFactory, invoke } from '@withease/factories';
+import { combine, createEffect, createEvent, sample, type Store, withRegion } from 'effector';
+import { persist } from 'effector-storage/local';
+import { debug } from 'patronum';
 import { abortable, type WithAbortSignal } from '../abortable';
 import runPipeline, { newPipeline } from '../brand-new-graph-cleaners/pipeline';
+import type { NamedGraphVisitor } from '../brand-new-graph-cleaners/types';
+import { sortTreeNodesBFS, sortTreeNodesDFS } from '../dfs';
 import { BufferedGraph } from '../graph-manager';
-import type { GraphCleaner } from '../graph-morphers/cleaners/types';
 import type { Layouter } from '../layouters/types';
-import { absurd, type GraphVariant, isParentToChildEdge } from '../lib';
+import { absurd, type GraphVariant, isFactoryOwnershipEdge, isParentToChildEdge } from '../lib';
 import { logEffectFail } from '../logEffectFail';
-import { EdgeType, type EffectorGraph, type MyEdge, type ParentToChildEdge } from '../types';
-import type { NamedCleanerSelector } from '../ui/CleanerSelector/model';
+import { EdgeType, type MyEdge } from '../types';
+import { CleanerSelector } from '../ui/CleanerSelector';
 import type { GrapheneModel } from './graphene';
 
-export type NamedCleanerSelectorModel = NamedCleanerSelector<GraphCleaner>;
+type Params = {
+	grapheneModel: GrapheneModel;
+	layouterFactory: () => Layouter;
+	$selectedGraphVariant: Store<GraphVariant>;
+	$excludeOwnershipFromLayouting: Store<boolean>;
+	$unfoldedNodes: Store<Set<string>>;
+};
 
 export const generatedGraphModelFactory = createFactory(
 	({
 		grapheneModel,
 		layouterFactory,
 		$selectedGraphVariant,
-	}: {
-		grapheneModel: GrapheneModel;
-		layouterFactory: () => Layouter;
-		$selectedGraphVariant: Store<GraphVariant>;
-	}) => {
+		$excludeOwnershipFromLayouting,
+		$unfoldedNodes,
+	}: Params) => {
 		const $graph = combine(
 			{
 				nodes: grapheneModel.$nodes,
@@ -40,35 +47,47 @@ export const generatedGraphModelFactory = createFactory(
 			},
 		);
 
-		// withRegion(graphCleanerSelector.$selectedCleaners, () => {
-		// 	persist({
-		// 		pickup: pickupStoredPipeline,
-		// 		source: graphCleanerSelector.$selectedCleaners,
-		// 		target: graphCleanerSelector.selectedCleanersResetted,
-		// 		key: 'graphene',
-		// 		serialize: (value: NamedGraphCleaner[]) => {
-		// 			console.log('serialize', value);
-		// 			return JSON.stringify(value.map((x) => x.name));
-		// 		},
-		// 		deserialize: (value) => {
-		// 			console.log('deserialize', value);
-		// 			return (JSON.parse(value) as string[]).map((name) => pipeline.find((x) => x.name === name)).filter(Boolean);
-		// 		},
-		// 	});
-		// });
+		const graphCleanerSelector = invoke(CleanerSelector.factory<NamedGraphVisitor>(), {
+			availableCleaners: newPipeline,
+		});
 
-		const newGraphEmitted = createEvent<EffectorGraph>();
+		const pickupStoredPipeline = createEvent();
+
+		withRegion(graphCleanerSelector.$selectedCleaners, () => {
+			persist({
+				pickup: pickupStoredPipeline,
+				source: graphCleanerSelector.$selectedCleaners,
+				target: graphCleanerSelector.selectedCleanersResetted,
+				key: 'graphene',
+				serialize: (value: NamedGraphVisitor[]) => {
+					console.log('serialize', value);
+					return JSON.stringify(value.map((x) => x.name));
+				},
+				deserialize: (value) => {
+					console.log('deserialize', value);
+					return (JSON.parse(value) as string[])
+						.map((name) => newPipeline.find((x) => x.name === name))
+						.filter(Boolean);
+				},
+			});
+		});
 
 		const getGraphAbortableFx = createEffect(
 			async ({
 				graph,
 				signal,
+				excludeOwnershipFromLayouting,
+				unfoldedNodes,
+				pipeline,
 			}: {
 				graph: BufferedGraph;
+				excludeOwnershipFromLayouting: boolean;
+				unfoldedNodes: Set<string>;
+				pipeline: NamedGraphVisitor[];
 			} & WithAbortSignal) => {
 				const bufferedGraph = graph.clone();
 
-				runPipeline(bufferedGraph, newPipeline);
+				await runPipeline(bufferedGraph, pipeline);
 
 				signal.throwIfAborted();
 
@@ -76,18 +95,27 @@ export const generatedGraphModelFactory = createFactory(
 
 				const layouter = layouterFactory();
 
-				const links: ParentToChildEdge[] = [];
-				const others: MyEdge[] = [];
+				const linksExcludedFromLayouting: MyEdge[] = [];
+				const linksForLayouting: MyEdge[] = [];
 
 				for (const edge of cleanedGraph.edges) {
-					if (isParentToChildEdge(edge)) links.push(edge);
-					else others.push(edge);
+					if (excludeOwnershipFromLayouting && (isParentToChildEdge(edge) || isFactoryOwnershipEdge(edge))) {
+						linksExcludedFromLayouting.push(edge);
+					} else {
+						linksForLayouting.push(edge);
+					}
 				}
 
-				const layouted = await layouter.getLayoutedElements(cleanedGraph.nodes, others);
+				console.log('start layout', linksForLayouting.length, 'edges at', performance.now());
+				const timestamp = performance.now();
+				console.time('layout ' + timestamp);
+				const layouted = await layouter.getLayoutedElements(sortTreeNodesBFS(cleanedGraph.nodes), linksForLayouting);
+				console.timeEnd('layout ' + timestamp);
 
 				function getOrder(edgeType: EdgeType): number {
 					switch (edgeType) {
+						case EdgeType.FactoryOwnership:
+							return -1;
 						case EdgeType.ParentToChild:
 							return 0;
 						case EdgeType.Source:
@@ -101,24 +129,34 @@ export const generatedGraphModelFactory = createFactory(
 					}
 				}
 
-				newGraphEmitted({
+				console.log(layouted.nodes.map((x) => Number(x.id)).sort((a, b) => a - b));
+				console.log('sorted', sortTreeNodesBFS(layouted.nodes));
+
+				return {
 					nodes: layouted.nodes,
-					edges: [...links, ...layouted.edges].sort((a, b) => getOrder(a.data.edgeType) - getOrder(b.data.edgeType)),
-				});
+					edges: [...linksExcludedFromLayouting, ...layouted.edges].sort(
+						(a, b) => getOrder(a.data.edgeType) - getOrder(b.data.edgeType),
+					),
+				};
 			},
 		);
 		const getGraph = abortable(getGraphAbortableFx);
 
 		logEffectFail(getGraph.abortableFx);
 
+		debug(graphCleanerSelector.$selectedCleaners);
+
 		sample({
 			source: {
 				graph: $graph,
 				selectedGraphVariant: $selectedGraphVariant,
+				excludeOwnershipFromLayouting: $excludeOwnershipFromLayouting,
+				unfoldedNodes: $unfoldedNodes,
+				pipeline: graphCleanerSelector.$selectedCleaners,
 			},
 			target: getGraph.abortableFx,
 		});
 
-		return { graphGenerated: newGraphEmitted };
+		return { graphGenerated: getGraph.abortableFx.doneData, pickupStoredPipeline, graphCleanerSelector };
 	},
 );

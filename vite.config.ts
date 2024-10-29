@@ -9,6 +9,9 @@ export default defineConfig({
 			elkjs: 'elkjs/lib/elk.bundled.js',
 		},
 	},
+	build: {
+		minify: false,
+	},
 	plugins: [
 		svgr(),
 		react({

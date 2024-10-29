@@ -1,5 +1,5 @@
 import { ensureDefined, isRegularNode } from './lib';
-import type { EdgeType, EffectorGraph, EffectorNode, MyEdge, OpType, RegularEffectorNode } from './types';
+import type { EffectorGraph, EffectorNode, MyEdge, OpType, RegularEffectorNode } from './types';
 
 type NodeId = string;
 type EdgeId = string;
@@ -16,8 +16,8 @@ export class BufferedGraph {
 	private buffer: Array<() => void>; // Buffer to store operations
 
 	// Two indexes for fast edge lookup
-	private sourceIndex: Map<NodeId, Set<EdgeId>> | null;
-	private targetIndex: Map<NodeId, Set<EdgeId>> | null;
+	private _sourceIndex: Map<NodeId, Set<EdgeId>> | null = null;
+	private _targetIndex: Map<NodeId, Set<EdgeId>> | null = null;
 
 	constructor(graph: EffectorGraph = { nodes: [], edges: [] }) {
 		// Initialize internal graph structure with maps
@@ -26,8 +26,62 @@ export class BufferedGraph {
 			edges: new Map<EdgeId, MyEdge>(graph.edges.map((edge) => [edge.id, edge])),
 		};
 		this.buffer = [];
-		this.sourceIndex = null;
-		this.targetIndex = null;
+	}
+
+	// Lazy getter for sourceIndex
+	private get sourceIndex(): Map<NodeId, Set<EdgeId>> {
+		if (this._sourceIndex === null) {
+			this._sourceIndex = this._buildSourceIndex();
+		}
+		return this._sourceIndex;
+	}
+
+	// Lazy getter for targetIndex
+	private get targetIndex(): Map<NodeId, Set<EdgeId>> {
+		if (this._targetIndex === null) {
+			this._targetIndex = this._buildTargetIndex();
+		}
+		return this._targetIndex;
+	}
+
+	// Invalidate only the source index
+	private _invalidateSourceIndex() {
+		this._sourceIndex = null;
+	}
+
+	// Invalidate only the target index
+	private _invalidateTargetIndex() {
+		this._targetIndex = null;
+	}
+
+	// Invalidate both indexes
+	private _invalidateIndexes() {
+		this._invalidateSourceIndex();
+		this._invalidateTargetIndex();
+	}
+
+	// Rebuild the source index
+	private _buildSourceIndex(): Map<NodeId, Set<EdgeId>> {
+		const sourceIndex = new Map<NodeId, Set<EdgeId>>();
+		this.graph.edges.forEach((edge) => {
+			if (!sourceIndex.has(edge.source)) {
+				sourceIndex.set(edge.source, new Set());
+			}
+			sourceIndex.get(edge.source)?.add(edge.id);
+		});
+		return sourceIndex;
+	}
+
+	// Rebuild the target index
+	private _buildTargetIndex(): Map<NodeId, Set<EdgeId>> {
+		const targetIndex = new Map<NodeId, Set<EdgeId>>();
+		this.graph.edges.forEach((edge) => {
+			if (!targetIndex.has(edge.target)) {
+				targetIndex.set(edge.target, new Set());
+			}
+			targetIndex.get(edge.target)?.add(edge.id);
+		});
+		return targetIndex;
 	}
 
 	public clone(): BufferedGraph {
@@ -72,11 +126,9 @@ export class BufferedGraph {
 
 	// Apply all buffered operations and invalidate indexes
 	public applyOperations() {
-		console.group('applyOperations');
 		this.buffer.forEach((op) => op());
 		this.buffer = []; // Clear the buffer after applying all operations
-		this._invalidateIndexes(); // Invalidate and rebuild indexes
-		console.groupEnd();
+		this._invalidateIndexes(); // Invalidate both indexes
 	}
 
 	// Return the graph in the public format (arrays of nodes and edges)
@@ -89,10 +141,7 @@ export class BufferedGraph {
 
 	// Public method to list edges from a node by edgeType
 	public listEdgesFrom<T extends MyEdge = MyEdge>(nodeId: NodeId, predicate?: (edge: MyEdge) => edge is T): T[] {
-		if (!this.sourceIndex) {
-			this._buildIndexes();
-		}
-		const edgeIds = this.sourceIndex?.get(nodeId);
+		const edgeIds = this.sourceIndex.get(nodeId);
 		if (!edgeIds) return [];
 
 		// Retrieve edges by id and filter by edgeType
@@ -103,10 +152,7 @@ export class BufferedGraph {
 
 	// Public method to list edges to a node by edgeType
 	public listEdgesTo<T extends MyEdge = MyEdge>(nodeId: NodeId, predicate?: (edge: MyEdge) => edge is T): T[] {
-		if (!this.targetIndex) {
-			this._buildIndexes();
-		}
-		const edgeIds = this.targetIndex?.get(nodeId);
+		const edgeIds = this.targetIndex.get(nodeId);
 		if (!edgeIds) return [];
 
 		// Retrieve edges by id and filter by edgeType
@@ -117,94 +163,106 @@ export class BufferedGraph {
 
 	// Internal method to add a node to the internal graph
 	private _addNode(node: EffectorNode) {
-		if (!this.graph.nodes.has(node.id)) {
-			this.graph.nodes.set(node.id, node);
+		if (this.graph.nodes.has(node.id)) {
+			// console.warn(`Warning: trying to add node with id ${node.id} but it already exists. Skipping.`);
+			return;
 		}
+
+		// console.log(`Adding node with id ${node.id}`);
+
+		this.graph.nodes.set(node.id, node);
+	}
+	// Get all child nodes of a node by edgeType
+	public getChildNodes<T extends MyEdge = MyEdge>(
+		nodeId: NodeId,
+		predicate?: (edge: MyEdge) => edge is T,
+	): EffectorNode[] {
+		return this.listEdgesFrom(nodeId, predicate).map((edge) => edge.data.relatedNodes.target);
 	}
 
 	// Internal method to remove a node and its associated edges from the internal graph
 	private _removeNode(nodeId: NodeId) {
-		console.groupCollapsed(`Removing node ${nodeId}`);
-
+		// console.log(`Removing node with id ${nodeId}`);
 		// Remove the node
-		console.debug(`Removing node ${nodeId}`);
 		this.graph.nodes.delete(nodeId);
 
 		// Remove all outgoing edges from this node
-		const outgoingEdges = this.sourceIndex?.get(nodeId);
-		console.debug(`Removing ${outgoingEdges?.size} outgoing edges from ${nodeId}`);
-		outgoingEdges?.forEach((edgeId) => {
-			console.debug(`Removing edge ${edgeId}`);
-			this._removeEdgeById(edgeId);
-		});
+		const outgoingEdges = this.sourceIndex.get(nodeId);
+		if (outgoingEdges) {
+			// console.log(`Removing outgoing edges of ${nodeId}`);
+			outgoingEdges.forEach((edgeId) => {
+				// console.log(`Removing outgoing edge with id ${edgeId}`);
+				this._removeEdgeById(edgeId);
+			});
+		}
 
 		// Remove all incoming edges to this node
-		const incomingEdges = this.targetIndex?.get(nodeId);
-		console.debug(`Removing ${incomingEdges?.size} incoming edges to ${nodeId}`);
-		incomingEdges?.forEach((edgeId) => {
-			console.debug(`Removing edge ${edgeId}`);
-			this._removeEdgeById(edgeId);
-		});
-
-		console.groupEnd();
+		const incomingEdges = this.targetIndex.get(nodeId);
+		if (incomingEdges) {
+			// console.log(`Removing incoming edges of ${nodeId}`);
+			incomingEdges.forEach((edgeId) => {
+				// console.log(`Removing incoming edge with id ${edgeId}`);
+				this._removeEdgeById(edgeId);
+			});
+		}
 	}
 	// Internal method to add an edge to the internal graph
 	private _addEdge(edge: MyEdge) {
-		if (this.graph.nodes.has(edge.source) && this.graph.nodes.has(edge.target)) {
-			this.graph.edges.set(edge.id, edge); // Store the edge by id
-
-			// Update source and target indexes
-			if (!this.sourceIndex) this.sourceIndex = new Map();
-			if (!this.targetIndex) this.targetIndex = new Map();
-
-			this.sourceIndex.get(edge.source)?.add(edge.id) ?? this.sourceIndex.set(edge.source, new Set([edge.id]));
-			this.targetIndex.get(edge.target)?.add(edge.id) ?? this.targetIndex.set(edge.target, new Set([edge.id]));
-		}
-	}
-
-	// Internal method to remove an edge by id
-	private _removeEdgeById(edgeId: EdgeId) {
-		const edge = this.graph.edges.get(edgeId);
-		if (!edge) {
-			console.warn(`Edge ${edgeId} doesn't exist`);
+		if (this.graph.edges.has(edge.id)) {
+			// console.warn(`Warning: trying to add edge with id ${edge.id} but it already exists. Skipping.`);
 			return;
 		}
 
-		// Remove from source and target indexes
-		console.debug(`Remove edge ${edgeId} from source index`, edge.source);
-		this.sourceIndex?.get(edge.source)?.delete(edgeId);
-		if (this.sourceIndex?.get(edge.source)?.size === 0) {
-			this.sourceIndex.delete(edge.source);
-			console.debug(`Removed empty source index for node ${edge.source}`);
+		if (this.graph.nodes.has(edge.source) && this.graph.nodes.has(edge.target)) {
+			this.graph.edges.set(edge.id, edge); // Store the edge by id
+
+			// console.log(`Adding edge with id ${edge.id} from ${edge.source} to ${edge.target}`);
+
+			// Update the indexes to reflect the new edge
+			if (this.sourceIndex.has(edge.source)) {
+				this.sourceIndex.get(edge.source)?.add(edge.id);
+			} else {
+				this.sourceIndex.set(edge.source, new Set([edge.id]));
+			}
+
+			if (this.targetIndex.has(edge.target)) {
+				this.targetIndex.get(edge.target)?.add(edge.id);
+			} else {
+				this.targetIndex.set(edge.target, new Set([edge.id]));
+			}
+		}
+	}
+	// Internal method to remove an edge by id
+	private _removeEdgeById(edgeId: EdgeId) {
+		// console.log(`Removing edge with id ${edgeId}`);
+		const edge = this.graph.edges.get(edgeId);
+		if (!edge) {
+			// console.warn(`Warning: trying to remove edge with id ${edgeId} but it does not exist. Skipping.`);
+			return;
 		}
 
-		console.debug(`Remove edge ${edgeId} from target index`, edge.target);
-		this.targetIndex?.get(edge.target)?.delete(edgeId);
-		if (this.targetIndex?.get(edge.target)?.size === 0) {
+		// console.log(`Removing edge with id ${edgeId} from ${edge.source} to ${edge.target}`);
+
+		// Remove from source and target indexes
+		// console.log(`Removing edge with id ${edgeId} from source index of ${edge.source}`);
+		this.sourceIndex.get(edge.source)?.delete(edgeId);
+		if (this.sourceIndex.get(edge.source)?.size === 0) {
+			// console.log(`Removing source index of ${edge.source} since it has no edges`);
+			this.sourceIndex.delete(edge.source);
+		}
+
+		// console.log(`Removing edge with id ${edgeId} from target index of ${edge.target}`);
+		this.targetIndex.get(edge.target)?.delete(edgeId);
+		if (this.targetIndex.get(edge.target)?.size === 0) {
+			// console.log(`Removing target index of ${edge.target} since it has no edges`);
 			this.targetIndex.delete(edge.target);
-			console.debug(`Removed empty target index for node ${edge.target}`);
 		}
 
 		// Finally, remove the edge from the main edge map
+		// console.log(`Removing edge with id ${edgeId} from the main edge map`);
 		this.graph.edges.delete(edgeId);
-		console.debug(`Removed edge ${edgeId}`);
 	}
-	// Invalidate indexes after operations
-	private _invalidateIndexes() {
-		console.log('invalidate indexes');
-		this.sourceIndex = null;
-		this.targetIndex = null;
-	}
-
-	// Build indexes for fast edge search
-	private _buildIndexes() {
-		console.log('rebuild indexes');
-		this.sourceIndex = new Map<NodeId, Set<EdgeId>>();
-		this.targetIndex = new Map<NodeId, Set<EdgeId>>();
-
-		this.graph.edges.forEach((edge) => {
-			this.sourceIndex!.get(edge.source)?.add(edge.id) ?? this.sourceIndex!.set(edge.source, new Set([edge.id]));
-			this.targetIndex!.get(edge.target)?.add(edge.id) ?? this.targetIndex!.set(edge.target, new Set([edge.id]));
-		});
+	public getNode(nodeId: NodeId): EffectorNode | undefined {
+		return this.graph.nodes.get(nodeId);
 	}
 }

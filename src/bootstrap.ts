@@ -1,6 +1,6 @@
 import { createFactory, invoke } from '@withease/factories';
-import type { NamedGraphCleaner } from './graph-morphers/cleaners/types';
-import { pipeline } from './graph-morphers/pipeline';
+import { newPipeline } from './brand-new-graph-cleaners/pipeline';
+import type { NamedGraphVisitor } from './brand-new-graph-cleaners/types';
 import { Layouters } from './layouters';
 import { appModelFactory } from './model/app';
 import { declarationsStoreModelFactory } from './model/declarationsStore';
@@ -14,7 +14,7 @@ export const fastStart = createFactory(() => {
 	const app = invoke(appModelFactory, {
 		grapheneModel,
 		layouterFactory: Layouters.ELK,
-		graphCleanerSelector: invoke(CleanerSelector.factory<NamedGraphCleaner>(), { availableCleaners: pipeline }),
+		graphCleanerSelector: invoke(CleanerSelector.factory<NamedGraphVisitor>(), { availableCleaners: newPipeline }),
 	});
 
 	return app;

@@ -3,7 +3,8 @@ import styled from '@emotion/styled';
 import type { NodeProps } from '@xyflow/react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { useLayouterContext } from './ConfigurationContext';
-import { assertIsRegularEffectorDetails, getMetaIcon } from './lib';
+import { getMetaIcon } from './getMetaIcon';
+import { assertIsRegularEffectorDetails } from './lib';
 import { type EffectorNode, OpType, type RegularEffectorNode } from './types';
 
 const nodeWidth = css`
@@ -58,7 +59,6 @@ export const StoreNode = (props: NodeProps<EffectorNode>) => {
 
 	return (
 		<StoreNodeContainer>
-			{/*<Handle type='target' position={Position.Top} style={{ left: 10 }} />*/}
 			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
 			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
@@ -180,22 +180,6 @@ export const SampleNode = (props: NodeProps) => {
 	return (
 		<SampleNodeContainer>
 			<Handle type="target" position={layoutDirection === 'horizontal' ? Position.Left : Position.Top} />
-			{/*<Handle*/}
-			{/*	type="target"*/}
-			{/*	id={'clock'}*/}
-			{/*	position={layoutDirection === 'horizontal' ? Position.Left : Position.Top}*/}
-			{/*	style={{ left: '25%' }}*/}
-			{/*>*/}
-			{/*	Clock*/}
-			{/*</Handle>*/}
-			{/*<Handle*/}
-			{/*	type="target"*/}
-			{/*	id={'source'}*/}
-			{/*	position={layoutDirection === 'horizontal' ? Position.Left : Position.Top}*/}
-			{/*	style={{ left: '75%' }}*/}
-			{/*>*/}
-			{/*	Source*/}
-			{/*</Handle>*/}
 			<Handle type="source" position={layoutDirection === 'horizontal' ? Position.Right : Position.Bottom} />
 
 			{showNodeIds && <NodeId>{props.id}</NodeId>}
@@ -210,7 +194,7 @@ export const SampleNode = (props: NodeProps) => {
 };
 
 const FactoryNodeContainer = styled.div`
-	background: transparent;
+	background: rgba(255, 255, 255, 0.5);
 	${nodeWidth};
 	${nodeHeight};
 
@@ -225,9 +209,25 @@ const FactoryNodeContainer = styled.div`
 	border: 1px solid #303030;
 `;
 
-export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
-	const { layoutDirection, showNodeIds } = useLayouterContext();
+const NodeExpand = styled.div<{ foldState: boolean }>`
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	& > button {
+		padding-inline: 2px;
+		padding: 0;
+		padding-block: 0;
+		width: 16px;
+		height: 16px;
+		background: ${({ foldState }) => (foldState ? '#ff6666' : '#66ff66')};
+	}
+`;
 
+export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
+	const { layoutDirection, showNodeIds, toggleFactoryNode, unfoldedFactories } = useLayouterContext();
+
+	const nodeId = props.data.id;
+	const canBeFoldedByAgressor = props.data[Symbol.for('canBeFoldedByAgressor')];
 	const meta = props.data.effector.meta;
 	const icon = getMetaIcon(meta.value);
 
@@ -244,6 +244,11 @@ export const FactoryNode = (props: NodeProps<RegularEffectorNode>) => {
 					<div>{meta.name}</div>
 				</div>
 			</Content>
+			{canBeFoldedByAgressor && (
+				<NodeExpand foldState={unfoldedFactories.has(nodeId)}>
+					<button onClick={() => toggleFactoryNode(nodeId)}>{unfoldedFactories.has(nodeId) ? '-' : '+'}</button>
+				</NodeExpand>
+			)}
 		</FactoryNodeContainer>
 	);
 };

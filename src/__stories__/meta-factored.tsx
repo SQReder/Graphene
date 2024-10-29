@@ -4,8 +4,8 @@ import { fork, is } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
 import { inspectGraph } from 'effector/inspect';
 import { useEffect } from 'react';
-import type { NamedGraphCleaner } from '../graph-morphers/cleaners/types';
-import { pipeline } from '../graph-morphers/pipeline';
+import { newPipeline } from '../brand-new-graph-cleaners/pipeline';
+import type { NamedGraphVisitor } from '../brand-new-graph-cleaners/types';
 import { Graphene } from '../Graphene';
 import { Layouters } from '../layouters';
 import { appModelFactory } from '../model/app';
@@ -21,7 +21,7 @@ const grapheneModel = invoke(grapheneModelFactory, { declarationsModel });
 const appModel = invoke(appModelFactory, {
 	grapheneModel,
 	layouterFactory: Layouters.ELK,
-	graphCleanerSelector: invoke(CleanerSelector.factory<NamedGraphCleaner>(), { availableCleaners: pipeline }),
+	graphCleanerSelector: invoke(CleanerSelector.factory<NamedGraphVisitor>(), { availableCleaners: newPipeline }),
 });
 
 export type GrapheneMeta = Meta<Params>;

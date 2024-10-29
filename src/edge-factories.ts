@@ -1,5 +1,5 @@
 import { MarkerType } from '@xyflow/system';
-import type { EffectorNode, MyEdge, ParentToChildEdge, ReactiveEdge, SourceEdge } from './types';
+import type { EffectorNode, FactoryOwnershipEdge, MyEdge, ParentToChildEdge, ReactiveEdge, SourceEdge } from './types';
 import { EdgeType } from './types';
 
 export type EdgeFactory<T extends MyEdge> = (params: {
@@ -30,6 +30,7 @@ export const createReactiveEdge: EdgeFactory<ReactiveEdge> = ({ id, source, targ
 		style: {
 			zIndex: 10,
 			stroke: color,
+			// strokeDasharray: '8 2',
 		},
 	} satisfies ReactiveEdge;
 
@@ -84,6 +85,38 @@ export const createLinkEdge: EdgeFactory<ParentToChildEdge> = ({ id, source, tar
 			stroke: 'rgba(198, 177, 250, 0.86)',
 		},
 	} satisfies ParentToChildEdge;
+
+	extras(result);
+
+	return result;
+};
+
+export const createFactoryOwnershipEdge: EdgeFactory<FactoryOwnershipEdge> = ({
+	id,
+	source,
+	target,
+	extras = (x) => x,
+}) => {
+	const result = {
+		id: id,
+		source: source.id,
+		target: target.id,
+		data: {
+			edgeType: EdgeType.FactoryOwnership,
+			relatedNodes: {
+				source,
+				target,
+			},
+			synthetic: true,
+		},
+		markerEnd: {
+			type: MarkerType.ArrowClosed,
+			color: 'lightblue',
+		},
+		style: {
+			stroke: 'lightblue',
+		},
+	} satisfies FactoryOwnershipEdge;
 
 	extras(result);
 

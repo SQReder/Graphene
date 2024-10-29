@@ -22,7 +22,7 @@ function tryFindLoc(node: RegularEffectorNode): string | undefined {
 
 export const locEnricher: NamedGraphVisitor = {
 	name: 'Loc Enricher',
-	visit: (graph) => {
+	visit: async (graph) => {
 		for (const node of graph.nodes) {
 			if (!isRegularNode(node)) continue;
 
@@ -34,7 +34,5 @@ export const locEnricher: NamedGraphVisitor = {
 
 			node.data.noLoc = !loc;
 		}
-
-		return graph;
 	},
 };
