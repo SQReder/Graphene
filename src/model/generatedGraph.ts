@@ -5,7 +5,7 @@ import { debug } from 'patronum';
 import { abortable, type WithAbortSignal } from '../abortable';
 import runPipeline, { newPipeline } from '../brand-new-graph-cleaners/pipeline';
 import type { NamedGraphVisitor } from '../brand-new-graph-cleaners/types';
-import { sortTreeNodesBFS, sortTreeNodesDFS } from '../dfs';
+import { sortTreeNodesBFS } from '../dfs';
 import { BufferedGraph } from '../graph-manager';
 import type { Layouter } from '../layouters/types';
 import { absurd, type GraphVariant, isFactoryOwnershipEdge, isParentToChildEdge } from '../lib';

@@ -1,7 +1,7 @@
 import { createFactory, invoke } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample } from 'effector';
 import { createGate } from 'effector-react';
-import { debug, readonly } from 'patronum';
+import { readonly } from 'patronum';
 import type { Layouter } from '../layouters/types';
 import {
 	absurd,
@@ -50,7 +50,8 @@ export const appModelFactory = createFactory(
 		const $excludeOwnershipFromLayouting = readonly(restore(excludeOwnershipFromLayoutingChanged, true));
 
 		const toggleNode = createEvent<string>();
-		const $unfoldedNodes = createStore<Set<string>>(new Set()).on(toggleNode, (state, id) => {
+		const $unfoldedNodes = createStore<Set<string>>(new Set());
+		$unfoldedNodes.on(toggleNode, (state, id) => {
 			const newState = new Set(state);
 			if (newState.has(id)) {
 				newState.delete(id);
@@ -59,8 +60,6 @@ export const appModelFactory = createFactory(
 			}
 			return newState;
 		});
-
-		debug($unfoldedNodes, toggleNode);
 
 		const { graphGenerated, pickupStoredPipeline, graphCleanerSelector } = invoke(generatedGraphModelFactory, {
 			grapheneModel,

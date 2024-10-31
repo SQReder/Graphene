@@ -11,6 +11,7 @@ import {
 	sample,
 	type Store,
 } from 'effector';
+import { createGate } from 'effector-react';
 import { persist } from 'effector-storage/local';
 import { debug, readonly } from 'patronum';
 import { abortable, type WithAbortSignal } from '../abortable';
@@ -342,7 +343,7 @@ export const Prepend = {
 	},
 };
 
-export const GhostedJointSample = {
+export const GhostedJointSample: GrapheneStory = {
 	args: {
 		factory: () => {
 			const attachedFx = createEffect({
@@ -357,6 +358,16 @@ export const GhostedJointSample = {
 			});
 
 			return { emit };
+		},
+	},
+};
+
+export const Gate: GrapheneStory = {
+	args: {
+		factory: () => {
+			const TheGate = createGate('TheGate');
+
+			return { open: TheGate.open };
 		},
 	},
 };

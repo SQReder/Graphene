@@ -1,6 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { Effect } from 'effector';
+import type { Effect, Unit } from 'effector';
 import type { Declaration, Region } from 'effector/inspect';
+import { ensureDefined } from './lib';
 
 export const NodeFamily = {
 	Crosslink: 'crosslink',
@@ -170,10 +171,16 @@ export class EffectorNodeDetails {
 		return this._graphite;
 	}
 
-	private readonly _graphite: Graphite;
+	get unit(): Unit<unknown> | undefined {
+		return this._unit;
+	}
 
-	constructor(graphite: Graphite) {
+	private readonly _graphite: Graphite;
+	private readonly _unit: Unit<unknown> | undefined;
+
+	constructor(graphite: Graphite, unit: Unit<unknown> | undefined) {
 		this._graphite = graphite;
+		this._unit = unit;
 	}
 
 	get type(): typeof NodeFamily.Regular | typeof NodeFamily.Crosslink | typeof NodeFamily.Domain {
@@ -216,6 +223,10 @@ export class EffectorNodeDetails {
 		return !!this.meta.asStore?.isCombine;
 	}
 
+	get isInteractive(): boolean {
+		return this._unit != null;
+	}
+
 	private _isMergeEvent = false;
 
 	get isMergeEvent(): boolean {
@@ -223,6 +234,9 @@ export class EffectorNodeDetails {
 	}
 
 	set isMergeEvent(value: boolean) {
+		if (!this.meta.isEvent) {
+			throw new Error('isMergeEvent can be set only for events');
+		}
 		this._isMergeEvent = value;
 	}
 
@@ -341,11 +355,15 @@ export class MetaHelper {
 	}
 
 	get isCombinedStore(): boolean {
-		return this.asStore?.isCombine ?? false;
+		return Boolean(this.asStore?.isCombine);
 	}
 
 	get name(): string | undefined {
-		if (this.isStore || this.isEvent || this.isDomain || this.isEffect) {
+		if (this.isStore) {
+			const storeMeta = ensureDefined(this.asStore);
+			if (storeMeta.isCombine && storeMeta.name.startsWith('combine($')) return 'combined';
+			else return storeMeta.name;
+		} else if (this.isEvent || this.isDomain || this.isEffect) {
 			const name = (this._meta as UnitMeta).name as NonNullable<unknown>;
 			if (typeof name !== 'string') {
 				console.warn(`Unexpected non-string name:`, name, this);

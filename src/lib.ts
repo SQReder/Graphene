@@ -213,8 +213,8 @@ export function makeEdgesFromNodes(nodesMap: Map<string, EffectorNode>): {
 	};
 }
 
-export function makeEffectorNode(graphite: Graphite): RegularEffectorNode {
-	const nodeDetails = new EffectorNodeDetails(graphite);
+export function makeEffectorNode(graphite: Graphite, unitsById: Map<string, Unit<unknown>>): RegularEffectorNode {
+	const nodeDetails = new EffectorNodeDetails(graphite, unitsById.get(graphite.id));
 
 	return {
 		id: graphite.id,
@@ -544,7 +544,11 @@ export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, 
 
 export function createEffectorNodesLookup(units: ReadonlyArray<Unit<unknown>>): RegularEffectorNode[] {
 	const graphites = traverseEffectorGraph(units);
-	return graphites.map(makeEffectorNode);
+	const unitsById = units.filter(hasGraphite).reduce((acc, unit) => {
+		acc.set(unit.graphite.id, unit);
+		return acc;
+	}, new Map<string, Unit<unknown>>());
+	return graphites.map((graphite) => makeEffectorNode(graphite, unitsById));
 }
 
 export const GraphVariant = {

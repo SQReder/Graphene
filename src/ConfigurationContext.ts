@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-type ConfigurationContextType = {
+export type ConfigurationContextType = {
 	layoutDirection: 'horizontal' | 'vertical';
 	showNodeIds: boolean;
 	unfoldedFactories: Set<string>;
