@@ -443,7 +443,6 @@ export type RegularEffectorDetails = BaseNode<
 export const CombinatorType = {
 	Combine: 'combine',
 } as const;
-
 export type CombinatorType = (typeof CombinatorType)[keyof typeof CombinatorType];
 
 export type CombinedNodeDetails = BaseNode<typeof CombinatorType.Combine> & {
@@ -451,6 +450,18 @@ export type CombinedNodeDetails = BaseNode<typeof CombinatorType.Combine> & {
 	declaration?: undefined;
 
 	relatedNodes: EffectorNode[];
+};
+
+export const SyntheticNodeTypes = {
+	Gate: 'gate',
+};
+export type SyntheticNodeType = (typeof SyntheticNodeTypes)[keyof typeof SyntheticNodeTypes];
+
+export type GateNodeDetails = BaseNode<typeof SyntheticNodeTypes.Gate> & {
+	effector?: undefined;
+	declaration?: undefined;
+	relatedNodes: EffectorNode[];
+	gateName: string;
 };
 
 export type DeclarationEffectorDetails = BaseNode<typeof NodeFamily.Declaration> & {
@@ -461,8 +472,9 @@ export type DeclarationEffectorDetails = BaseNode<typeof NodeFamily.Declaration>
 export type RegularEffectorNode = Node<RegularEffectorDetails>;
 export type DeclarationEffectorNode = Node<DeclarationEffectorDetails>;
 export type CombinedNode = Node<CombinedNodeDetails>;
+export type GateNode = Node<GateNodeDetails>;
 
-export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode;
+export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode | GateNode;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
 
 export type Location = {

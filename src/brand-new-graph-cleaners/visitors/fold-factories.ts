@@ -1,4 +1,6 @@
+import { createReactiveEdge } from '../../edge-factories';
 import { isParentToChildEdge, isRegularNode } from '../../lib';
+import { type RegularEffectorNode } from '../../types';
 import { foldByShape } from './fold-by-shape';
 
 const nameSelector = (name: string) => (node) => {
@@ -31,3 +33,19 @@ export const foldCombineEvents = foldByShape('combineEvents', nameSelector('comb
 });
 export const foldAbortable = foldByShape('abortable', nameSelector('abortable'));
 export const foldLogEffectFail = foldByShape('logEffectFail', nameSelector('logEffectFail'));
+
+export const foldCreateQuery = foldByShape('@farfetched/core/createQuery', nameSelector('createQuery'), {
+	factories_: {
+		outboundReactive: ({ id, edge, root }) =>
+			createReactiveEdge({
+				id,
+				source: root,
+				target: edge.data.relatedNodes.target,
+				extras: (rxEdge) => {
+					const source = edge.data.relatedNodes.source as RegularEffectorNode;
+					const meta = source.data.effector.meta;
+					rxEdge.label = meta.name ?? '???';
+				},
+			}),
+	},
+});

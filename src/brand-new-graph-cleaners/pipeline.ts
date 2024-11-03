@@ -16,6 +16,7 @@ import {
 	foldAbortable,
 	foldCombineEvents,
 	foldCondition,
+	foldCreateQuery,
 	foldDebounce,
 	foldLogEffectFail,
 	foldReadonly,
@@ -26,6 +27,7 @@ import {
 import { foldHypernodes } from './visitors/fold-hypernodes';
 import { foldMergeNode } from './visitors/fold-merge-node';
 import { foldSample, foldSampleJoints } from './visitors/fold-sample';
+import { foldGate, generateSyntheticGateNode } from './visitors/generate-synthetic-gate-node';
 import { locEnricher } from './visitors/loc-enricher';
 import { rebindAttachedEffectSource } from './visitors/rebind-attached-effect-source';
 import { regionOwnershipReflow } from './visitors/region-ownership-reflow';
@@ -38,9 +40,12 @@ export const newPipeline: NamedGraphVisitor[] = [
 	...withOrder(20, removeSourceWhereReactivePresent),
 	...withOrder(30, ...transitiveNodeReplacers),
 	...withOrder(40, dropUselessReinit, dropUselessUpdates, dropUselessWatch),
+	...withOrder(45, generateSyntheticGateNode),
+	...withOrder(46, foldGate),
 	...withOrder(50, foldMergeNode, foldSampleJoints, foldSample),
 	...withOrder(60, foldEffect, bindHandlersToAttachedFx, rebindAttachedEffectSource, foldHypernodes),
 	...withOrder(70, foldDebounce, foldCombineEvents, foldReadonly, foldReshape, foldSplitMap, foldSpread, foldCondition),
+	...withOrder(75, foldCreateQuery),
 	...withOrder(80, foldAbortable, foldLogEffectFail),
 	...withOrder(100, foldDomains),
 	...withOrder(110, detachDomains),

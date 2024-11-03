@@ -367,7 +367,24 @@ export const Gate: GrapheneStory = {
 		factory: () => {
 			const TheGate = createGate('TheGate');
 
-			return { open: TheGate.open };
+			TheGate.open.watch(() => {
+				console.log('Gate opened');
+			});
+			TheGate.close.watch(() => {
+				console.log('Gate closed');
+			});
+
+			TheGate.state.watch((state) => {
+				console.log('Gate state changed', state);
+			});
+
+			TheGate.status.watch((status) => {
+				console.log('Gate status changed', status);
+			});
+
+			return {
+				open: TheGate.open,
+			};
 		},
 	},
 };

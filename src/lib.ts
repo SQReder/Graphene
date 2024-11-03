@@ -4,24 +4,31 @@ import { combineComparators } from './comparison';
 import { createReactiveEdge, createSourceEdge } from './edge-factories';
 import { layoutGraph } from './layouters';
 import type { Layouter } from './layouters/types';
-import type {
-	CombinedNode,
-	DeclarationEffectorNode,
-	EffectorGraph,
-	EffectorNode,
-	FactoryOwnershipEdge,
-	Graphite,
-	Meta,
-	MetaHelper,
-	MyEdge,
-	ParentToChildEdge,
-	ReactiveEdge,
-	RegularEffectorDetails,
-	RegularEffectorNode,
-	SourceEdge,
-	UnitMeta,
+import {
+	CombinatorType,
+	type CombinedNode,
+	type DeclarationEffectorNode,
+	EdgeType,
+	type EffectorGraph,
+	type EffectorNode,
+	EffectorNodeDetails,
+	type FactoryOwnershipEdge,
+	type GateNode,
+	type Graphite,
+	type Meta,
+	type MetaHelper,
+	MetaType,
+	type MyEdge,
+	NodeFamily,
+	OpType,
+	type ParentToChildEdge,
+	type ReactiveEdge,
+	type RegularEffectorDetails,
+	type RegularEffectorNode,
+	type SourceEdge,
+	SyntheticNodeTypes,
+	type UnitMeta,
 } from './types';
-import { CombinatorType, EdgeType, EffectorNodeDetails, MetaType, NodeFamily, OpType } from './types';
 
 export function absurd(value: never): never {
 	throw new Error(`Expect to be unreachable, however receive ${JSON.stringify(value)}`);
@@ -256,6 +263,10 @@ export function makeEffectorNode(graphite: Graphite, unitsById: Map<string, Unit
 
 export function isCombinedStoreNode(node: EffectorNode): node is CombinedNode {
 	return node.data.nodeType === CombinatorType.Combine;
+}
+
+export function isGateNode(node: EffectorNode): node is GateNode {
+	return node.data.nodeType === SyntheticNodeTypes.Gate;
 }
 
 export function isDeclarationNode(node: EffectorNode): node is DeclarationEffectorNode {
@@ -536,6 +547,10 @@ export function assertDefined<T>(value: T, variableName?: string): asserts value
 		console.error(`${variableName} expected to be defined, but receive ${String(value)}`);
 		throw new Error(`${variableName} expected to be defined, but receive ${String(value)}`);
 	}
+}
+
+export function isDefined<T>(value: T): value is NonNullable<T> {
+	return value != null;
 }
 
 export function remap<K, V, U>(map: ReadonlyMap<K, V>, fn: (v: V) => U): Map<K, U> {

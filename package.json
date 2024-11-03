@@ -162,6 +162,7 @@
 		"node": ">=16"
 	},
 	"dependencies": {
+		"@farfetched/core": "^0.12.8",
 		"@fortawesome/fontawesome-svg-core": "^6.6.0",
 		"@fortawesome/free-regular-svg-icons": "^6.6.0",
 		"@fortawesome/react-fontawesome": "^0.2.2",
