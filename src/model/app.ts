@@ -10,6 +10,7 @@ import {
 	isCombinedStoreNode,
 	isDeclarationNode,
 	isFactoryOwnershipEdge,
+	isGateNode,
 	isParentToChildEdge,
 	isReactiveEdge,
 	isRegularNode,
@@ -143,6 +144,8 @@ export const appModelFactory = createFactory(
 					console.log('node', node.data.declaration);
 				} else if (isCombinedStoreNode(node)) {
 					console.log('combined', node.data.relatedNodes);
+				} else if (isGateNode(node)) {
+					console.log('gate', node.data.gateName, node.data.relatedNodes);
 				} else {
 					absurd(node);
 				}

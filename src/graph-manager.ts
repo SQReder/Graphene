@@ -161,6 +161,18 @@ export class BufferedGraph {
 			.filter(predicate ?? ((edge): edge is T => true));
 	}
 
+	// Check if the node has outgoing edges
+	public hasEdgesFrom(nodeId: NodeId): boolean {
+		const edgeIds = this.sourceIndex.get(nodeId);
+		return edgeIds ? edgeIds.size > 0 : false;
+	}
+
+	// Check if the node has incoming edges
+	public hasEdgesTo(nodeId: NodeId): boolean {
+		const edgeIds = this.targetIndex.get(nodeId);
+		return edgeIds ? edgeIds.size > 0 : false;
+	}
+
 	// Internal method to add a node to the internal graph
 	private _addNode(node: EffectorNode) {
 		if (this.graph.nodes.has(node.id)) {

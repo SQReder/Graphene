@@ -10,7 +10,7 @@ import { BufferedGraph } from '../graph-manager';
 import type { Layouter } from '../layouters/types';
 import { absurd, type GraphVariant, isFactoryOwnershipEdge, isParentToChildEdge } from '../lib';
 import { logEffectFail } from '../logEffectFail';
-import { EdgeType, type MyEdge } from '../types';
+import { EdgeType, type EffectorNode, type MyEdge } from '../types';
 import { CleanerSelector } from '../ui/CleanerSelector';
 import type { GrapheneModel } from './graphene';
 
@@ -106,10 +106,67 @@ export const generatedGraphModelFactory = createFactory(
 					}
 				}
 
+				// Function to detect and reverse cycles in a graph
+				function detectAndReverseCycles(nodes: EffectorNode[], edges: MyEdge[]): MyEdge[] {
+					const adjacencyList = new Map<string, string[]>();
+					const reversedEdges = new Set<MyEdge>();
+
+					// Build adjacency list
+					for (const edge of edges) {
+						if (!adjacencyList.has(edge.source)) {
+							adjacencyList.set(edge.source, []);
+						}
+						adjacencyList.get(edge.source)!.push(edge.target);
+					}
+
+					// Helper function to detect cycles using DFS
+					function dfs(node: string, visited: Set<string>, recStack: Set<string>): boolean {
+						if (!visited.has(node)) {
+							visited.add(node);
+							recStack.add(node);
+
+							for (const neighbor of adjacencyList.get(node) || []) {
+								if (!visited.has(neighbor) && dfs(neighbor, visited, recStack)) {
+									return true;
+								} else if (recStack.has(neighbor)) {
+									return true;
+								}
+							}
+						}
+						recStack.delete(node);
+						return false;
+					}
+
+					// Iterate through all edges to detect cycles and reverse if necessary
+					for (const edge of edges) {
+						const visited = new Set<string>();
+						const recStack = new Set<string>();
+
+						// Temporarily remove the edge and check for cycles
+						const adjListCopy = adjacencyList.get(edge.source)?.filter((n) => n !== edge.target);
+						if (adjListCopy) adjacencyList.set(edge.source, adjListCopy);
+
+						if (dfs(edge.source, visited, recStack)) {
+							// If a cycle is detected, reverse the edge
+							// @ts-ignore
+							reversedEdges.add({ ...edge, source: edge.target, target: edge.source, data: edge.data });
+						} else {
+							// If no cycle, add the edge back
+							adjListCopy?.push(edge.target);
+							reversedEdges.add(edge);
+						}
+					}
+
+					return Array.from(reversedEdges);
+				}
+
+				// Detect and reverse cycles in linksForLayouting before layout
+				const forwardOnlyEdges = detectAndReverseCycles(cleanedGraph.nodes, linksForLayouting);
+
 				console.log('start layout', linksForLayouting.length, 'edges at', performance.now());
 				const timestamp = performance.now();
 				console.time('layout ' + timestamp);
-				const layouted = await layouter.getLayoutedElements(sortTreeNodesBFS(cleanedGraph.nodes), linksForLayouting);
+				const layouted = await layouter.getLayoutedElements(sortTreeNodesBFS(cleanedGraph.nodes), forwardOnlyEdges);
 				console.timeEnd('layout ' + timestamp);
 
 				function getOrder(edgeType: EdgeType): number {
@@ -129,12 +186,9 @@ export const generatedGraphModelFactory = createFactory(
 					}
 				}
 
-				console.log(layouted.nodes.map((x) => Number(x.id)).sort((a, b) => a - b));
-				console.log('sorted', sortTreeNodesBFS(layouted.nodes));
-
 				return {
 					nodes: layouted.nodes,
-					edges: [...linksExcludedFromLayouting, ...layouted.edges].sort(
+					edges: [...linksExcludedFromLayouting, ...linksForLayouting].sort(
 						(a, b) => getOrder(a.data.edgeType) - getOrder(b.data.edgeType),
 					),
 				};
