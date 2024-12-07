@@ -1,7 +1,7 @@
 import { createFactory, invoke } from '@withease/factories';
 import { combine, createEvent, createStore, type Unit } from 'effector';
 import type { Declaration } from 'effector/inspect';
-import { readonly } from 'patronum';
+import { debug, readonly } from 'patronum';
 import { debounceStore, debounceStoreFactory } from '../debounceStore';
 import { cleanupEdges, generateEdges } from '../edges-generator';
 import { createEffectorNodesLookup } from '../lib';
@@ -37,10 +37,10 @@ export const grapheneModelFactory = createFactory(
 		const $nodes = combine(
 			{ effectorNodesById: $regularNodes, declarations: $debouncedDeclarations },
 			({ effectorNodesById, declarations }): EffectorNode[] => {
-				if (effectorNodesById.length === 0) {
-					console.log('skip graph computing');
-					return [];
-				}
+				// if (effectorNodesById.length === 0) {
+				// 	console.log('skip graph computing');
+				// 	return [];
+				// }
 
 				console.log('Nodes:', effectorNodesById);
 				console.log('Declarations:', declarations);
@@ -53,7 +53,9 @@ export const grapheneModelFactory = createFactory(
 					const declarationDetails = new EffectorDeclarationDetails(declaration);
 
 					if (!regularNodeIds.has(declaration.id)) {
+						console.log('Declaration', declaration.id, 'not matched with regular unit');
 						if (declaration.type !== 'unit') {
+							console.log('Declaration', declaration.id, 'is not a unit');
 							nonUnitNodes.push({
 								id: declaration.id,
 								data: {
@@ -64,6 +66,9 @@ export const grapheneModelFactory = createFactory(
 								},
 								position: { x: 0, y: 0 },
 							});
+						} else {
+							console.log('Declaration', declaration.id, 'is a unit');
+							console.debug('Declaration', declaration);
 						}
 					} else {
 						console.groupCollapsed(`Declaration ${declaration.id} matched with regular unit`);
@@ -82,6 +87,8 @@ export const grapheneModelFactory = createFactory(
 				return [...effectorNodesById, ...nonUnitNodes];
 			},
 		);
+
+		debug($nodes);
 
 		return {
 			$edges,

@@ -84,10 +84,6 @@ export class BufferedGraph {
 		return targetIndex;
 	}
 
-	public clone(): BufferedGraph {
-		return new BufferedGraph(this.getGraph());
-	}
-
 	get nodes(): IteratorObject<EffectorNode> {
 		return this.graph.nodes.values();
 	}
@@ -184,6 +180,7 @@ export class BufferedGraph {
 
 		this.graph.nodes.set(node.id, node);
 	}
+
 	// Get all child nodes of a node by edgeType
 	public getChildNodes<T extends MyEdge = MyEdge>(
 		nodeId: NodeId,
@@ -218,6 +215,7 @@ export class BufferedGraph {
 			});
 		}
 	}
+
 	// Internal method to add an edge to the internal graph
 	private _addEdge(edge: MyEdge) {
 		if (this.graph.edges.has(edge.id)) {
@@ -244,6 +242,7 @@ export class BufferedGraph {
 			}
 		}
 	}
+
 	// Internal method to remove an edge by id
 	private _removeEdgeById(edgeId: EdgeId) {
 		// console.log(`Removing edge with id ${edgeId}`);
@@ -274,7 +273,16 @@ export class BufferedGraph {
 		// console.log(`Removing edge with id ${edgeId} from the main edge map`);
 		this.graph.edges.delete(edgeId);
 	}
+
 	public getNode(nodeId: NodeId): EffectorNode | undefined {
 		return this.graph.nodes.get(nodeId);
+	}
+
+	public clone(): BufferedGraph {
+		const graph = this.getGraph();
+		return new BufferedGraph({
+			nodes: graph.nodes.map((node) => ({ ...node })),
+			edges: graph.edges.map((edge) => ({ ...edge })),
+		});
 	}
 }

@@ -308,6 +308,7 @@ export const WithFilterFn: GrapheneStory = {
 		},
 	},
 };
+
 export const WithFilterStore: GrapheneStory = {
 	args: {
 		factory: () => {
@@ -320,6 +321,30 @@ export const WithFilterStore: GrapheneStory = {
 			});
 
 			return { emitEven, $allow };
+		},
+	},
+};
+
+export const BooleanStoreFilter: GrapheneStory = {
+	args: {
+		factory: () => {
+			const sourceEvent = createEvent<number>();
+			const isEnabled = createStore(true);
+			const toggleEnabled = createEvent();
+
+			isEnabled.on(toggleEnabled, (state) => !state);
+
+			const filteredEvent = sample({
+				clock: sourceEvent,
+				filter: isEnabled,
+			});
+
+			return {
+				sourceEvent,
+				isEnabled,
+				toggleEnabled,
+				filteredEvent,
+			};
 		},
 	},
 };

@@ -1,3 +1,5 @@
+import 'boxicons';
+
 export { Graphene } from './Graphene';
 export { grapheneModelFactory } from './model/graphene';
 export { Layouters } from './layouters';

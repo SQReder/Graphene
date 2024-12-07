@@ -13,6 +13,7 @@ import {
 	type EffectorNode,
 	EffectorNodeDetails,
 	type FactoryOwnershipEdge,
+	type FileNode,
 	type GateNode,
 	type Graphite,
 	type Meta,
@@ -26,6 +27,7 @@ import {
 	type RegularEffectorDetails,
 	type RegularEffectorNode,
 	type SourceEdge,
+	type SyntheticNodes,
 	SyntheticNodeTypes,
 	type UnitMeta,
 } from './types';
@@ -267,6 +269,14 @@ export function isCombinedStoreNode(node: EffectorNode): node is CombinedNode {
 
 export function isGateNode(node: EffectorNode): node is GateNode {
 	return node.data.nodeType === SyntheticNodeTypes.Gate;
+}
+
+export function isFileNode(node: EffectorNode): node is FileNode {
+	return node.data.nodeType === SyntheticNodeTypes.File;
+}
+
+export function isSyntheticNode(node: EffectorNode): node is SyntheticNodes {
+	return isGateNode(node) || isFileNode(node);
 }
 
 export function isDeclarationNode(node: EffectorNode): node is DeclarationEffectorNode {
@@ -685,9 +695,9 @@ export const unique = <T>(arr: T[]): T[] => [...new Set(arr)];
 
 export function withOrder<T extends { order?: number }>(order: number, ...cleaners: T[]): T[] {
 	return cleaners.map(
-		(cleaner): T => ({
+		(cleaner, idx): T => ({
 			...cleaner,
-			order,
+			order: order + idx,
 		}),
 	);
 }

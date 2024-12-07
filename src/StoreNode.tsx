@@ -1,12 +1,13 @@
 import { css, type SerializedStyles } from '@emotion/react';
 import styled from '@emotion/styled';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { NodeProps } from '@xyflow/react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { type ConfigurationContextType, useLayouterContext } from './ConfigurationContext';
 import { getMetaIcon } from './getMetaIcon';
 import { assertIsRegularEffectorDetails } from './lib';
-import { type EffectorNode, OpType, type RegularEffectorDetails } from './types';
+import { type EffectorNode, type FileNodeDetails, OpType, type RegularEffectorDetails } from './types';
 
 // Base styles shared across nodes
 const baseStyles = css`
@@ -40,6 +41,9 @@ const nodeStyles = {
 	combine: css`
 		background: transparent;
 		padding: 0;
+	`,
+	file: css`
+		background: rgba(255, 255, 255, 0.5);
 	`,
 } as const satisfies Record<string, SerializedStyles>;
 
@@ -115,7 +119,20 @@ export const createFlowNode = (config: NodeConfig) => {
 			source: layoutDirection === 'horizontal' ? Position.Right : Position.Bottom,
 		};
 
-		assertIsRegularEffectorDetails(props.data);
+		let content: ReactNode;
+		if (config.customContent) {
+			content = config.customContent(props, ctx);
+		} else {
+			assertIsRegularEffectorDetails(props.data);
+			content = (
+				<Content>
+					<Icon>{config.getIcon(props.data)}</Icon>
+					<div>
+						<div>{props.data.effector?.name}</div>
+					</div>
+				</Content>
+			);
+		}
 
 		return (
 			<NodeContainer>
@@ -125,16 +142,7 @@ export const createFlowNode = (config: NodeConfig) => {
 
 				{showNodeIds && <NodeId>{props.id}</NodeId>}
 
-				{config.customContent ? (
-					config.customContent(props, ctx)
-				) : (
-					<Content>
-						<Icon>{config.getIcon(props.data)}</Icon>
-						<div>
-							<div>{props.data.effector?.name}</div>
-						</div>
-					</Content>
-				)}
+				{content}
 
 				{config.showExpand && props.data[Symbol.for('canBeFoldedByAggressor')] && (
 					<NodeExpand foldState={unfoldedFactories.has(nodeId)}>
@@ -148,7 +156,7 @@ export const createFlowNode = (config: NodeConfig) => {
 	// add display name for generated component
 	FlowNode.displayName = `FlowNode(${config.type[0]?.toUpperCase() + config.type.slice(1)})`;
 
-	return FlowNode;
+	return memo(FlowNode);
 };
 
 // Example usage for creating specific nodes
@@ -209,4 +217,22 @@ export const CombineNode = createFlowNode({
 	type: 'combine',
 	getIcon: () => getMetaIcon({ op: OpType.Combine }),
 	customContent: combinedNodeCustomContent,
+});
+
+export const FileNode = createFlowNode({
+	type: 'file',
+	getIcon: () => null,
+	customContent: (node, context) => {
+		const data = node.data as FileNodeDetails;
+		return (
+			<Content>
+				<Icon>
+					<box-icon name="file"></box-icon>
+				</Icon>
+				<div>
+					<div>{data.fileName}</div>
+				</div>
+			</Content>
+		);
+	},
 });

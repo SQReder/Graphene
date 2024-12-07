@@ -66,13 +66,13 @@ export type EmptyMeta = {
 export type SampleMeta = {
 	joint: number;
 	op: typeof OpType.Sample;
-	loc?: Location;
+	loc?: SourceLocation;
 };
 
 export type DomainMeta = BaseUnitMeta<typeof OpType.Domain>;
 
 type MetaConfig = {
-	loc?: Location;
+	loc?: SourceLocation;
 };
 
 export type BaseUnitMeta<T extends OpType> = {
@@ -104,7 +104,7 @@ type NoOpMeta = {
 	type: typeof MetaType.Factory | typeof MetaType.Domain;
 	name: string;
 	method: string;
-	loc?: Location;
+	loc?: SourceLocation;
 };
 
 export type Meta = EmptyMeta | UnitMeta | SampleMeta | NoOpMeta;
@@ -193,13 +193,13 @@ export class EffectorNodeDetails {
 		return type;
 	}
 
-	private _syntheticLocation?: string;
+	private _syntheticLocation?: SourceLocation;
 
-	set syntheticLocation(loc: string) {
+	set syntheticLocation(loc: SourceLocation) {
 		this._syntheticLocation = loc;
 	}
 
-	get loc(): string | undefined {
+	get loc(): SourceLocation | undefined {
 		return this._syntheticLocation ?? this.meta.loc;
 	}
 
@@ -256,8 +256,10 @@ export class EffectorNodeDetails {
 	// 	// return owner.meta && owner.meta.op === OpType.Merge;
 	// }
 }
-
-export function formatLocation(loc: Location | undefined): string | undefined {
+export function formatLocation(loc: undefined): undefined;
+export function formatLocation(loc: SourceLocation): string;
+export function formatLocation(loc: SourceLocation | undefined): string | undefined;
+export function formatLocation(loc: SourceLocation | undefined): string | undefined {
 	return loc ? `${loc.file}:${loc.line}:${loc.column}` : undefined;
 }
 
@@ -380,10 +382,10 @@ export class MetaHelper {
 		}
 	}
 
-	get loc(): string | undefined {
+	get loc(): SourceLocation | undefined {
 		// loc present in unit, factory, or sample
 		if (!this.isUnit && !this.isFactory && !this.isSample) return undefined;
-		let loc: Location | undefined;
+		let loc: SourceLocation | undefined;
 		if (this.isUnit) {
 			loc = (this._meta as UnitMeta).config?.loc;
 		} else if (this.isFactory) {
@@ -391,7 +393,7 @@ export class MetaHelper {
 		} else if (this.isSample) {
 			loc = (this._meta as SampleMeta).loc;
 		}
-		return loc ? formatLocation(loc) : undefined;
+		return loc;
 	}
 }
 
@@ -454,6 +456,7 @@ export type CombinedNodeDetails = BaseNode<typeof CombinatorType.Combine> & {
 
 export const SyntheticNodeTypes = {
 	Gate: 'gate',
+	File: 'file',
 };
 export type SyntheticNodeType = (typeof SyntheticNodeTypes)[keyof typeof SyntheticNodeTypes];
 
@@ -462,6 +465,13 @@ export type GateNodeDetails = BaseNode<typeof SyntheticNodeTypes.Gate> & {
 	declaration?: undefined;
 	relatedNodes: EffectorNode[];
 	gateName: string;
+};
+
+export type FileNodeDetails = BaseNode<typeof SyntheticNodeTypes.File> & {
+	effector?: undefined;
+	declaration?: undefined;
+	fileName: string;
+	relatedNodes: EffectorNode[];
 };
 
 export type DeclarationEffectorDetails = BaseNode<typeof NodeFamily.Declaration> & {
@@ -473,11 +483,13 @@ export type RegularEffectorNode = Node<RegularEffectorDetails>;
 export type DeclarationEffectorNode = Node<DeclarationEffectorDetails>;
 export type CombinedNode = Node<CombinedNodeDetails>;
 export type GateNode = Node<GateNodeDetails>;
+export type FileNode = Node<FileNodeDetails>;
 
-export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode | GateNode;
+export type SyntheticNodes = GateNode | FileNode;
+export type EffectorNode = RegularEffectorNode | DeclarationEffectorNode | CombinedNode | SyntheticNodes;
 export type EffectorGraph = Graph<EffectorNode, MyEdge>;
 
-export type Location = {
+export type SourceLocation = {
 	file: string;
 	line: number;
 	column: number;

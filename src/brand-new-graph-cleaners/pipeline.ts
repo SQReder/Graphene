@@ -1,5 +1,5 @@
 import type { BufferedGraph } from '../graph-manager';
-import { withOrder } from '../lib';
+import { ensureDefined, withOrder } from '../lib';
 import type { NamedGraphVisitor } from './types';
 import { bindHandlersToAttachedFx } from './visitors/bind-attached-fx-to-handler';
 import { detachFactories } from './visitors/detach-factories';
@@ -35,32 +35,49 @@ import { removeSourceWhereReactivePresent } from './visitors/remove-source-where
 import { transitiveNodeReplacers } from './visitors/transitive-node-replacer';
 
 export const newPipeline: NamedGraphVisitor[] = [
-	...withOrder(0, locEnricher, factoryOwnershipEnricher),
-	...withOrder(10, regionOwnershipReflow, detachFactories, dimFactoryLinks),
-	...withOrder(20, removeSourceWhereReactivePresent),
-	...withOrder(30, ...transitiveNodeReplacers),
-	...withOrder(40, dropUselessReinit, dropUselessUpdates, dropUselessWatch),
-	...withOrder(45, generateSyntheticGateNode),
-	...withOrder(46, foldGate),
-	...withOrder(50, foldMergeNode, foldSampleJoints, foldSample),
-	...withOrder(60, foldEffect, bindHandlersToAttachedFx, rebindAttachedEffectSource, foldHypernodes),
-	...withOrder(70, foldDebounce, foldCombineEvents, foldReadonly, foldReshape, foldSplitMap, foldSpread, foldCondition),
-	...withOrder(75, foldCreateQuery),
-	...withOrder(80, foldAbortable, foldLogEffectFail),
-	...withOrder(100, foldDomains),
-	...withOrder(110, detachDomains),
+	...withOrder(0, locEnricher),
+	...withOrder(50, factoryOwnershipEnricher),
+	...withOrder(100, regionOwnershipReflow, detachFactories, dimFactoryLinks),
+	...withOrder(200, removeSourceWhereReactivePresent),
+	...withOrder(300, ...transitiveNodeReplacers),
+	...withOrder(400, dropUselessReinit, dropUselessUpdates, dropUselessWatch),
+	...withOrder(450, generateSyntheticGateNode),
+	...withOrder(460, foldGate),
+	...withOrder(500, foldMergeNode, foldSampleJoints, foldSample),
+	...withOrder(600, foldEffect, bindHandlersToAttachedFx, rebindAttachedEffectSource, foldHypernodes),
+	...withOrder(
+		700,
+		foldDebounce,
+		foldCombineEvents,
+		foldReadonly,
+		foldReshape,
+		foldSplitMap,
+		foldSpread,
+		foldCondition,
+	),
+	...withOrder(750, foldCreateQuery),
+	...withOrder(800, foldAbortable, foldLogEffectFail),
+	...withOrder(1000, foldDomains),
+	...withOrder(1100, detachDomains),
 	...withOrder(999999, dropUnlinkedNodes, dropNodesWithNoLocation),
 ];
 
-async function runPipeline(graph: BufferedGraph, pipeline: readonly NamedGraphVisitor[]) {
+async function runPipeline(
+	graph: BufferedGraph,
+	pipeline: readonly NamedGraphVisitor[],
+	progress: (stage: { name: string; percent: number }) => void,
+) {
 	console.group('runPipeline');
 	console.time('pipeline');
-	for (const visitor of pipeline) {
+	for (let i = 0; i < pipeline.length; i++) {
+		const visitor = ensureDefined(pipeline[i]);
 		console.groupCollapsed(visitor.name);
 		await visitor.visit(graph);
 
 		await graph.applyOperations();
 		console.timeLog('pipeline', visitor.name);
+
+		progress({ name: visitor.name, percent: (i / pipeline.length) * 100 });
 
 		console.groupEnd();
 	}

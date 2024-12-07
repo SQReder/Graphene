@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { invoke } from '@withease/factories';
-import { fork, is } from 'effector';
+import { clearNode, createDomain, fork, is, withRegion } from 'effector';
 import { Provider as EffectorScopeProvider, useUnit } from 'effector-react';
-import { inspectGraph } from 'effector/inspect';
 import { useEffect } from 'react';
 import { newPipeline } from '../brand-new-graph-cleaners/pipeline';
 import type { NamedGraphVisitor } from '../brand-new-graph-cleaners/types';
 import { Graphene } from '../Graphene';
 import { Layouters } from '../layouters';
+import { assertDefined } from '../lib';
 import { appModelFactory } from '../model/app';
 import { declarationsStoreModelFactory } from '../model/declarationsStore';
 import { grapheneModelFactory } from '../model/graphene';
@@ -25,6 +25,7 @@ const appModel = invoke(appModelFactory, {
 });
 
 export type GrapheneMeta = Meta<Params>;
+
 export const grapheneStoryMeta: GrapheneMeta = {
 	title: 'Graphene',
 	// @ts-expect-error don't know how to fix
@@ -32,41 +33,36 @@ export const grapheneStoryMeta: GrapheneMeta = {
 	tags: ['!autodocs'],
 	render: function Render({ factory }) {
 		const appendUnits = useUnit(appModel.appendUnits);
-		const addDeclaration = useUnit(declarationsModel.addDeclaration);
 		const clearDeclarations = useUnit(declarationsModel.clearDeclarations);
+		const [subscribe, unsubscribe] = useUnit([declarationsModel.subscribe, declarationsModel.unsubscribe]);
 
 		useEffect(() => {
 			console.group('foo');
-			const id = Math.floor(Math.random() * 10000).toString(16);
-
-			console.log('subscribe', id);
 
 			clearDeclarations();
-
-			const subscription = inspectGraph({
-				fn: (declaration) => {
-					console.log(id, '...', declaration.id, declaration);
-					addDeclaration(declaration);
-				},
-			});
-
-			console.log('subscribed!!', id);
+			subscribe();
 
 			console.groupCollapsed('🫨 make units');
-			const model = factory();
+			let model: Record<string, unknown> | undefined;
+			const domain = createDomain(`graphene-domain-${Math.random()}`);
+			withRegion(domain, () => {
+				model = factory();
+			});
+			assertDefined(model);
 			const units = Object.values(model).filter(is.unit);
+			unsubscribe();
 
 			console.log('appendUnits', units);
 			appendUnits(units);
+			appendUnits([domain]);
 			console.groupEnd();
 
 			console.groupEnd();
 
 			return () => {
-				console.log('unsubscribe', id);
-				subscription.unsubscribe();
+				clearNode(domain, { deep: true });
 			};
-		}, [addDeclaration, appendUnits, clearDeclarations, factory]);
+		}, [appendUnits, clearDeclarations, factory, subscribe, unsubscribe]);
 
 		return <Graphene model={appModel} />;
 	},

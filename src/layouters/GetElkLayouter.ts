@@ -17,17 +17,21 @@ export const getElkLayouter = (): Layouter => {
 		// 'org.eclipse.elk.edgeRouting': 'SPLINES',
 		'org.eclipse.elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
 		'org.eclipse.elk.spacing.nodeNode': '50',
-		// 'org.eclipse.elk.spacing.edgeNode': '50',
+		'org.eclipse.elk.spacing.edgeNode': '50',
 		// 'org.eclipse.elk.layered.priority.straightness': '100',
 		// 'org.eclipse.elk.layered.priority.shortness': '10',
 		'org.eclipse.elk.direction': 'DOWN',
 		// 'org.eclipse.elk.layered.directionCongruency': 'READING_DIRECTION',
 		// 'org.eclipse.elk.topdown.nodeType': 'PARALLEL_NODE',
 		// 'org.eclipse.elk.alignment': 'RIGHT',
+		// 'org.eclipse.elk.debugMode': 'true',
+		// 'org.eclipse.elk.layered.highDegreeNodes.treeHeight': '30',
+		// 'org.eclipse.elk.partitioning.activate': 'true',
 		// 'org.eclipse.elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
 		// 'org.eclipse.elk.debugMode': 'true',
-		'org.eclipse.elk.layered.highDegreeNodes.treeHeight': '30',
-		'org.eclipse.elk.partitioning.activate': 'true',
+		// 'org.eclipse.elk.layered.cycleBreaking.strategy': 'INTERACTIVE',
+		// 'org.eclipse.elk.layered.nodePlacement.favorStraightEdges': 'true',
+		// 'org.eclipse.elk.hierarchyHandling': 'INCLUDE_CHILDREN',
 	} satisfies LayoutOptions;
 
 	const getLayoutedElements = (
@@ -58,7 +62,7 @@ export const getElkLayouter = (): Layouter => {
 
 		// @ts-expect-error supressed
 		return elk
-			.layout(graph, { layoutOptions: options, logging: true, measureExecutionTime: true })
+			.layout(graph, { layoutOptions: options })
 			.then((layoutedGraph) => {
 				console.log('layout', layoutedGraph);
 				return {

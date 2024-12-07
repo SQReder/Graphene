@@ -1,7 +1,7 @@
 import { createFactory, invoke } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample } from 'effector';
 import { createGate } from 'effector-react';
-import { readonly } from 'patronum';
+import { debounce, debug, readonly, throttle } from 'patronum';
 import type { Layouter } from '../layouters/types';
 import {
 	absurd,
@@ -10,6 +10,7 @@ import {
 	isCombinedStoreNode,
 	isDeclarationNode,
 	isFactoryOwnershipEdge,
+	isFileNode,
 	isGateNode,
 	isParentToChildEdge,
 	isReactiveEdge,
@@ -31,17 +32,7 @@ export type VisibleEdgesVariant =
 	| `${typeof EdgeType.Reactive}+${typeof EdgeType.Source}+${typeof EdgeType.ParentToChild}`;
 
 export const appModelFactory = createFactory(
-	({
-		layouterFactory,
-		grapheneModel,
-	}: // ownershipEdgeCleanerSelector,
-	// reactiveEdgeCleanerSelector,
-	{
-		layouterFactory: () => Layouter;
-		grapheneModel: GrapheneModel;
-		// ownershipEdgeCleanerSelector: NamedCleanerSelectorModel;
-		// reactiveEdgeCleanerSelector: NamedCleanerSelectorModel;
-	}) => {
+	({ layouterFactory, grapheneModel }: { layouterFactory: () => Layouter; grapheneModel: GrapheneModel }) => {
 		const Gate = createGate<void>();
 
 		const graphVariantChanged = createEvent<GraphVariant>();
@@ -60,6 +51,43 @@ export const appModelFactory = createFactory(
 				newState.add(id);
 			}
 			return newState;
+		});
+
+		const viewportSizeChanged = createEvent<{ width: number; height: number }>();
+		const viewportSizeChangesThrottled = throttle(viewportSizeChanged, 300);
+		const $viewportSize = createStore<{ width: number; height: number }>(
+			{ width: 0, height: 0 },
+			{
+				updateFilter(update, current) {
+					if (update.width === current.width && update.height === current.height) return false;
+					return true;
+				},
+			},
+		).on(viewportSizeChangesThrottled, (_, update) => update);
+
+		const viewportPosAndZoomChanged = createEvent<{ x: number; y: number; zoom: number }>();
+		const viewportPosAndZoomChangesThrottled = throttle(viewportPosAndZoomChanged, 300);
+		const $viewportPosAndZoom = createStore<{ x: number; y: number; zoom: number }>(
+			{ x: 0, y: 0, zoom: 1 },
+			{
+				updateFilter(update, current) {
+					if (update.x === current.x && update.y === current.y && update.zoom === current.zoom) return false;
+					return true;
+				},
+			},
+		).on(viewportPosAndZoomChangesThrottled, (_, update) => update);
+
+		const $viewport = combine($viewportSize, $viewportPosAndZoom, (size, posAndZoom) => {
+			const { width, height } = size;
+			const { x, y, zoom } = posAndZoom;
+
+			return {
+				// Convert viewport coordinates to content coordinates
+				left: -x / zoom,
+				right: (-x + width) / zoom,
+				top: -y / zoom,
+				bottom: (-y + height) / zoom,
+			};
 		});
 
 		const { graphGenerated, pickupStoredPipeline, graphCleanerSelector } = invoke(generatedGraphModelFactory, {
@@ -99,15 +127,6 @@ export const appModelFactory = createFactory(
 
 				if (!isRegular || !hideNodesWithNoLocation) return { ...node, hidden: false };
 
-				// const hasMetaLoc = node.data.effector.meta.loc != null;
-				// const region = node.data.declaration?.declaration?.region;
-				// const hasDeclarationRegionLoc = region && 'loc' in region && region.loc != null;
-				// const isCombined = node.data.effector.meta.isCombinedStore;
-
-				// const hasFactoryLoc = node.data.effector.graphite.family.owners.some(
-				// 	(owner) => owner.meta.op === undefined && owner.meta.loc != null,
-				// );
-
 				return {
 					...node,
 					hidden: node.data.noLoc || !node.data.effector.loc,
@@ -146,6 +165,8 @@ export const appModelFactory = createFactory(
 					console.log('combined', node.data.relatedNodes);
 				} else if (isGateNode(node)) {
 					console.log('gate', node.data.gateName, node.data.relatedNodes);
+				} else if (isFileNode(node)) {
+					console.log('file', node.data.fileName);
 				} else {
 					absurd(node);
 				}
@@ -204,7 +225,7 @@ export const appModelFactory = createFactory(
 		const visibleEdgesChanged = createEvent<VisibleEdgesVariant>();
 		const $visibleEdges = restore<VisibleEdgesVariant>(visibleEdgesChanged, 'reactive+source');
 
-		const $filteredEdges = combine($edges, $visibleEdges, (edges, visibleEdges) => {
+		const $filteredEdges = combine({ edges: $edges, visibleEdges: $visibleEdges }, ({ edges, visibleEdges }) => {
 			switch (visibleEdges) {
 				case 'reactive':
 					return edges.filter(isReactiveEdge);
@@ -225,6 +246,44 @@ export const appModelFactory = createFactory(
 			}
 		});
 
+		const $virtualizedGraph = combine(
+			{ nodes: $visibleNodes, edges: $filteredEdges, viewport: $viewport },
+			({ nodes, edges, viewport }) => {
+				const nodesInViewport = nodes.filter(
+					(node) =>
+						node.position.x + (node.width ?? 0) > viewport.left &&
+						node.position.x < viewport.right &&
+						node.position.y + (node.height ?? 0) > viewport.top &&
+						node.position.y < viewport.bottom,
+				);
+
+				const viewportNodeIdsSet = new Set(nodesInViewport.map((node) => node.id));
+
+				const edgesInViewport = edges.filter(
+					(edge) => viewportNodeIdsSet.has(edge.source) || viewportNodeIdsSet.has(edge.target),
+				);
+
+				const allConnectedNodeIds = new Set<string>();
+				for (const edge of edgesInViewport) {
+					allConnectedNodeIds.add(edge.source);
+					allConnectedNodeIds.add(edge.target);
+				}
+
+				const allRelatedNodes = nodes.filter((node) => allConnectedNodeIds.has(node.id));
+
+				console.log(allRelatedNodes.length, 'related nodes');
+				console.log(edgesInViewport.length, 'edges in viewport');
+
+				return {
+					nodes: nodes,
+					edges: edgesInViewport,
+				};
+			},
+		);
+
+		const $virtualizedNodes = $virtualizedGraph.map((graph) => graph.nodes);
+		const $virtualizedEdges = $virtualizedGraph.map((graph) => graph.edges);
+
 		return {
 			appendUnits: grapheneModel.appendUnits,
 			Gate,
@@ -240,10 +299,10 @@ export const appModelFactory = createFactory(
 				excludeOwnershipFromLayouting: $excludeOwnershipFromLayouting,
 
 				edgesChanged,
-				edges: $filteredEdges,
+				edges: $virtualizedEdges,
 
 				nodesChanged,
-				nodes: $visibleNodes,
+				nodes: $virtualizedNodes,
 
 				visibleEdgesChanged,
 				visibleEdges: $visibleEdges,
@@ -253,6 +312,11 @@ export const appModelFactory = createFactory(
 
 				toggleFactoryNode: toggleNode,
 				unfoldedFactoryNodes: $unfoldedNodes,
+
+				viewportSizeChanged,
+				viewportSize: $viewportSize,
+				viewportPosAndZoomChanged,
+				viewportPosAndZoom: $viewportPosAndZoom,
 			}),
 		};
 	},

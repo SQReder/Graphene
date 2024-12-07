@@ -13,8 +13,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGate, useUnit } from 'effector-react';
-import type { ComponentType, FC, KeyboardEventHandler, ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import type { ComponentType, FC, KeyboardEventHandler, ReactNode, RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import { ConfigurationContext } from './ConfigurationContext';
 import { GraphVariant } from './lib';
@@ -76,7 +76,13 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		excludeOwnershipFromLayoutingChanged,
 		toggleFactoryNode,
 		unfoldedFactoryNodes,
+		viewportSizeChanged,
+		viewportPosAndZoomChanged,
 	} = useUnit(model);
+
+	const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+	const { viewport } = useReactFlow();
 
 	const onNodesChange = useCallback<OnNodesChange<EffectorNode>>(
 		(changes) => nodesChanged(applyNodeChanges(changes, nodes)),
@@ -87,6 +93,26 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 		(changes) => edgesChanged(applyEdgeChanges<MyEdge>(changes, edges)),
 		[edges, edgesChanged],
 	);
+
+	// Handle window resizes
+	useEffect(() => {
+		const updateViewportSize = () => {
+			if (!reactFlowWrapper.current) return;
+			const rect = reactFlowWrapper.current.getBoundingClientRect();
+			viewportSizeChanged({
+				width: rect.width,
+				height: rect.height,
+			});
+		};
+
+		const observer = new ResizeObserver(updateViewportSize);
+		if (reactFlowWrapper.current) {
+			observer.observe(reactFlowWrapper.current);
+			updateViewportSize();
+		}
+
+		return () => observer.disconnect();
+	}, [viewportSizeChanged]);
 
 	const [showNodeIds, setShowNodeIds] = useState(true);
 
@@ -173,7 +199,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						</ul>
 					</Legend>
 				</Aside>
-				<div style={{ flex: 1 }}>
+				<div style={{ flex: 1 }} ref={reactFlowWrapper}>
 					<ReactFlow
 						snapGrid={[10, 10]}
 						snapToGrid
@@ -184,9 +210,16 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 						onEdgesChange={onEdgesChange}
 						onEdgeClick={(_, edge) => edgeClicked(edge)}
 						onNodeDoubleClick={(_, { id }) => toggleFactoryNode(id)}
-						fitView
+						// fitView
 						nodeTypes={nodeTypes}
 						minZoom={0.1}
+						onViewportChange={(viewport) =>
+							viewportPosAndZoomChanged({
+								x: viewport.x,
+								y: viewport.y,
+								zoom: viewport.zoom,
+							})
+						}
 					>
 						<Background bgColor={isDarkMode ? '#303030' : undefined} color={'#ccc'} />
 						<MiniMap pannable zoomable bgColor={isDarkMode ? '#303030' : undefined} />

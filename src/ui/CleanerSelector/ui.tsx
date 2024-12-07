@@ -6,7 +6,7 @@ export const CleanerSelectorView = <T,>({
 	model,
 	placeholder,
 }: {
-	model: NamedCleanerSelector<T>['@@ui'];
+	model: NamedCleanerSelector['@@ui'];
 	placeholder: string;
 }) => {
 	const { selectedCleanersChanged, selectedCleaners } = useUnit(model);

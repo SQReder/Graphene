@@ -31,6 +31,8 @@ export const getMetaIcon = (meta: { op: OpType | undefined; type?: MetaType; att
 			return <FontAwesomeIcon icon="filter" />;
 		case OpType.Prepend:
 			return <FontAwesomeIcon icon="arrow-up" />;
+		case OpType.Split:
+			return '↕';
 		default:
 			if (meta.op === undefined) {
 				switch (meta.type) {

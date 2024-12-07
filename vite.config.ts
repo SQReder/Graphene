@@ -6,7 +6,7 @@ import svgr from 'vite-plugin-svgr';
 export default defineConfig({
 	resolve: {
 		alias: {
-			elkjs: 'elkjs/lib/elk.bundled.js',
+			// elkjs: 'elkjs/lib/elk.bundled.js',
 		},
 	},
 	build: {
@@ -17,7 +17,6 @@ export default defineConfig({
 		react({
 			plugins: [
 				[
-					// 'C:\\Users\\sqred\\Downloads\\Telegram Desktop\\effector_swc_plugin.wasm',
 					'@effector/swc-plugin',
 					{
 						addLoc: true,

@@ -87,7 +87,9 @@ export const generatedGraphModelFactory = createFactory(
 			} & WithAbortSignal) => {
 				const bufferedGraph = graph.clone();
 
-				await runPipeline(bufferedGraph, pipeline);
+				await runPipeline(bufferedGraph, pipeline, (stage) => {
+					console.log(stage.name, stage.percent);
+				});
 
 				signal.throwIfAborted();
 
@@ -163,11 +165,12 @@ export const generatedGraphModelFactory = createFactory(
 				// Detect and reverse cycles in linksForLayouting before layout
 				const forwardOnlyEdges = detectAndReverseCycles(cleanedGraph.nodes, linksForLayouting);
 
-				console.log('start layout', linksForLayouting.length, 'edges at', performance.now());
-				const timestamp = performance.now();
-				console.time('layout ' + timestamp);
+				console.log('start layout', linksForLayouting.length, 'edges', cleanedGraph.nodes.length, 'nodes');
+				const layoutingId = Math.random().toString(16);
+				console.time(`layouting ${layoutingId}`);
 				const layouted = await layouter.getLayoutedElements(sortTreeNodesBFS(cleanedGraph.nodes), forwardOnlyEdges);
-				console.timeEnd('layout ' + timestamp);
+				console.timeEnd(`layouting ${layoutingId}`);
+				console.log('end layout');
 
 				function getOrder(edgeType: EdgeType): number {
 					switch (edgeType) {
