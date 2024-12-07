@@ -114,7 +114,7 @@
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"eslint-plugin-storybook": "^0.11.0",
 		"eslint-plugin-testing-library": "^5.9.1",
-		"husky": "^8.0.3",
+		"husky": "^9.1.7",
 		"lint-staged": "^13.1.0",
 		"patronum": "^2.2.0",
 		"prettier": "^2.8.2",
