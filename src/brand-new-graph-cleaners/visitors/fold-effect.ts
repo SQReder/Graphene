@@ -1,6 +1,7 @@
 import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
+import { EdgeType } from '../../EdgeType';
 import { isRegularNode } from '../../lib';
-import { EdgeType, type EffectorNode, type RegularEffectorNode } from '../../types';
+import { type EffectorNode, type RegularEffectorNode } from '../../types';
 import { foldByShape } from './fold-by-shape';
 
 export const foldEffect = foldByShape(

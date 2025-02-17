@@ -1,6 +1,6 @@
 import { createReactiveEdge } from '../../edge-factories';
 import { isReactiveEdge, isRegularNode } from '../../lib';
-import { OpType } from '../../types';
+import { OpType } from '../../OpType';
 import type { NamedGraphVisitor } from '../types';
 
 export const foldMergeNode: NamedGraphVisitor = {

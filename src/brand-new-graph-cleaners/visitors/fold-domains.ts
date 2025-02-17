@@ -1,6 +1,6 @@
 import { isParentToChildEdge, isReactiveEdge, isRegularNode, isSourceEdge } from '../../lib';
+import { OpType } from '../../OpType';
 import type { EffectorNode } from '../../types';
-import { OpType } from '../../types';
 import type { NamedGraphVisitor } from '../types';
 
 const ParentDomainSymbol = Symbol.for('parent domain');

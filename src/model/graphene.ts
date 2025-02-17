@@ -4,8 +4,9 @@ import type { Declaration } from 'effector/inspect';
 import { debug, readonly } from 'patronum';
 import { debounceStore, debounceStoreFactory } from '../debounceStore';
 import { cleanupEdges, generateEdges } from '../edges-generator';
+import { EffectorDeclarationDetails } from '../EffectorDeclarationDetails';
 import { createEffectorNodesLookup } from '../lib';
-import { type DeclarationEffectorNode, EffectorDeclarationDetails, type EffectorNode } from '../types';
+import { type DeclarationEffectorNode, type EffectorNode } from '../types';
 import type { DeclarationsStoreModel } from './declarationsStore';
 
 export const grapheneModelFactory = createFactory(

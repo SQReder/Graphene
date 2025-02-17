@@ -1,6 +1,6 @@
 import { MarkerType } from '@xyflow/system';
+import { EdgeType } from './EdgeType';
 import type { EffectorNode, FactoryOwnershipEdge, MyEdge, ParentToChildEdge, ReactiveEdge, SourceEdge } from './types';
-import { EdgeType } from './types';
 
 export type EdgeFactory<T extends MyEdge> = (params: {
 	id: string;

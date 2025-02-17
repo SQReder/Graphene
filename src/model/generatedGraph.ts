@@ -6,11 +6,12 @@ import { abortable, type WithAbortSignal } from '../abortable';
 import runPipeline, { newPipeline } from '../brand-new-graph-cleaners/pipeline';
 import type { NamedGraphVisitor } from '../brand-new-graph-cleaners/types';
 import { sortTreeNodesBFS } from '../dfs';
+import { EdgeType } from '../EdgeType';
 import { BufferedGraph } from '../graph-manager';
 import type { Layouter } from '../layouters/types';
 import { absurd, type GraphVariant, isFactoryOwnershipEdge, isParentToChildEdge } from '../lib';
 import { logEffectFail } from '../logEffectFail';
-import { EdgeType, type EffectorNode, type MyEdge } from '../types';
+import { type EffectorNode, type MyEdge } from '../types';
 import { CleanerSelector } from '../ui/CleanerSelector';
 import type { GrapheneModel } from './graphene';
 
@@ -150,8 +151,7 @@ export const generatedGraphModelFactory = createFactory(
 
 						if (dfs(edge.source, visited, recStack)) {
 							// If a cycle is detected, reverse the edge
-							// @ts-ignore
-							reversedEdges.add({ ...edge, source: edge.target, target: edge.source, data: edge.data });
+							reversedEdges.add({ ...edge, source: edge.target, target: edge.source, data: edge.data } as MyEdge);
 						} else {
 							// If no cycle, add the edge back
 							adjListCopy?.push(edge.target);

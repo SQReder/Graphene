@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGate, useUnit } from 'effector-react';
-import type { ComponentType, FC, KeyboardEventHandler, ReactNode, RefObject } from 'react';
+import type { ComponentType, FC, KeyboardEventHandler, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDarkMode } from 'usehooks-ts';
 import { ConfigurationContext } from './ConfigurationContext';
@@ -82,8 +82,6 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 
 	const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-	const { viewport } = useReactFlow();
-
 	const onNodesChange = useCallback<OnNodesChange<EffectorNode>>(
 		(changes) => nodesChanged(applyNodeChanges(changes, nodes)),
 		[nodes, nodesChanged],
@@ -115,6 +113,7 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 	}, [viewportSizeChanged]);
 
 	const [showNodeIds, setShowNodeIds] = useState(true);
+	const [isAsideCollapsed, setIsAsideCollapsed] = useState(false);
 
 	const { isDarkMode } = useDarkMode({});
 
@@ -129,75 +128,82 @@ export const Graphene: FC<{ model: ReturnType<typeof appModelFactory> }> = withR
 				}}
 			>
 				<Aside>
-					<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
-					<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
-					<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodes)}>CleanedNoNodes</button>
-					<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodesLayouted)}>
-						CleanedNoNodesLayouted
+					<button onClick={() => setIsAsideCollapsed(!isAsideCollapsed)}>
+						{isAsideCollapsed ? 'Show controls' : 'Hide controls'}
 					</button>
-					<hr />
+					{!isAsideCollapsed && (
+						<AsideContent>
+							<button onClick={() => graphVariantChanged(GraphVariant.raw)}>Raw</button>
+							<button onClick={() => graphVariantChanged(GraphVariant.cleaned)}>Cleaned</button>
+							<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodes)}>CleanedNoNodes</button>
+							<button onClick={() => graphVariantChanged(GraphVariant.cleanedNoNodesLayouted)}>
+								CleanedNoNodesLayouted
+							</button>
+							<hr />
 
-					<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
-					<hr />
-					<Fieldset>
-						<legend>Visible edges</legend>
-						<Label variant={'reactive'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Reactive
-						</Label>
-						<Label variant={'source'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Source
-						</Label>
-						<Label variant={'parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Ownership
-						</Label>
-						<Label variant={'factory-ownership'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Factory Ownership
-						</Label>
-						<Label variant={'reactive+source'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Reactive + Source
-						</Label>
-						<Label variant={'reactive+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							Reactive + Ownership
-						</Label>
-						<Label variant={'reactive+source+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
-							All
-						</Label>
-					</Fieldset>
-					<hr />
+							<CleanerSelector.View model={model.graphCleanerSelector} placeholder={'Graph cleaners'} />
+							<hr />
+							<Fieldset>
+								<legend>Visible edges</legend>
+								<Label variant={'reactive'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Reactive
+								</Label>
+								<Label variant={'source'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Source
+								</Label>
+								<Label variant={'parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Ownership
+								</Label>
+								<Label variant={'factory-ownership'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Factory Ownership
+								</Label>
+								<Label variant={'reactive+source'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Reactive + Source
+								</Label>
+								<Label variant={'reactive+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									Reactive + Ownership
+								</Label>
+								<Label variant={'reactive+source+parent-to-child'} value={visibleEdges} onChange={visibleEdgesChanged}>
+									All
+								</Label>
+							</Fieldset>
+							<hr />
 
-					<Search />
-					<hr />
-					<label title={'Show node ids in the graph'}>
-						<input type="checkbox" checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
-						Show node ids
-					</label>
-					<label title={'Hide nodes with no location'}>
-						<input
-							type="checkbox"
-							checked={hideNodesWithNoLocation}
-							onChange={(e) => hideNodesWithNoLocationChanged(e.target.checked)}
-						/>
-						Hide nodes with no location
-					</label>
-					<label title={'Exclude ownership from layouting'}>
-						<input
-							type="checkbox"
-							checked={excludeOwnershipFromLayouting}
-							onChange={(e) => excludeOwnershipFromLayoutingChanged(e.target.checked)}
-						/>
-						Exclude ownership from layouting
-					</label>
-					<hr />
-					<Legend>
-						<summary>Legend</summary>
-						<ul>
-							<li>📦 - store</li>
-							<li>🔔 - event</li>
-							<li>⚡️ - effect</li>
-							<li>⚡️~⚡️ - attached effect</li>
-							<li>🏭 - factory</li>
-						</ul>
-					</Legend>
+							<Search />
+							<hr />
+							<label title={'Show node ids in the graph'}>
+								<input type="checkbox" checked={showNodeIds} onChange={(e) => setShowNodeIds(e.target.checked)} />
+								Show node ids
+							</label>
+							<label title={'Hide nodes with no location'}>
+								<input
+									type="checkbox"
+									checked={hideNodesWithNoLocation}
+									onChange={(e) => hideNodesWithNoLocationChanged(e.target.checked)}
+								/>
+								Hide nodes with no location
+							</label>
+							<label title={'Exclude ownership from layouting'}>
+								<input
+									type="checkbox"
+									checked={excludeOwnershipFromLayouting}
+									onChange={(e) => excludeOwnershipFromLayoutingChanged(e.target.checked)}
+								/>
+								Exclude ownership from layouting
+							</label>
+							<hr />
+							<Legend>
+								<summary>Legend</summary>
+								<ul>
+									<li>📦 - store</li>
+									<li>🔔 - event</li>
+									<li>⚡️ - effect</li>
+									<li>⚡️~⚡️ - attached effect</li>
+									<li>🏭 - factory</li>
+								</ul>
+							</Legend>
+						</AsideContent>
+					)}
 				</Aside>
 				<div style={{ flex: 1 }} ref={reactFlowWrapper}>
 					<ReactFlow
@@ -284,10 +290,18 @@ const Aside = styled(Box)`
 	position: absolute;
 	top: 10px;
 	right: 10px;
-
 	z-index: 100;
 	width: 300px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 `.withComponent('aside');
+
+const AsideContent = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
 
 const Fieldset = styled(Box)`
 	background: rgba(255, 255, 255, 0.75);

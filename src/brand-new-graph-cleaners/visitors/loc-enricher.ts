@@ -1,4 +1,5 @@
-import { ensureDefined, isRegularNode } from '../../lib';
+import { ensureDefined } from '../../ensureDefined';
+import { isRegularNode } from '../../lib';
 import {
 	type EffectorNode,
 	type FileNode,

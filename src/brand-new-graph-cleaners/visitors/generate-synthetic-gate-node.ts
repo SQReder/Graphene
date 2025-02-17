@@ -1,5 +1,6 @@
 import { createLinkEdge, createReactiveEdge } from '../../edge-factories';
-import { ensureDefined, isGateNode, isReactiveEdge, isRegularNode } from '../../lib';
+import { ensureDefined } from '../../ensureDefined';
+import { isGateNode, isReactiveEdge, isRegularNode } from '../../lib';
 import { type GateNode, type RegularEffectorNode, SyntheticNodeTypes } from '../../types';
 import type { NamedGraphVisitor } from '../types';
 import { foldByShape } from './fold-by-shape';

@@ -1,13 +1,13 @@
 import { css, type SerializedStyles } from '@emotion/react';
 import styled from '@emotion/styled';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { NodeProps } from '@xyflow/react';
 import { Handle, NodeResizer, Position } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
 import { type ConfigurationContextType, useLayouterContext } from './ConfigurationContext';
 import { getMetaIcon } from './getMetaIcon';
 import { assertIsRegularEffectorDetails } from './lib';
-import { type EffectorNode, type FileNodeDetails, OpType, type RegularEffectorDetails } from './types';
+import { OpType } from './OpType';
+import { type EffectorNode, type FileNodeDetails, type RegularEffectorDetails } from './types';
 
 // Base styles shared across nodes
 const baseStyles = css`
@@ -227,7 +227,8 @@ export const FileNode = createFlowNode({
 		return (
 			<Content>
 				<Icon>
-					<box-icon name="file"></box-icon>
+					{/* @ts-expect-error web-component */}
+					<box-icon name="file" />
 				</Icon>
 				<div>
 					<div>{data.fileName}</div>

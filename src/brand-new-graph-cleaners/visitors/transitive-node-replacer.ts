@@ -1,6 +1,8 @@
 import { createReactiveEdge } from '../../edge-factories';
-import { ensureDefined, isReactiveEdge, isRegularNode } from '../../lib';
-import { type EffectorNode, NodeFamily, OpType } from '../../types';
+import { ensureDefined } from '../../ensureDefined';
+import { isReactiveEdge, isRegularNode } from '../../lib';
+import { OpType } from '../../OpType';
+import { type EffectorNode, NodeFamily } from '../../types';
 import type { NamedGraphVisitor } from '../types';
 
 function makeTransitiveNodeReplacer(
@@ -81,7 +83,7 @@ const ops: Array<
 		},
 		undefined,
 	],
-	[OpType.Combine, undefined, (node) => node.data.effector?.graphite.scope.key ?? 'combined??'],
+	[OpType.Combine, undefined, (node) => node.data.effector?.graphite.scope?.key ?? 'combined??'],
 ];
 
 export const transitiveNodeReplacers: NamedGraphVisitor[] = ops.map(

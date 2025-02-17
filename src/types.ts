@@ -1,7 +1,10 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { Effect, Unit } from 'effector';
-import type { Declaration, Region } from 'effector/inspect';
-import { ensureDefined } from './lib';
+import type { EdgeType } from './EdgeType';
+import type { EffectorDeclarationDetails } from './EffectorDeclarationDetails';
+import { MetaHelper } from './MetaHelper';
+import type { MetaType } from './MetaType';
+import type { OpType } from './OpType';
 
 export const NodeFamily = {
 	Crosslink: 'crosslink',
@@ -16,39 +19,6 @@ interface Family {
 	readonly links: Graphite[];
 	readonly owners: Graphite[];
 }
-
-export const OpTypeWithCycles = {
-	Map: 'map',
-	On: 'on',
-	Sample: 'sample',
-	FilterMap: 'filterMap',
-	Combine: 'combine',
-	Merge: 'merge',
-	Prepend: 'prepend',
-	Empty: undefined,
-} as const;
-
-export type OpTypeWithCycles = (typeof OpTypeWithCycles)[keyof typeof OpTypeWithCycles];
-
-export const OpType = {
-	...OpTypeWithCycles,
-	Watch: 'watch',
-	Store: 'store',
-	Event: 'event',
-	Effect: 'effect',
-	Domain: 'domain',
-	Filter: 'filter',
-	Split: 'split',
-} as const;
-
-export type OpType = (typeof OpType)[keyof typeof OpType];
-
-export const MetaType = {
-	Factory: 'factory',
-	Domain: 'domain',
-} as const;
-
-export type MetaType = (typeof MetaType)[keyof typeof MetaType];
 
 export type EmptyMeta = {
 	op:
@@ -99,7 +69,7 @@ export type CombineMeta = BaseUnitMeta<typeof OpType.Combine>;
 
 export type UnitMeta = StoreMeta | EventMeta | EffectMeta | DomainMeta;
 
-type NoOpMeta = {
+export type NoOpMeta = {
 	op: undefined;
 	type: typeof MetaType.Factory | typeof MetaType.Domain;
 	name: string;
@@ -114,7 +84,7 @@ export interface Graphite {
 	readonly family: Family;
 	readonly meta: Meta;
 	readonly next: Graphite[];
-	readonly scope: {
+	readonly scope?: {
 		readonly handler: (...args: unknown[]) => unknown | Effect<unknown, unknown, unknown>;
 		readonly runner: {
 			readonly scope: {
@@ -126,16 +96,6 @@ export interface Graphite {
 		readonly key?: string;
 	};
 }
-
-export const EdgeType = {
-	Reactive: 'reactive',
-	Source: 'source',
-	ParentToChild: 'parent-to-child',
-	FactoryOwnership: 'factory-ownership',
-	Unknown: 'unknown',
-} as const;
-
-export type EdgeType = (typeof EdgeType)[keyof typeof EdgeType];
 
 type BaseEdgeData = {
 	synthetic?: boolean;
@@ -271,158 +231,6 @@ export function assertOpType<T extends OpType>(meta: Meta, opType: T): asserts m
 	if (this._meta.op !== opType) {
 		throw new Error('Assertion failed');
 	}
-}
-
-export class MetaHelper {
-	get value(): Meta {
-		return this._meta;
-	}
-
-	private _meta: Meta;
-
-	constructor(meta: Meta) {
-		this._meta = meta;
-	}
-
-	get op(): OpType | undefined {
-		return this._meta.op;
-	}
-
-	hasOpType<T extends OpType>(opType: T): this is MetaHelper & { op: T } {
-		return this._meta.op === opType;
-	}
-
-	get isStore(): boolean {
-		return this.hasOpType(OpType.Store);
-	}
-
-	get asStore(): StoreMeta | undefined {
-		return this.isStore ? (this._meta as StoreMeta) : undefined;
-	}
-
-	get isFactory(): boolean {
-		return this._meta.op === undefined && this._meta.type === MetaType.Factory;
-	}
-
-	get asFactory(): NoOpMeta | undefined {
-		return this.isFactory ? (this._meta as NoOpMeta) : undefined;
-	}
-
-	get isEvent(): boolean {
-		return this.hasOpType(OpType.Event);
-	}
-
-	get asEvent(): EventMeta | undefined {
-		return this.isEvent ? (this._meta as EventMeta) : undefined;
-	}
-
-	get isDomain(): boolean {
-		return this.hasOpType(OpType.Domain);
-	}
-
-	get asDomain(): DomainMeta | undefined {
-		return this.isDomain ? (this._meta as DomainMeta) : undefined;
-	}
-
-	get isUnit(): boolean {
-		return this.hasOpType(OpType.Store) || this.hasOpType(OpType.Event) || this.hasOpType(OpType.Effect);
-	}
-
-	get asUnit(): UnitMeta | undefined {
-		return this.isUnit ? (this._meta as UnitMeta) : undefined;
-	}
-
-	get isSample(): boolean {
-		return this.hasOpType(OpType.Sample);
-	}
-
-	get asSample(): SampleMeta | undefined {
-		return this.isSample ? (this._meta as SampleMeta) : undefined;
-	}
-
-	get isEffect(): boolean {
-		return this.hasOpType(OpType.Effect);
-	}
-
-	get asEffect(): EffectMeta | undefined {
-		return this.isEffect ? (this._meta as EffectMeta) : undefined;
-	}
-
-	get isDerived(): boolean {
-		if (this.isStore || this.isEvent || this.isDomain) {
-			return !!(this._meta as UnitMeta).derived;
-		} else {
-			return false;
-		}
-	}
-
-	get isCombinedStore(): boolean {
-		return Boolean(this.asStore?.isCombine);
-	}
-
-	get name(): string | undefined {
-		if (this.isStore) {
-			const storeMeta = ensureDefined(this.asStore);
-			if (storeMeta.isCombine && storeMeta.name.startsWith('combine($')) return 'combined';
-			else return storeMeta.name;
-		} else if (this.isEvent || this.isDomain || this.isEffect) {
-			const name = (this._meta as UnitMeta).name as NonNullable<unknown>;
-			if (typeof name !== 'string') {
-				console.warn(`Unexpected non-string name:`, name, this);
-				return String(name);
-			}
-			return name;
-		} else if (this.isSample) {
-			return this.asSample?.joint ? 'joint sample' : 'sample';
-		} else {
-			if (this._meta.op === undefined) {
-				return `${this._meta.method}(${this._meta.name})`;
-			}
-			return undefined;
-		}
-	}
-
-	get loc(): SourceLocation | undefined {
-		// loc present in unit, factory, or sample
-		if (!this.isUnit && !this.isFactory && !this.isSample) return undefined;
-		let loc: SourceLocation | undefined;
-		if (this.isUnit) {
-			loc = (this._meta as UnitMeta).config?.loc;
-		} else if (this.isFactory) {
-			loc = (this._meta as NoOpMeta).loc;
-		} else if (this.isSample) {
-			loc = (this._meta as SampleMeta).loc;
-		}
-		return loc;
-	}
-}
-
-export class EffectorDeclarationDetails {
-	get declaration(): Declaration {
-		return this._declaration;
-	}
-
-	private readonly _declaration: Declaration;
-
-	constructor(declaration: Declaration) {
-		this._declaration = declaration;
-	}
-
-	get type(): 'unit' | 'factory' | 'region' {
-		return this._declaration.type;
-	}
-
-	get meta(): Record<string, unknown> {
-		return this._declaration.meta;
-	}
-
-	get parentId(): string | undefined {
-		return getRegionId(this._declaration.region);
-	}
-}
-
-function getRegionId(region: Region | undefined): string | undefined {
-	return region && 'id' in region && typeof region.id === 'string' ? region.id : undefined;
 }
 
 type BaseNode<T> = {

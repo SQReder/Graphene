@@ -2,13 +2,17 @@ import { type Unit } from 'effector';
 import type { Comparator } from './comparison';
 import { combineComparators } from './comparison';
 import { createReactiveEdge, createSourceEdge } from './edge-factories';
+import { EdgeType } from './EdgeType';
+import { ensureDefined } from './ensureDefined';
 import { layoutGraph } from './layouters';
 import type { Layouter } from './layouters/types';
+import { type MetaHelper } from './MetaHelper';
+import { MetaType } from './MetaType';
+import { OpType } from './OpType';
 import {
 	CombinatorType,
 	type CombinedNode,
 	type DeclarationEffectorNode,
-	EdgeType,
 	type EffectorGraph,
 	type EffectorNode,
 	EffectorNodeDetails,
@@ -17,11 +21,8 @@ import {
 	type GateNode,
 	type Graphite,
 	type Meta,
-	type MetaHelper,
-	MetaType,
 	type MyEdge,
 	NodeFamily,
-	OpType,
 	type ParentToChildEdge,
 	type ReactiveEdge,
 	type RegularEffectorDetails,
@@ -541,15 +542,6 @@ export function findNodesByOpType(
 	extraFilter: (node: RegularEffectorNode) => boolean = () => true,
 ): RegularEffectorNode[] {
 	return nodes.filter(isRegularNode).filter((node) => node.data.effector.meta.hasOpType(opType) && extraFilter(node));
-}
-
-export function ensureDefined<T>(value: T, message?: string): NonNullable<T> {
-	if (value === null || value === undefined) {
-		const errorMessage = message ?? `Expected a value, but received ${value === null ? 'null' : 'undefined'}`;
-		console.error(errorMessage);
-		throw new RangeError(errorMessage);
-	}
-	return value;
 }
 
 export function assertDefined<T>(value: T, variableName?: string): asserts value is NonNullable<T> {

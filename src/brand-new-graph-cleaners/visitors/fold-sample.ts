@@ -1,7 +1,8 @@
 import type { Comparator } from '../../comparison';
 import { createReactiveEdge, createSourceEdge } from '../../edge-factories';
 import { isReactiveEdge, isRegularNode, isSourceEdge } from '../../lib';
-import { type EffectorNode, type MyEdge, OpType } from '../../types';
+import { OpType } from '../../OpType';
+import type { EffectorNode, MyEdge } from '../../types';
 import type { NamedGraphVisitor } from '../types';
 
 const collator = new Intl.Collator('ru', { numeric: true });

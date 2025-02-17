@@ -30,5 +30,24 @@ interface FlowFn {
  * console.log(myFlow(5)); // Вернет 13
  */
 export const flow: FlowFn = (...fns: Array<PipeFunction<unknown, unknown>>): PipeFunction<unknown, unknown> => {
-	return (value) => fns.reduce((acc, fn) => fn(acc), value);
+	console.group('🌊 Flow Function');
+	console.log('📥 Received functions:', fns);
+
+	return (value) => {
+		console.group('🔄 Flow Execution');
+		console.log('🚀 Initial value:', value);
+
+		const result = fns.reduce((acc, fn, index) => {
+			console.log(`🔹 Step ${index + 1}: ${fn.name}`);
+			console.log('  ⮕ Input:', acc);
+			const output = fn(acc);
+			console.log('  ⬅ Output:', output);
+			return output;
+		}, value);
+
+		console.log('🏁 Final result:', result);
+		console.groupEnd();
+		console.groupEnd();
+		return result;
+	};
 };

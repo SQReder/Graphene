@@ -1,5 +1,7 @@
-import { ensureDefined, isRegularNode } from './lib';
-import type { EffectorGraph, EffectorNode, MyEdge, OpType, RegularEffectorNode } from './types';
+import { ensureDefined } from './ensureDefined';
+import { isRegularNode } from './lib';
+import type { OpType } from './OpType';
+import type { EffectorGraph, EffectorNode, MyEdge, RegularEffectorNode } from './types';
 
 type NodeId = string;
 type EdgeId = string;

@@ -1,5 +1,6 @@
+import { ensureDefined } from '../ensureDefined';
 import type { BufferedGraph } from '../graph-manager';
-import { ensureDefined, withOrder } from '../lib';
+import { withOrder } from '../lib';
 import type { NamedGraphVisitor } from './types';
 import { bindHandlersToAttachedFx } from './visitors/bind-attached-fx-to-handler';
 import { detachFactories } from './visitors/detach-factories';

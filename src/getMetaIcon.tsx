@@ -1,7 +1,8 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { type ReactNode } from 'react';
 import { absurd } from './lib';
-import { MetaType, OpType } from './types';
+import { MetaType } from './MetaType';
+import { OpType } from './OpType';
 
 export const getMetaIcon = (meta: { op: OpType | undefined; type?: MetaType; attached?: number }): ReactNode => {
 	switch (meta.op) {

@@ -1,6 +1,7 @@
 import { createLinkEdge, createReactiveEdge, createSourceEdge } from './edge-factories';
 import { unique } from './lib';
-import { type EffectorNode, type MyEdge, type OpType, OpTypeWithCycles } from './types';
+import { type OpType, OpTypeWithCycles } from './OpType';
+import type { EffectorNode, MyEdge } from './types';
 
 type NodeId = string;
 
@@ -132,8 +133,7 @@ export function cleanupEdges(edges: MyEdge[], nodes: EffectorNode[]): MyEdge[] {
 				const targetNodeOp = getNodeOp(targetNode);
 
 				// If the target node's operation type is in OpTypeWithCycles, remove the incoming edge
-				// @ts-ignore
-				if (Object.values(OpTypeWithCycles).includes(targetNodeOp)) {
+				if ((Object.values(OpTypeWithCycles) as OpType[]).includes(targetNodeOp)) {
 					// Skip adding this edge (effectively removing it)
 					return;
 				}

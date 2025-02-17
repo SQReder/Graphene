@@ -1,7 +1,8 @@
 import { createFactory, invoke } from '@withease/factories';
 import { attach, combine, createEvent, createStore, restore, sample } from 'effector';
 import { createGate } from 'effector-react';
-import { debounce, debug, readonly, throttle } from 'patronum';
+import { readonly, throttle } from 'patronum';
+import type { EdgeType } from '../EdgeType';
 import type { Layouter } from '../layouters/types';
 import {
 	absurd,
@@ -17,7 +18,6 @@ import {
 	isRegularNode,
 	isSourceEdge,
 } from '../lib';
-import type { EdgeType } from '../types';
 import { type EffectorNode, type MyEdge } from '../types';
 import { generatedGraphModelFactory } from './generatedGraph';
 import type { GrapheneModel } from './graphene';
@@ -81,12 +81,24 @@ export const appModelFactory = createFactory(
 			const { width, height } = size;
 			const { x, y, zoom } = posAndZoom;
 
+			const overscanRatio = 0.1;
+			// Add overscan (50% of viewport size)
+			const overscanX = (width / zoom) * overscanRatio;
+			const overscanY = (height / zoom) * overscanRatio;
+
 			return {
 				// Convert viewport coordinates to content coordinates
-				left: -x / zoom,
-				right: (-x + width) / zoom,
-				top: -y / zoom,
-				bottom: (-y + height) / zoom,
+				left: -x / zoom - overscanX,
+				right: (-x + width) / zoom + overscanX,
+				top: -y / zoom - overscanY,
+				bottom: (-y + height) / zoom + overscanY,
+				// Add original viewport bounds for debugging/visualization
+				visible: {
+					left: -x / zoom,
+					right: (-x + width) / zoom,
+					top: -y / zoom,
+					bottom: (-y + height) / zoom,
+				},
 			};
 		});
 
@@ -246,33 +258,107 @@ export const appModelFactory = createFactory(
 			}
 		});
 
+		// Helper functions for line-rectangle intersection
+		function lineIntersectsRect(
+			x1: number,
+			y1: number, // Line start point
+			x2: number,
+			y2: number, // Line end point
+			rectLeft: number,
+			rectTop: number,
+			rectRight: number,
+			rectBottom: number,
+		): boolean {
+			// Check if either endpoint is inside the rectangle
+			if (x1 >= rectLeft && x1 <= rectRight && y1 >= rectTop && y1 <= rectBottom) return true;
+			if (x2 >= rectLeft && x2 <= rectRight && y2 >= rectTop && y2 <= rectBottom) return true;
+
+			// Check intersection with each edge of the rectangle
+			return (
+				lineIntersectsLine(x1, y1, x2, y2, rectLeft, rectTop, rectRight, rectTop) || // Top edge
+				lineIntersectsLine(x1, y1, x2, y2, rectRight, rectTop, rectRight, rectBottom) || // Right edge
+				lineIntersectsLine(x1, y1, x2, y2, rectRight, rectBottom, rectLeft, rectBottom) || // Bottom edge
+				lineIntersectsLine(x1, y1, x2, y2, rectLeft, rectBottom, rectLeft, rectTop) // Left edge
+			);
+		}
+
+		function lineIntersectsLine(
+			x1: number,
+			y1: number,
+			x2: number,
+			y2: number,
+			x3: number,
+			y3: number,
+			x4: number,
+			y4: number,
+		): boolean {
+			// Calculate denominators
+			const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+			if (denom === 0) return false; // Lines are parallel
+
+			const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+			const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+			// Return true if the intersection is within both line segments
+			return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+		}
+
 		const $virtualizedGraph = combine(
 			{ nodes: $visibleNodes, edges: $filteredEdges, viewport: $viewport },
 			({ nodes, edges, viewport }) => {
-				const nodesInViewport = nodes.filter(
-					(node) =>
-						node.position.x + (node.width ?? 0) > viewport.left &&
-						node.position.x < viewport.right &&
-						node.position.y + (node.height ?? 0) > viewport.top &&
-						node.position.y < viewport.bottom,
+				// Create a lookup for node positions and dimensions
+				const nodePositions = new Map(
+					nodes.map((node) => [
+						node.id,
+						{
+							x: node.position.x + (node.width ?? 0) / 2, // Center x
+							y: node.position.y + (node.height ?? 0) / 2, // Center y
+							width: node.width ?? 0,
+							height: node.height ?? 0,
+						},
+					]),
 				);
 
-				const viewportNodeIdsSet = new Set(nodesInViewport.map((node) => node.id));
+				// Find edges that intersect with viewport (including overscan)
+				const edgesInViewport = edges.filter((edge) => {
+					const sourcePos = nodePositions.get(edge.source);
+					const targetPos = nodePositions.get(edge.target);
 
-				const edgesInViewport = edges.filter(
-					(edge) => viewportNodeIdsSet.has(edge.source) || viewportNodeIdsSet.has(edge.target),
-				);
+					if (!sourcePos || !targetPos) return false;
 
-				const allConnectedNodeIds = new Set<string>();
+					return lineIntersectsRect(
+						sourcePos.x,
+						sourcePos.y,
+						targetPos.x,
+						targetPos.y,
+						viewport.left,
+						viewport.top,
+						viewport.right,
+						viewport.bottom,
+					);
+				});
+
+				// Collect all nodes connected to viewport-intersecting edges
+				const relatedNodeIds = new Set<string>();
 				for (const edge of edgesInViewport) {
-					allConnectedNodeIds.add(edge.source);
-					allConnectedNodeIds.add(edge.target);
+					relatedNodeIds.add(edge.source);
+					relatedNodeIds.add(edge.target);
 				}
 
-				const allRelatedNodes = nodes.filter((node) => allConnectedNodeIds.has(node.id));
+				const relatedNodes = nodes.filter((node) => relatedNodeIds.has(node.id));
 
-				console.log(allRelatedNodes.length, 'related nodes');
+				console.log(relatedNodes.length, 'related nodes');
 				console.log(edgesInViewport.length, 'edges in viewport');
+				console.log(
+					'viewport with overscan:',
+					Math.round(viewport.right - viewport.left),
+					'x',
+					Math.round(viewport.bottom - viewport.top),
+					'visible:',
+					Math.round(viewport.visible.right - viewport.visible.left),
+					'x',
+					Math.round(viewport.visible.bottom - viewport.visible.top),
+				);
 
 				return {
 					nodes: nodes,

@@ -15,7 +15,7 @@ const isRegionRoot = (node: RegularEffectorNode) => {
 	// пытаемся по косвенным признакам определить корневой узел региона
 	const graphite = node.data.effector.graphite;
 	const emptyMeta = hasNoFields(graphite.meta);
-	const emptyScope = hasNoFields(graphite.scope);
+	const emptyScope = !graphite.scope || hasNoFields(graphite.scope);
 	const noNextLinks = graphite.next.length === 0;
 	const noSeqItems = 'seq' in graphite && Array.isArray(graphite.seq) && graphite.seq.length === 0;
 
